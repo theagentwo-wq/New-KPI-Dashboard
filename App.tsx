@@ -55,7 +55,11 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     }, [title]);
 
     return (
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col justify-between">
+        <motion.div 
+            className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col justify-between"
+            whileHover={{ scale: 1.03 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        >
             <div className="flex items-center justify-between text-slate-400">
                 <span className="font-semibold">{title}</span>
                 <Icon name={iconName} className="w-6 h-6" />
@@ -68,7 +72,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
                     {isNaN(variance) ? '' : `${variance > 0 ? '+' : ''}${formatDisplayValue(variance, title)}`}
                 </p>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
@@ -93,7 +97,7 @@ const CustomBar = (props: any) => {
 const App: React.FC = () => {
     // State
     const [allData, setAllData] = useState<StorePerformanceData[]>(generateMockPerformanceData());
-    const [budgets] = useState<Budget[]>(generateMockBudgets());
+    const [budgets, setBudgets] = useState<Budget[]>(generateMockBudgets());
     const [goals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
 
@@ -183,14 +187,30 @@ const App: React.FC = () => {
 
     }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate]);
     
-    const allStoresPeriodData = useMemo(() => {
+    const allStoresBreakdownData = useMemo(() => {
         const currentPeriodData = getPeriodData(currentPeriod);
-        const storesData: { [storeId: string]: PerformanceData } = {};
+        let comparisonPeriodData: StorePerformanceData[] = [];
+        if (comparisonMode === 'vs. Prior Period') {
+            comparisonPeriodData = getPeriodData(getPreviousPeriod(currentPeriod));
+        } else if (comparisonMode === 'vs. Last Year') {
+            comparisonPeriodData = getPeriodData(getYoYPeriod(currentPeriod));
+        }
+    
+        const results: { [storeId: string]: { actual: PerformanceData; comparison?: PerformanceData; variance: PerformanceData; } } = {};
+    
         ALL_STORES.forEach(storeId => {
-            storesData[storeId] = aggregate(currentPeriodData, [storeId]);
+            const actual = aggregate(currentPeriodData, [storeId]);
+            const comparison = comparisonMode === 'vs. Budget'
+                ? budgets.find(b => b.storeId === storeId /* && matches period */)?.targets // Simplified
+                : aggregate(comparisonPeriodData, [storeId]);
+            const variance = ALL_KPIS.reduce((acc, kpi) => {
+                acc[kpi] = (actual[kpi] || 0) - (comparison?.[kpi] || 0);
+                return acc;
+            }, {} as PerformanceData);
+            results[storeId] = { actual, comparison, variance };
         });
-        return storesData;
-    }, [currentPeriod, getPeriodData, aggregate]);
+        return results;
+    }, [currentPeriod, comparisonMode, getPeriodData, aggregate, budgets, allData]);
 
     const summaryData = useMemo(() => {
         const sourceData = currentView === 'Total Company'
@@ -316,22 +336,48 @@ const App: React.FC = () => {
         setLocationInsightsOpen(true);
     };
     
-    const addNote = useCallback((periodLabel: string, category: NoteCategory, content: string, storeId?: string) => {
+    const addNote = useCallback((periodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }) => {
         const newNote: Note = { 
             id: new Date().toISOString(), 
             periodLabel, 
-            view: currentView, 
+            view: scope.view, 
             category, 
             content, 
-            storeId 
+            storeId: scope.storeId 
         };
         setNotes(prev => [...prev, newNote]);
-    }, [currentView]);
+    }, []);
 
     const handleSaveData = (storeId: string, weekStartDate: Date, data: PerformanceData) => {
         const newDataEntry: StorePerformanceData = { storeId, weekStartDate, data };
         setAllData(prev => [...prev.filter(d => !(d.storeId === storeId && d.weekStartDate.getTime() === weekStartDate.getTime())), newDataEntry]);
     };
+
+    const handleUpdateBudget = useCallback((storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
+      setBudgets(prevBudgets => {
+        const newBudgets = [...prevBudgets];
+        const budgetIndex = newBudgets.findIndex(b => b.storeId === storeId && b.year === year && b.month === month);
+        
+        if (budgetIndex > -1) {
+          newBudgets[budgetIndex] = {
+            ...newBudgets[budgetIndex],
+            targets: {
+              ...newBudgets[budgetIndex].targets,
+              [kpi]: target,
+            }
+          };
+        } else {
+          const newBudget: Budget = {
+            storeId,
+            year,
+            month,
+            targets: { [kpi]: target } as PerformanceData
+          };
+          newBudgets.push(newBudget);
+        }
+        return newBudgets;
+      });
+    }, []);
 
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -347,39 +393,45 @@ const App: React.FC = () => {
                 <KPICard title={Kpi.VariableLabor} value={summaryData[Kpi.VariableLabor] || 0} variance={summaryVariance[Kpi.VariableLabor] || 0} />
                 <KPICard title={Kpi.CulinaryAuditScore} value={summaryData[Kpi.CulinaryAuditScore] || 0} variance={summaryVariance[Kpi.CulinaryAuditScore] || 0} />
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-cyan-400">Performance Chart</h3>
-                         <select value={selectedChartKpi} onChange={(e) => setSelectedChartKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-1 text-sm focus:ring-cyan-500 focus:border-cyan-500">
-                             {ALL_KPIS.map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
-                         </select>
-                    </div>
-                    <ResponsiveContainer width="100%" height={400}>
-                        <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                             <defs>
-                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#0891b2" stopOpacity={0.9}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => formatDisplayValue(val, selectedChartKpi)} />
-                            <YAxis type="category" dataKey="name" stroke="#9ca3af" width={120} />
-                            <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} formatter={(value: number) => formatDisplayValue(value, selectedChartKpi)} cursor={{fill: 'rgba(100, 116, 139, 0.1)'}}/>
-                            <Legend />
-                            <Bar dataKey="Actual" fill="url(#barGradient)" shape={<CustomBar />} />
-                            <Bar dataKey="Comparison" fill="#64748b" shape={<CustomBar />} />
-                        </BarChart>
-                    </ResponsiveContainer>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                     {currentView !== 'Total Company' 
+                        ? <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} />
+                        : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} />
+                    }
                 </div>
-                <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} />
+                <div className="lg:col-span-1 space-y-6 flex flex-col">
+                    <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                         <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-cyan-400">Performance Chart</h3>
+                             <select value={selectedChartKpi} onChange={(e) => setSelectedChartKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-1 text-sm focus:ring-cyan-500 focus:border-cyan-500">
+                                 {ALL_KPIS.map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
+                             </select>
+                        </div>
+                        <ResponsiveContainer width="100%" height={400}>
+                            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                 <defs>
+                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="#0891b2" stopOpacity={0.9}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => formatDisplayValue(val, selectedChartKpi)} />
+                                <YAxis type="category" dataKey="name" stroke="#9ca3af" width={120} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} formatter={(value: number) => formatDisplayValue(value, selectedChartKpi)} cursor={{fill: 'rgba(100, 116, 139, 0.1)'}}/>
+                                <Legend />
+                                <Bar dataKey="Actual" fill="url(#barGradient)" shape={<CustomBar />} />
+                                <Bar dataKey="Comparison" fill="#64748b" shape={<CustomBar />} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                    <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} />
+                </div>
             </div>
-            {currentView !== 'Total Company' 
-                ? <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} />
-                : <CompanyStoreRankings data={allStoresPeriodData} selectedKpi={selectedChartKpi} onLocationSelect={handleLocationSelect} />
-            }
-            <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+
             <div className="flex gap-4">
                 <button onClick={() => setScenarioModelerOpen(true)} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">Run What-If Scenario</button>
                 <button onClick={() => setDataEntryOpen(true)} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">Data Entry</button>
@@ -444,7 +496,7 @@ const App: React.FC = () => {
               <AnimatePresence mode="wait">
                   <motion.div key={currentPage} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} >
                       {currentPage === 'Dashboard' && renderDashboard()}
-                      {currentPage === 'Budget Planner' && <BudgetPlanner />}
+                      {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
                       {currentPage === 'Goal Setter' && <GoalSetter />}
                   </motion.div>
               </AnimatePresence>
@@ -452,7 +504,7 @@ const App: React.FC = () => {
           
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
-          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={selectedChartKpi} />
+          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={selectedChartKpi} period={currentPeriod} />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} />
       </div>
     );

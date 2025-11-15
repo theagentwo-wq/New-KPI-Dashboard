@@ -5,7 +5,7 @@ import { ALL_PERIODS } from '../utils/dateUtils';
 
 interface NotesPanelProps {
   allNotes: Note[];
-  addNote: (periodLabel: string, category: NoteCategory, content: string, storeId?: string) => void;
+  addNote: (periodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }) => void;
   currentView: View;
   mainDashboardPeriod: Period;
 }
@@ -14,43 +14,58 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, curre
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>('General');
   
-  // State for the panel's own filters
   const [selectedPeriodLabel, setSelectedPeriodLabel] = useState(mainDashboardPeriod.label);
-  const [selectedStore, setSelectedStore] = useState<string>('area');
+  
+  // The scope can be a director, total company, or a specific store
+  const defaultScope = JSON.stringify({ view: currentView });
+  const [selectedScope, setSelectedScope] = useState<string>(defaultScope);
 
-  // When the main dashboard's week changes, update this panel's selected week
   useEffect(() => {
     setSelectedPeriodLabel(mainDashboardPeriod.label);
-  }, [mainDashboardPeriod]);
+    setSelectedScope(JSON.stringify({ view: currentView }));
+  }, [mainDashboardPeriod, currentView]);
   
   const handleAddNote = () => {
     if (content.trim()) {
-      const storeId = selectedStore === 'area' ? undefined : selectedStore;
-      addNote(selectedPeriodLabel, category, content, storeId);
+      const scope = JSON.parse(selectedScope);
+      addNote(selectedPeriodLabel, category, content, scope);
       setContent('');
       setCategory('General');
     }
   };
-  
-  const directorStores = currentView !== 'Total Company' 
-    ? DIRECTORS.find(d => d.id === currentView)?.stores || []
-    : ALL_STORES;
+
+  const noteScopeOptions = useMemo(() => {
+    const options: { label: string, value: string }[] = [];
+    if (currentView === 'Total Company') {
+      options.push({ label: "Total Company Note", value: JSON.stringify({ view: 'Total Company' }) });
+      DIRECTORS.forEach(d => {
+        options.push({ label: `Note for ${d.name}'s Region`, value: JSON.stringify({ view: d.id }) });
+      });
+    } else {
+      const director = DIRECTORS.find(d => d.id === currentView);
+      if (director) {
+        options.push({ label: `Note for ${director.name}'s Region`, value: JSON.stringify({ view: director.id }) });
+        director.stores.forEach(store => {
+          options.push({ label: store, value: JSON.stringify({ view: director.id, storeId: store }) });
+        });
+      }
+    }
+    return options;
+  }, [currentView]);
 
   const weeklyPeriods = useMemo(() => ALL_PERIODS.filter(p => p.type === 'Week'), []);
   
   const filteredNotes = useMemo(() => {
+    const scope = JSON.parse(selectedScope);
     return allNotes.filter(note => 
       note.periodLabel === selectedPeriodLabel &&
-      (currentView === 'Total Company' || note.view === currentView)
-    ).filter(note => {
-        if (selectedStore === 'area') return true;
-        return note.storeId === selectedStore;
-    });
-  }, [allNotes, selectedPeriodLabel, currentView, selectedStore]);
-
+      note.view === scope.view &&
+      note.storeId === scope.storeId
+    );
+  }, [allNotes, selectedPeriodLabel, selectedScope]);
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 h-[500px] flex flex-col">
+    <div className="bg-slate-800 rounded-lg border border-slate-700 h-[350px] flex flex-col">
       <div className="p-4 border-b border-slate-700 space-y-2">
         <h3 className="text-lg font-bold text-cyan-400">Notes</h3>
         <div className="grid grid-cols-2 gap-2">
@@ -62,12 +77,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, curre
                 {weeklyPeriods.map(p => <option key={p.label} value={p.label}>{p.label}</option>)}
             </select>
             <select
-                value={selectedStore}
-                onChange={(e) => setSelectedStore(e.target.value)}
+                value={selectedScope}
+                onChange={(e) => setSelectedScope(e.target.value)}
                 className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
                 >
-                <option value="area">Area as a Whole</option>
-                {directorStores.map(store => <option key={store} value={store}>{store}</option>)}
+                {noteScopeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
         </div>
       </div>
@@ -79,7 +93,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, curre
             <div key={note.id} className="bg-slate-700 p-3 rounded-md">
               <div className="flex justify-between items-baseline">
                 <p className="text-xs font-bold text-cyan-400">{note.category}</p>
-                <p className="text-xs text-slate-400">{note.storeId || 'Area as a whole'}</p>
+                <p className="text-xs text-slate-400">{note.storeId || `${note.view}'s Region`}</p>
               </div>
               <p className="text-sm text-slate-200 whitespace-pre-wrap mt-1">{note.content}</p>
             </div>
@@ -90,8 +104,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, curre
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder={`Add new note for ${selectedStore === 'area' ? 'Area' : selectedStore}...`}
-          rows={3}
+          placeholder={`Add new note...`}
+          rows={2}
           className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
         />
         <div className="flex flex-wrap justify-between items-center gap-2">

@@ -114,6 +114,35 @@ ${formattedData}`;
   }
 };
 
+export const getDirectorPerformanceSnapshot = async (directorName: string, periodLabel: string, directorData: PerformanceData): Promise<string> => {
+    if (!ai) return "AI features disabled. API key missing.";
+    try {
+        const formattedData = Object.entries(directorData)
+            .map(([kpi, value]) => `${kpi}: ${value.toFixed(4)}`)
+            .join('\n');
+
+        const prompt = `${AI_CONTEXT}
+Based on the aggregated performance data for director ${directorName}'s region for the period "${periodLabel}", provide a concise performance snapshot.
+Format the response using markdown with these exact three headers: ### 🏆 Key Win, ### 📉 Key Challenge, and ### 🎯 Strategic Focus.
+For the "Key Win", identify the top-performing KPI and briefly explain its positive impact.
+For the "Key Challenge", identify the most significant underperforming KPI and its negative impact.
+For the "Strategic Focus", provide a single, clear, actionable recommendation based on restaurant industry best practices to improve the key challenge.
+
+Data:
+${formattedData}`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text;
+    } catch (error) {
+        console.error("Error fetching director snapshot:", error);
+        return "Could not generate performance snapshot at this time.";
+    }
+};
+
 
 export const getWeatherImpact = async (location: string): Promise<string> => {
     if (!ai) return "AI features disabled. API key missing.";
