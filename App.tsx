@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Rectangle } from 'recharts';
 import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory } from './types';
@@ -108,6 +108,7 @@ const App: React.FC = () => {
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [savedViews, setSavedViews] = useState<SavedView[]>([]);
     const [selectedChartKpi, setSelectedChartKpi] = useState<Kpi>(Kpi.Sales);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     
     // Modal States
     const [isDataEntryOpen, setDataEntryOpen] = useState(false);
@@ -116,6 +117,22 @@ const App: React.FC = () => {
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    });
+                },
+                (error) => {
+                    console.error("Error getting user location:", error);
+                }
+            );
+        }
+    }, []);
 
     const getPeriodData = useCallback((period: Period | undefined) => {
         if (!period) return [];
@@ -428,7 +445,7 @@ const App: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
                     <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
-                    <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} />
+                    <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
             </div>
 

@@ -1,20 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getInsights, getTrendAnalysis } from '../services/geminiService';
 import { View, Period, PerformanceData } from '../types';
+import { marked } from 'marked';
 
 interface AIAssistantProps {
   data: any;
   historicalData: { periodLabel: string; data: PerformanceData }[];
   view: View;
   period: Period;
+  userLocation: { latitude: number; longitude: number } | null;
 }
 
 interface Message {
   sender: 'user' | 'ai';
   text: string;
+  html?: string;
 }
 
-export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, view, period }) => {
+export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, view, period, userLocation }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,14 +25,19 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
 
   const defaultPrompts = [
     "Analyze Trends",
-    "Which store is performing best in Sales?",
-    "What's the biggest issue in my region?",
+    "Which of my stores are near a convention center?",
+    "What are recent google reviews saying about my Omaha location?",
     "Summarize the prime cost performance.",
   ];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+  
+  const processAIResponse = async (text: string): Promise<Message> => {
+    const html = await marked.parse(text);
+    return { sender: 'ai', text, html };
+  }
 
   const handleSend = async (query?: string) => {
     const userQuery = query || input;
@@ -40,8 +48,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
     setInput('');
     setIsLoading(true);
 
-    const aiResponse = await getInsights(data, view, period.label, userQuery);
-    setMessages([...newMessages, { sender: 'ai', text: aiResponse }]);
+    const aiResponseText = await getInsights(data, view, period.label, userQuery, userLocation);
+    const aiResponse = await processAIResponse(aiResponseText);
+    setMessages([...newMessages, aiResponse]);
     setIsLoading(false);
   };
 
@@ -53,8 +62,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
     setMessages(newMessages);
     setIsLoading(true);
 
-    const aiResponse = await getTrendAnalysis(historicalData, view);
-    setMessages([...newMessages, { sender: 'ai', text: aiResponse }]);
+    const aiResponseText = await getTrendAnalysis(historicalData, view);
+    const aiResponse = await processAIResponse(aiResponseText);
+    setMessages([...newMessages, aiResponse]);
     setIsLoading(false);
   };
 
@@ -73,7 +83,11 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-200'}`}>
-              <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+              {msg.html ? (
+                <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: msg.html }}></div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+              )}
             </div>
           </div>
         ))}

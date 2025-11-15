@@ -75,21 +75,63 @@ export const getExecutiveSummary = async (data: any, view: View, periodLabel: st
   }
 };
 
-export const getInsights = async (data: any, view: View, periodLabel: string, query: string): Promise<string> => {
+export const getInsights = async (
+    data: any,
+    view: View,
+    periodLabel: string,
+    query: string,
+    userLocation?: { latitude: number; longitude: number } | null
+): Promise<string> => {
     if (!ai) return "AI features disabled. API key missing.";
     try {
-      const formattedData = formatDataForAI(data, view, 'All');
-      const prompt = `${AI_CONTEXT} The user is looking at data for ${periodLabel} for the view "${view}". Answer their question based on the data provided.\n\nData:\n${formattedData}\n\nQuestion: ${query}`;
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
+        const formattedData = formatDataForAI(data, view, 'All');
+        const prompt = `${AI_CONTEXT} The user is looking at data for ${periodLabel} for the view "${view}". Answer their question based on the data provided. If relevant, use your tools to incorporate real-world geographic information.\n\nData:\n${formattedData}\n\nQuestion: ${query}`;
 
-      return response.text;
+        const modelConfig: any = {};
+        if (userLocation) {
+            modelConfig.tools = [{ googleMaps: {} }];
+            modelConfig.toolConfig = {
+                retrievalConfig: {
+                    latLng: {
+                        latitude: userLocation.latitude,
+                        longitude: userLocation.longitude,
+                    }
+                }
+            };
+        }
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: modelConfig,
+        });
+
+        let content = response.text;
+        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (groundingChunks && groundingChunks.length > 0) {
+            const sources = new Set<string>();
+            groundingChunks.forEach((chunk: any) => {
+                if (chunk.maps?.uri) {
+                    sources.add(`[${chunk.maps.title || 'Google Maps Location'}](${chunk.maps.uri})`);
+                }
+                if (chunk.maps?.placeAnswerSources?.reviewSnippets) {
+                    chunk.maps.placeAnswerSources.reviewSnippets.forEach((snippet: any) => {
+                        if (snippet.uri) {
+                            sources.add(`[Review Snippet](${snippet.uri})`);
+                        }
+                    });
+                }
+            });
+
+            if (sources.size > 0) {
+                content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
+            }
+        }
+        return content;
+
     } catch (error) {
-      console.error("Error fetching insights:", error);
-      return "I'm sorry, I couldn't process that request.";
+        console.error("Error fetching insights:", error);
+        return "I'm sorry, I couldn't process that request.";
     }
 };
 
