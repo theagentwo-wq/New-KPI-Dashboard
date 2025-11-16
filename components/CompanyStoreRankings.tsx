@@ -125,7 +125,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
     };
 
     return (
-        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+        <div className="bg-slate-800 rounded-lg border border-slate-700">
             <div className="p-4 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-cyan-400">Company Snapshot</h3>
                  <div className="relative">

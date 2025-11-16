@@ -74,7 +74,7 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
     };
 
     return (
-        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+        <div className="bg-slate-800 rounded-lg border border-slate-700">
             <div className="p-4 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-cyan-400">Store Breakdown</h3>
                 <div className="relative">
