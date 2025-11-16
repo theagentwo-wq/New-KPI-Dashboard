@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { DirectorProfile, Kpi, Period } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
 import { marked } from 'marked';
+import { KPI_CONFIG } from '../constants';
 
 interface DirectorProfileModalProps {
   isOpen: boolean;
@@ -49,9 +50,15 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   if (!director) return null;
 
   const topStore = director.stores.reduce((best, current) => {
-    const bestPerf = performanceData?.[best]?.actual?.[selectedKpi] ?? -Infinity;
-    const currentPerf = performanceData?.[current]?.actual?.[selectedKpi] ?? -Infinity;
-    return currentPerf > bestPerf ? current : best;
+    const kpiConfig = KPI_CONFIG[selectedKpi];
+    const bestPerf = performanceData?.[best]?.actual?.[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    const currentPerf = performanceData?.[current]?.actual?.[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    
+    if (kpiConfig.higherIsBetter) {
+      return currentPerf > bestPerf ? current : best;
+    } else {
+      return currentPerf < bestPerf ? current : best;
+    }
   }, director.stores[0]);
 
   return (
@@ -75,6 +82,14 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
             </div>
           </div>
           
+          <div>
+            <h4 className="text-lg font-bold text-slate-300 mb-2">Performance Highlight</h4>
+            <p className="text-slate-400 text-sm">
+              Top performing store for <span className="font-bold text-cyan-400">{selectedKpi}</span> this period:
+              <span className="font-bold text-white block mt-1 text-base">{topStore}</span>
+            </p>
+          </div>
+
           <div className="mt-4 p-4 bg-slate-900 rounded-md border border-slate-700">
             <h4 className="text-lg font-bold text-cyan-400 mb-2">AI Performance Snapshot</h4>
              {isLoading ? (

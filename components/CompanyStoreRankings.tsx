@@ -47,23 +47,32 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
 
     const sortedStores = useMemo(() => {
-        // FIX: Explicitly type storeArray to ensure correct type inference for sorting and mapping.
         const storeArray: [string, typeof data[string]][] = Object.entries(data);
         if (sortConfig !== null) {
             storeArray.sort(([, a], [, b]) => {
                 const aValue = a.actual[sortConfig.key] || 0;
                 const bValue = b.actual[sortConfig.key] || 0;
                 
-                let order = 1;
-                if (sortConfig.direction === 'descending') {
-                    order = KPI_CONFIG[sortConfig.key].higherIsBetter ? 1 : -1;
-                } else {
-                    order = KPI_CONFIG[sortConfig.key].higherIsBetter ? -1 : 1;
+                const higherIsBetter = KPI_CONFIG[sortConfig.key].higherIsBetter;
+                
+                let comparison = 0;
+                if (aValue > bValue) {
+                    comparison = 1;
+                } else if (aValue < bValue) {
+                    comparison = -1;
                 }
 
-                if (aValue < bValue) return -1 * order;
-                if (aValue > bValue) return 1 * order;
-                return 0;
+                // If lower is better, we invert the comparison so lower values are "greater"
+                if (!higherIsBetter) {
+                    comparison *= -1;
+                }
+
+                // If descending, we invert the final comparison
+                if (sortConfig.direction === 'descending') {
+                    comparison *= -1;
+                }
+
+                return comparison;
             });
         }
         return storeArray;
