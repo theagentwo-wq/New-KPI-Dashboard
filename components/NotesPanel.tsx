@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Note, NoteCategory, View, Period } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS, NOTE_CATEGORY_COLORS } from '../constants';
-import { getMonthlyPeriodForDate } from '../utils/dateUtils';
+import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { getNoteTrends } from '../services/geminiService';
@@ -23,6 +23,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find(p => p.type === 'Month')!, [mainDashboardPeriod]);
+  const [notesPeriod, setNotesPeriod] = useState<Period>(initialMonthlyPeriod);
+
   const defaultScope = JSON.stringify({ view: currentView });
   const [selectedScope, setSelectedScope] = useState<string>(defaultScope);
 
@@ -37,11 +40,33 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
 
-  const currentMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate), [mainDashboardPeriod]);
+  // Sync notes period with main dashboard if the month changes
+  useEffect(() => {
+    const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
+    if (newMonthlyPeriod && newMonthlyPeriod.label !== notesPeriod.label) {
+      setNotesPeriod(newMonthlyPeriod);
+    }
+  }, [mainDashboardPeriod, notesPeriod.label]);
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
   }, [currentView]);
+
+  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter(p => p.type === 'Month'), []);
+
+  const handlePrevPeriod = () => {
+    const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex > 0) {
+      setNotesPeriod(monthlyPeriods[currentIndex - 1]);
+    }
+  };
+  
+  const handleNextPeriod = () => {
+    const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex < monthlyPeriods.length - 1) {
+      setNotesPeriod(monthlyPeriods[currentIndex + 1]);
+    }
+  };
   
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,9 +78,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   };
 
   const handleAddNote = () => {
-    if (content.trim() && currentMonthlyPeriod) {
+    if (content.trim() && notesPeriod) {
       const scope = JSON.parse(selectedScope);
-      addNote(currentMonthlyPeriod.label, category, content, scope, stagedImage || undefined);
+      addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
       setContent('');
       setCategory('General');
       setStagedImage(null);
@@ -101,14 +126,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   }, [currentView]);
 
   const filteredNotes = useMemo(() => {
-    if (!currentMonthlyPeriod) return [];
+    if (!notesPeriod) return [];
     const scope = JSON.parse(selectedScope);
     return allNotes.filter(note => 
-      note.monthlyPeriodLabel === currentMonthlyPeriod.label &&
+      note.monthlyPeriodLabel === notesPeriod.label &&
       note.view === scope.view &&
-      note.storeId === scope.storeId
+      (note.storeId || undefined) === scope.storeId
     );
-  }, [allNotes, currentMonthlyPeriod, selectedScope]);
+  }, [allNotes, notesPeriod, selectedScope]);
   
   const handleAnalyzeTrends = async () => {
     if (filteredNotes.length === 0) return;
@@ -131,7 +156,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
         <div className="p-4 border-b border-slate-700 space-y-2">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-cyan-400">Notes for {currentMonthlyPeriod?.label}</h3>
+                <div className="flex items-center gap-2">
+                    <button onClick={handlePrevPeriod} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronLeft" className="w-5 h-5" /></button>
+                    <h3 className="text-lg font-bold text-cyan-400">Notes for {notesPeriod.label}</h3>
+                    <button onClick={handleNextPeriod} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronRight" className="w-5 h-5" /></button>
+                </div>
                 <button 
                   onClick={handleAnalyzeTrends}
                   disabled={filteredNotes.length < 2}
