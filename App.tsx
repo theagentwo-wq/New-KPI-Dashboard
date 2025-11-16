@@ -125,6 +125,21 @@ const App: React.FC = () => {
                 }
             );
         }
+
+        const fetchNotes = async () => {
+            try {
+                const response = await fetch('/.netlify/functions/notes-proxy', {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getNotes' })
+                });
+                if (!response.ok) throw new Error('Failed to fetch notes');
+                const fetchedNotes = await response.json();
+                setNotes(fetchedNotes);
+            } catch (error) {
+                console.error("Error fetching notes:", error);
+            }
+        };
+        fetchNotes();
     }, []);
 
     const getPeriodData = useCallback((period: Period | undefined) => {
@@ -356,25 +371,57 @@ const App: React.FC = () => {
         setLocationInsightsOpen(true);
     };
     
-    const addNote = useCallback((periodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }) => {
-        const newNote: Note = { 
-            id: new Date().toISOString(), 
-            periodLabel, 
-            view: scope.view, 
-            category, 
-            content, 
-            storeId: scope.storeId 
-        };
-        setNotes(prev => [...prev, newNote]);
+    const addNote = useCallback(async (periodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }) => {
+        try {
+            const response = await fetch('/.netlify/functions/notes-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'addNote',
+                    payload: { periodLabel, category, content, view: scope.view, storeId: scope.storeId }
+                })
+            });
+            if (!response.ok) throw new Error('Failed to add note');
+            const newNote = await response.json();
+            setNotes(prev => [newNote, ...prev]);
+        } catch (error) {
+            console.error("Error adding note:", error);
+        }
     }, []);
     
-    const updateNote = useCallback((noteId: string, newContent: string, newCategory: NoteCategory) => {
-        setNotes(prev => prev.map(note => note.id === noteId ? { ...note, content: newContent, category: newCategory } : note));
+    const updateNote = useCallback(async (noteId: string, newContent: string, newCategory: NoteCategory) => {
+        try {
+            const response = await fetch('/.netlify/functions/notes-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'updateNote',
+                    payload: { noteId, newContent, newCategory }
+                })
+            });
+            if (!response.ok) throw new Error('Failed to update note');
+            setNotes(prev => prev.map(note => note.id === noteId ? { ...note, content: newContent, category: newCategory } : note));
+        } catch (error) {
+            console.error("Error updating note:", error);
+        }
     }, []);
 
-    const deleteNote = useCallback((noteId: string) => {
+    const deleteNote = useCallback(async (noteId: string) => {
         if (window.confirm("Are you sure you want to delete this note?")) {
-            setNotes(prev => prev.filter(note => note.id !== noteId));
+            try {
+                const response = await fetch('/.netlify/functions/notes-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'deleteNote',
+                        payload: { noteId }
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to delete note');
+                setNotes(prev => prev.filter(note => note.id !== noteId));
+            } catch (error) {
+                console.error("Error deleting note:", error);
+            }
         }
     }, []);
 

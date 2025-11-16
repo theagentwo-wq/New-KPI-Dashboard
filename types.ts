@@ -74,6 +74,7 @@ export interface Note {
   storeId?: string; // Optional: for store-specific notes
   category: NoteCategory;
   content: string;
+  createdAt: string;
 }
 
 export interface Anomaly {

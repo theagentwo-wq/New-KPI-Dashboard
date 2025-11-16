@@ -10,6 +10,7 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Animations**: Framer Motion
 - **Charts**: Recharts
 - **AI**: Google Gemini API
+- **Database**: Google Firestore
 
 ## Local Setup
 
@@ -30,18 +31,22 @@ npm install
 
 ### 3. Environment Variables
 
-This project requires a Google Gemini API key to function.
+This project requires API keys for both Google Gemini and Google Firebase to function. These are used by the backend Netlify Functions.
 
-1.  Create a file named `.env.local` in the root of the project.
-2.  Add your API key to this file. **It must be prefixed with `VITE_`**.
+1.  Create a file named `.env` in the root of the project.
+2.  Add your API keys to this file.
 
 ```
-VITE_API_KEY=your_gemini_api_key_here
+# Your Google AI Gemini API Key
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# The entire JSON content from your Firebase Service Account key file
+FIREBASE_SERVICE_ACCOUNT_KEY={"type": "service_account", "project_id": "...", ...}
 ```
 
 ### 4. Running the Development Server
 
-Once the dependencies are installed and the environment variable is set, you can start the local development server:
+Once the dependencies are installed and the environment variables are set, you can start the local development server:
 
 ```bash
 npm run dev
@@ -65,20 +70,26 @@ Create a new repository on GitHub and push your local project code to it.
 
 ### 3. Configure Build Settings
 
-Netlify should automatically detect the following settings from the `netlify.toml` file. If not, you can set them manually:
+Netlify should automatically detect the following settings. If not, you can set them manually:
 
 -   **Build command**: `npm run build`
 -   **Publish directory**: `dist`
 
-### 4. Add Environment Variable
+### 4. Add Environment Variables
 
 This is the most important step for the deployed application to work.
 
 1.  In your site's dashboard on Netlify, go to "Site configuration" -> "Environment variables".
 2.  Click "Add a variable".
-3.  Enter the **Key** as `VITE_API_KEY`.
-4.  Enter your Google Gemini API key as the **Value**.
-5.  Click "Create variable".
+3.  Add the `GEMINI_API_KEY`:
+    -   **Key**: `GEMINI_API_KEY`
+    -   **Value**: Your Google Gemini API key.
+    -   Click "Create variable".
+4.  Add the `FIREBASE_SERVICE_ACCOUNT_KEY`:
+    -   Click "Add a variable" again.
+    -   **Key**: `FIREBASE_SERVICE_ACCOUNT_KEY`
+    -   **Value**: Open the `.json` file you downloaded from your Firebase project's service account settings. Copy the **entire contents** of that file and paste it into the value field.
+    -   Click "Create variable".
 
 ### 5. Deploy
 
