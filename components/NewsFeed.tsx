@@ -22,6 +22,7 @@ export const NewsFeed: React.FC = () => {
   useEffect(() => {
     const fetchNews = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const response = await fetch('/.netlify/functions/rss-proxy');
         if (!response.ok) {
@@ -29,7 +30,6 @@ export const NewsFeed: React.FC = () => {
         }
         const data: Article[] = await response.json();
         setArticles(data);
-        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
         setArticles([]);
@@ -64,7 +64,7 @@ export const NewsFeed: React.FC = () => {
   );
 
   return (
-    <div className="mt-4 pt-4 border-t border-slate-700">
+    <div className="mt-4 p-4 border border-slate-700 rounded-lg">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between text-sm font-semibold text-slate-400 uppercase"
@@ -84,7 +84,7 @@ export const NewsFeed: React.FC = () => {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+            <div className="mt-3 space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4 space-x-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
@@ -93,13 +93,15 @@ export const NewsFeed: React.FC = () => {
                 </div>
               ) : error ? (
                 <p className="text-xs text-red-400 p-2">{error}</p>
-              ) : (
+              ) : articles.length > 0 ? (
                 articles.map((article, index) => (
                   <button key={index} onClick={() => handleSelectArticle(article)} className="block w-full text-left p-2 rounded-md hover:bg-slate-700 transition-colors">
                     <p className="text-sm font-semibold text-slate-200 truncate">{article.title}</p>
                     <p className="text-xs text-cyan-400">{article.sourceName}</p>
                   </button>
                 ))
+              ) : (
+                <p className="text-xs text-slate-500 p-2 text-center">No news articles available at this time.</p>
               )}
             </div>
           </motion.div>

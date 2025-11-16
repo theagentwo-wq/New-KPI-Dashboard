@@ -63,16 +63,20 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
         const itemXml = itemMatch[1];
         
         const title = getTagContent(itemXml, 'title');
-        const link = getTagContent(itemXml, 'link');
-        const pubDate = getTagContent(itemXml, 'pubDate');
-        let content = getTagContent(itemXml, 'description');
+        let link = getTagContent(itemXml, 'link');
+        if (!link) {
+            link = getTagContent(itemXml, 'guid');
+        }
 
-        // Fallback for feeds that use content:encoded
+        const pubDate = getTagContent(itemXml, 'pubDate') || new Date().toISOString();
+        
+        let content = getTagContent(itemXml, 'description');
         if (!content) {
             content = getTagContent(itemXml, 'content:encoded');
         }
         
-        if (title && link && pubDate && content) {
+        // Loosen the validation: only require title, link, and some content.
+        if (title && link && content) {
             articles.push({ title, link, pubDate, content, sourceName });
         }
     }
