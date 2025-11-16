@@ -17,6 +17,7 @@ interface LocationInsightsModalProps {
 }
 
 type AnalysisType = 'brief' | 'forecast' | 'market' | 'marketing' | 'none';
+type Audience = 'FOH' | 'BOH' | 'Managers';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -59,6 +60,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisType>('none');
   const [sanitizedHtml, setSanitizedHtml] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isHotTopicsOpen, setIsHotTopicsOpen] = useState(false);
 
   useEffect(() => {
     const renderMarkdown = async () => {
@@ -81,11 +83,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         setForecastResult([]);
         setMarketResult(null);
         setMarketingResult(null);
-        setIsFullScreen(false); // Reset fullscreen state
+        setIsFullScreen(false);
+        setIsHotTopicsOpen(false);
     }
   }, [isOpen]);
 
-  const handleAnalysis = async (type: AnalysisType) => {
+  const handleAnalysis = async (type: AnalysisType, audience?: Audience) => {
     if (!location) return;
     setIsLoading(true);
     setBriefResult(null);
@@ -94,8 +97,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     setMarketingResult(null);
     setCurrentAnalysis(type);
 
-    if (type === 'brief' && performanceData) {
-      const res = await generateHuddleBrief(location, performanceData);
+    if (type === 'brief' && performanceData && audience) {
+      const res = await generateHuddleBrief(location, performanceData, audience);
       setBriefResult(res);
     } else if (type === 'forecast') {
       const weatherForecast = await get7DayForecastForLocation(location);
@@ -115,6 +118,19 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     setIsLoading(false);
   };
   
+  const handleDownload = () => {
+    if (!briefResult || !location) return;
+    const blob = new Blob([briefResult], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hot-topics-${location.replace(/, /g, '-')}-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const loadingMessages: { [key in AnalysisType]: string } = {
     brief: 'Generating HOT TOPICS...',
     forecast: 'Generating Weather-Aware Sales Forecast...',
@@ -135,7 +151,22 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         );
     }
     
-    if ((currentAnalysis === 'brief' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml) {
+    if (currentAnalysis === 'brief' && sanitizedHtml) {
+      return (
+          <div>
+              <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-lg font-bold text-cyan-400">HOT TOPICS Brief</h4>
+                  <button onClick={handleDownload} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md transition-colors">
+                      <Icon name="download" className="w-4 h-4" /> 
+                      Save
+                  </button>
+              </div>
+              <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+          </div>
+      )
+    }
+
+    if ((currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml) {
          return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
     }
 
@@ -179,21 +210,34 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     >
       <div className="flex flex-col h-full">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-2 bg-slate-900 rounded-md">
-          <button onClick={() => handleAnalysis('brief')} disabled={isLoading || !performanceData} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed">
-            Generate HOT TOPICS
-          </button>
-           <button onClick={() => handleAnalysis('forecast')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
+           <div className="relative">
+              <button 
+                onClick={() => setIsHotTopicsOpen(prev => !prev)} 
+                disabled={isLoading || !performanceData} 
+                className="w-full bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"
+              >
+                Generate HOT TOPICS
+              </button>
+              {isHotTopicsOpen && (
+                <div className="absolute top-full mt-2 w-full bg-slate-600 rounded-md shadow-lg z-10 border border-slate-500">
+                    <button onClick={() => { handleAnalysis('brief', 'FOH'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600 rounded-t-md">For FOH Team</button>
+                    <button onClick={() => { handleAnalysis('brief', 'BOH'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600">For BOH Team</button>
+                    <button onClick={() => { handleAnalysis('brief', 'Managers'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600 rounded-b-md">For Managers</button>
+                </div>
+              )}
+           </div>
+           <button onClick={() => handleAnalysis('forecast')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
             Generate 7-Day Forecast
           </button>
-           <button onClick={() => handleAnalysis('market')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
+           <button onClick={() => handleAnalysis('market')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
             Local Market Analysis
           </button>
-           <button onClick={() => handleAnalysis('marketing')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
+           <button onClick={() => handleAnalysis('marketing')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
             Generate Marketing Ideas
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto min-h-[250px] custom-scrollbar">
+        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
             {renderContent()}
         </div>
       </div>

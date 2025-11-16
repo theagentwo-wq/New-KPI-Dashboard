@@ -78,9 +78,9 @@ export const getAnomalyDetections = async (allStoresData: any, periodLabel: stri
     }
 };
 
-export const generateHuddleBrief = async (location: string, storeData: any): Promise<string> => {
+export const generateHuddleBrief = async (location: string, storeData: any, audience: string): Promise<string> => {
     try {
-        const result = await callProxy('generateHuddleBrief', { location, storeData });
+        const result = await callProxy('generateHuddleBrief', { location, storeData, audience });
         return result.content || "Could not generate huddle brief at this time.";
     } catch (error) {
         console.error("Error generating huddle brief:", error);

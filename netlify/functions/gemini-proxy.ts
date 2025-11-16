@@ -171,11 +171,60 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'generateHuddleBrief': {
-                const { location, storeData } = payload;
+                const { location, storeData, audience } = payload;
                 const formattedData = Object.entries(storeData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
-                const prompt = `${AI_CONTEXT} You are an expert restaurant operations coach. Based on the most recent performance data for the ${location} store, generate a concise, motivational pre-shift HOT TOPICS brief for the store manager. The brief should be under 150 words. Format the response using markdown with these exact three headers: ### 🎯 Goal for Today, ### 🤔 Why it Matters, and ### 🏆 How to Win. Identify the single biggest performance opportunity from the data and make that the focus.\n\nData:\n${formattedData}`;
-                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                
+                let audienceFocus = '';
+                switch (audience) {
+                    case 'FOH':
+                        audienceFocus = "Focus on guest experience, upselling opportunities (especially company promotions), managing service flow, and sales contests. The audience is servers, hosts, and bartenders.";
+                        break;
+                    case 'BOH':
+                        audienceFocus = "Focus on ticket times, food quality, prep list priorities, and kitchen efficiency. The audience is line cooks, prep cooks, and dishwashers.";
+                        break;
+                    case 'Managers':
+                        audienceFocus = "Provide a holistic overview for both FOH and BOH. Include strategic focus points, team motivation, and coordination between departments. The audience is the entire management team.";
+                        break;
+                    default:
+                        audienceFocus = "Focus on general operational excellence for the entire team.";
+                }
+
+                const prompt = `${AI_CONTEXT}
+You are an expert restaurant operations coach. Your task is to generate a concise, motivational, and actionable pre-shift 'HOT TOPICS' brief for the ${audience} team at our ${location} store.
+
+**Instructions:**
+1.  **Audience Focus:** ${audienceFocus}
+2.  **Incorporate Real-Time Intel (Use Your Tools):**
+    *   **Local Events & Weather:** Search for major concerts, sporting events, festivals, or large conventions happening today/tonight near ${location}. Get the current weather forecast and describe its direct impact on operations (e.g., 'Big concert at the arena tonight means we'll be slammed post-show', 'Heavy rain all evening, so patio is a no-go and we might see slower delivery times').
+    *   **Company Promotions:** Search tupelohoneycafe.com and official social media channels for current company-wide marketing campaigns, specials, or featured menu items. Weave these into the brief as upselling opportunities or focus items.
+3.  **Use Performance Data:** The store's most recent performance data is below. Find the single biggest opportunity for this audience and make it the primary focus.
+4.  **Format:** The brief MUST be in a simple, easy-to-read bullet-point format using markdown. Keep it under 200 words. Make it visually appealing and something a manager can quickly read to their team.
+
+**Recent Performance Data:**
+${formattedData}
+
+Begin the brief now.`;
+
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        tools: [{ googleSearch: {} }],
+                    },
+                });
+                
+                let content = response.text || "Could not generate huddle brief at this time.";
+
+                const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks?.length) {
+                    const sources = new Set<string>();
+                    groundingChunks.forEach((chunk: any) => {
+                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`);
+                    });
+                    if (sources.size > 0) content += "\n\n---\n*Sources used for this brief: " + Array.from(sources).join(', ') + "*";
+                }
+
+                return { statusCode: 200, body: JSON.stringify({ content }) };
             }
 
             case 'runWhatIfScenario': {
