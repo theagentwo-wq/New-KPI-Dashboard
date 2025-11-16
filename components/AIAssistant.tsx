@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { getInsights, getTrendAnalysis } from '../services/geminiService';
 import { View, Period, PerformanceData } from '../types';
 import { marked } from 'marked';
-import { ImageGenerator } from './ImageGenerator';
 
 interface AIAssistantProps {
   data: any;
@@ -18,10 +17,7 @@ interface Message {
   html?: string;
 }
 
-type AITab = 'Chat' | 'Image';
-
 export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, view, period, userLocation }) => {
-  const [activeTab, setActiveTab] = useState<AITab>('Chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,10 +31,10 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
   ];
 
   useEffect(() => {
-    if (activeTab === 'Chat' && messages.length > 0) {
+    if (messages.length > 0) {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, activeTab]);
+  }, [messages]);
   
   const processAIResponse = async (text: string): Promise<Message> => {
     const html = await marked.parse(text);
@@ -82,8 +78,12 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
     }
   };
 
-  const renderChat = () => (
-    <>
+  return (
+    <div className="flex flex-col h-[500px] bg-slate-800 rounded-lg border border-slate-700">
+      <div className="p-4 border-b border-slate-700">
+        <h3 className="text-lg font-bold text-cyan-400">AI Assistant</h3>
+      </div>
+      
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -132,29 +132,6 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
           </button>
         </div>
       </div>
-    </>
-  );
-
-  return (
-    <div className="flex flex-col h-[500px] bg-slate-800 rounded-lg border border-slate-700">
-      <div className="flex items-center justify-between p-4 border-b border-slate-700">
-        <h3 className="text-lg font-bold text-cyan-400">AI Creative Suite</h3>
-        <div className="flex items-center bg-slate-900 rounded-md p-1">
-            {(['Chat', 'Image'] as AITab[]).map(tab => (
-                 <button 
-                    key={tab} 
-                    onClick={() => setActiveTab(tab)} 
-                    className={`px-3 py-1 text-sm font-semibold rounded ${activeTab === tab ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
-                 >
-                     {tab}
-                 </button>
-            ))}
-        </div>
-      </div>
-      
-      {activeTab === 'Chat' && renderChat()}
-      {activeTab === 'Image' && <ImageGenerator />}
-
     </div>
   );
 };
