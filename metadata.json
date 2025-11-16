@@ -1,0 +1,7 @@
+{
+  "name": "Operations KPI Dashboardv2",
+  "description": "An interactive, and visually polished Operations KPI Dashboard for a multi-unit restaurant group. It provides a comprehensive suite of tools for tracking, budgeting, and analyzing key performance indicators, featuring several advanced AI-powered features using the Gemini API for deep analysis and forecasting.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
