@@ -24,6 +24,7 @@ import { AnomalyDetailModal } from './components/AnomalyDetailModal';
 import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
+import { NewsFeed } from './components/NewsFeed';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -512,7 +513,7 @@ const App: React.FC = () => {
                        <Icon name="goal" className="w-6 h-6" /><span>Goal Setter</span>
                   </a>
               </nav>
-              <div className="mt-8 pt-4 border-t border-slate-700 flex-1 overflow-y-auto">
+              <div className="mt-8 pt-4 border-t border-slate-700 flex-1 overflow-y-auto custom-scrollbar">
                   <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Views</h2>
                   <div className="space-y-1">
                       <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('Total Company'); }} className={`block p-2 rounded-md text-sm ${currentView === 'Total Company' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>Total Company</a>
@@ -551,6 +552,7 @@ const App: React.FC = () => {
                           )
                       })}
                   </div>
+                  <NewsFeed />
               </div>
               <div className="mt-auto pt-4 border-t border-slate-700 space-y-2">
                   <button onClick={() => setScenarioModelerOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Run What-If Scenario</button>
