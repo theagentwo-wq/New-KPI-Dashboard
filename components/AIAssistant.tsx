@@ -25,9 +25,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
 
   const defaultPrompts = [
     "Analyze Trends",
+    "Which 3 stores had the biggest positive variance vs prior period in SOP?",
     "Which of my stores are near a convention center?",
     "What are recent google reviews saying about my Omaha location?",
-    "Summarize the prime cost performance.",
   ];
 
   useEffect(() => {

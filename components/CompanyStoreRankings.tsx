@@ -43,6 +43,15 @@ const getVarianceColor = (variance: number, kpi: Kpi) => {
     return isGood ? 'text-green-400' : 'text-red-400';
 };
 
+const getRankIndicator = (rank: number) => {
+    switch (rank) {
+        case 1: return <div className="flex items-center justify-center gap-1 text-yellow-400"><Icon name="trophy" className="w-5 h-5" /> <span>1st</span></div>;
+        case 2: return <div className="flex items-center justify-center gap-1 text-slate-300"><Icon name="trophy" className="w-5 h-5" /> <span>2nd</span></div>;
+        case 3: return <div className="flex items-center justify-center gap-1 text-orange-400"><Icon name="trophy" className="w-5 h-5" /> <span>3rd</span></div>;
+        default: return <span className="text-slate-400">{rank}th</span>;
+    }
+};
+
 export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, comparisonLabel, onLocationSelect }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
 
@@ -79,9 +88,9 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
     }, [data, sortConfig]);
 
     const requestSort = (key: Kpi) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
+        let direction: 'ascending' | 'descending' = 'descending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'descending') {
+            direction = 'ascending';
         }
         setSortConfig({ key, direction });
     };
@@ -108,7 +117,8 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                 <table className="w-full text-sm text-left text-slate-400">
                     <thead className="text-xs text-cyan-400 uppercase bg-slate-900 sticky top-0 z-10">
                         <tr>
-                            <th scope="col" className="px-6 py-3 sticky left-0 bg-slate-900 z-20">Location</th>
+                            <th scope="col" className="px-6 py-3 sticky left-0 bg-slate-900 z-30 text-center">Rank</th>
+                            <th scope="col" className="px-6 py-3 sticky left-16 bg-slate-900 z-20">Location</th>
                             {ALL_KPIS.map(kpi => (
                                 <React.Fragment key={kpi}>
                                     <th scope="col" className="px-6 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
@@ -121,9 +131,12 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                         </tr>
                     </thead>
                     <tbody>
-                        {sortedStores.map(([storeId, storeData]) => (
+                        {sortedStores.map(([storeId, storeData], index) => (
                             <tr key={storeId} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700">
-                                <th scope="row" className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
+                                <td className="px-6 py-4 font-bold text-center sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
+                                    {getRankIndicator(index + 1)}
+                                </td>
+                                <th scope="row" className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap sticky left-16 bg-slate-800 hover:bg-slate-700 z-10">
                                     <div className="flex items-center gap-2">
                                         <span>{weatherData[storeId]?.icon}</span>
                                         <span>{storeId}</span>
