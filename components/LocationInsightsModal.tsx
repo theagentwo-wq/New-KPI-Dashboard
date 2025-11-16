@@ -3,8 +3,8 @@ import { Modal } from './Modal';
 import { generateHuddleBrief, getSalesForecast } from '../services/geminiService';
 import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, ForecastDataPoint, DailyForecast, WeatherCondition } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { PerformanceData, ForecastDataPoint, WeatherCondition } from '../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 
 interface LocationInsightsModalProps {
