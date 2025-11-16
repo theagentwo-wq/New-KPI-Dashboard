@@ -269,15 +269,15 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 const { x, y, z } = kpiAxes;
                 
                 const isXCost = KPI_CONFIG[x as Kpi].higherIsBetter === false;
-                const xGoodDirection = isXCost ? 'negative' : 'positive';
-                const xBadDirection = isXCost ? 'positive' : 'negative';
+                const xGoodDirection = isXCost ? 'negative (cost reduction)' : 'positive (profit growth)';
+                const xBadDirection = isXCost ? 'positive (cost increase)' : 'negative (profit decline)';
 
                 const prompt = `${AI_CONTEXT} You are a master business strategist. Analyze the following restaurant performance data for the period "${periodLabel}", which is visualized in a 4-quadrant Performance Matrix.
 
 **IMPORTANT CONTEXT ON DATA:**
-- The data points (x, y) represent ABSOLUTE variance, not relative percentages.
-- For currency KPIs (like Sales), the value is the dollar variance (e.g., 5000 means +$5,000).
-- For percentage KPIs (like SOP or Prime Cost), the value is the percentage POINT variance (e.g., 0.02 means a +2% point change).
+- The (x, y) values represent the ABSOLUTE VARIANCE from the comparison period. They are NOT relative percentages.
+- For currency KPIs (like Sales), the value is the dollar variance (e.g., 5000 means a +$5,000 variance).
+- For percentage KPIs (like SOP or Prime Cost), the value is the percentage POINT variance (e.g., 0.02 means a +2 percentage point variance).
 
 **Matrix Definition:**
 - **X-Axis:** ${x} Variance (Represents efficiency/profitability changes)
