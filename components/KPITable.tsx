@@ -19,6 +19,11 @@ interface KPITableProps {
   onReviewClick: (location: string) => void;
 }
 
+type SortConfig = {
+    key: Kpi;
+    direction: 'ascending' | 'descending';
+} | null;
+
 const formatValue = (value: number | undefined, kpi: Kpi) => {
     if (value == null || isNaN(value)) return '-';
     const config = KPI_CONFIG[kpi];
@@ -58,9 +63,19 @@ const getValueColor = (value: number | undefined, kpi: Kpi) => {
     return value >= baseline ? 'text-green-400' : 'text-red-400';
 }
 
+const getRankIndicator = (rank: number) => {
+    switch (rank) {
+        case 1: return <div className="flex items-center justify-center gap-1 text-yellow-400"><Icon name="trophy" className="w-5 h-5" /> <span>1st</span></div>;
+        case 2: return <div className="flex items-center justify-center gap-1 text-slate-300"><Icon name="trophy" className="w-5 h-5" /> <span>2nd</span></div>;
+        case 3: return <div className="flex items-center justify-center gap-1 text-orange-400"><Icon name="trophy" className="w-5 h-5" /> <span>3rd</span></div>;
+        default: return <span className="text-slate-400">{rank}th</span>;
+    }
+};
+
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
 export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLocationSelect, onReviewClick }) => {
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [weatherData, setWeatherData] = useState<{ [key: string]: WeatherInfo | null }>({});
@@ -81,6 +96,49 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
             fetchAllWeather();
         }
     }, [storeIds]);
+
+    const sortedStores = useMemo(() => {
+        const storeArray: [string, typeof data[string]][] = Object.entries(data);
+        if (sortConfig !== null) {
+            storeArray.sort(([, a], [, b]) => {
+                const aValue = a.actual[sortConfig.key] || 0;
+                const bValue = b.actual[sortConfig.key] || 0;
+                
+                const higherIsBetter = KPI_CONFIG[sortConfig.key].higherIsBetter;
+                
+                let comparison = 0;
+                if (aValue > bValue) {
+                    comparison = 1;
+                } else if (aValue < bValue) {
+                    comparison = -1;
+                }
+
+                if (!higherIsBetter) {
+                    comparison *= -1;
+                }
+
+                if (sortConfig.direction === 'descending') {
+                    comparison *= -1;
+                }
+
+                return comparison;
+            });
+        }
+        return storeArray;
+    }, [data, sortConfig]);
+
+    const requestSort = (key: Kpi) => {
+        let direction: 'ascending' | 'descending' = 'descending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'descending') {
+            direction = 'ascending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIndicator = (kpi: Kpi) => {
+        if (!sortConfig || sortConfig.key !== kpi) return null;
+        return sortConfig.direction === 'ascending' ? '▲' : '▼';
+    }
 
     const toggleKPI = (kpi: Kpi) => {
         setVisibleKPIs(prev => prev.includes(kpi) ? prev.filter(k => k !== kpi) : [...prev, kpi]);
@@ -109,12 +167,15 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-slate-400">
-                    <thead className="text-xs text-cyan-400 uppercase bg-slate-900">
+                    <thead className="text-xs text-cyan-400 uppercase bg-slate-900 sticky top-0 z-10">
                         <tr>
-                            <th scope="col" className="px-2 py-3 sticky left-0 bg-slate-900 z-10">Location</th>
+                            <th scope="col" className="px-2 py-3 sticky left-0 bg-slate-900 z-30 text-center">Rank</th>
+                            <th scope="col" className="px-2 py-3 sticky left-16 bg-slate-900 z-20">Location</th>
                             {visibleKPIs.map(kpi => (
                                 <React.Fragment key={kpi}>
-                                    <th scope="col" className="px-2 py-3 text-center">Act.</th>
+                                    <th scope="col" className="px-2 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
+                                        {kpi} Act. {getSortIndicator(kpi)}
+                                    </th>
                                     <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonLabel)}</th>
                                     <th scope="col" className="px-2 py-3 text-center">Var.</th>
                                 </React.Fragment>
@@ -122,11 +183,14 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                         </tr>
                     </thead>
                     <tbody>
-                        {Object.entries(data).map(([storeId, storeData]) => (
+                        {sortedStores.map(([storeId, storeData], index) => (
                             <tr key={storeId} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700">
-                                <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
+                                <td className="px-2 py-3 font-bold text-center sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
+                                    {getRankIndicator(index + 1)}
+                                </td>
+                                <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-16 bg-slate-800 hover:bg-slate-700 z-10">
                                     <div className="flex items-center gap-2">
-                                        <div className="group relative flex items-center">
+                                         <div className="group relative flex items-center">
                                             <WeatherIcon condition={weatherData[storeId]?.condition || 'loading'} />
                                             {weatherData[storeId] && (
                                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-slate-900 border border-slate-700 rounded-md text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-lg">
@@ -142,8 +206,8 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                                     </div>
                                 </th>
                                 {visibleKPIs.map(kpi => (
-                                    <React.Fragment key={kpi}>
-                                        <td className={`px-2 py-3 text-center font-bold ${getValueColor(storeData.actual[kpi], kpi)}`}>
+                                    <React.Fragment key={`${storeId}-${kpi}`}>
+                                        <td className={`px-2 py-3 text-center font-semibold ${getValueColor(storeData.actual[kpi], kpi)}`}>
                                             {kpi === Kpi.AvgReviews ? (
                                                 <button onClick={() => onReviewClick(storeId)} className="hover:underline hover:text-cyan-400">
                                                     {formatValue(storeData.actual[kpi], kpi)}
