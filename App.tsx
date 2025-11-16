@@ -313,6 +313,25 @@ const App: React.FC = () => {
         }).filter(p => Object.keys(p.data).length > 0);
 
     }, [currentPeriod, periodType, currentView, getPeriodData, aggregate, directorProfiles]);
+    
+    const directorModalData = useMemo(() => {
+        if (!selectedDirector) return null;
+
+        const currentPeriodData = getPeriodData(currentPeriod);
+        const directorAggregate = aggregate(currentPeriodData, selectedDirector.stores);
+
+        const directorStoreData: { [storeId: string]: any } = {};
+        selectedDirector.stores.forEach(storeId => {
+            if (allStoresBreakdownData[storeId]) {
+                directorStoreData[storeId] = allStoresBreakdownData[storeId];
+            }
+        });
+
+        return {
+            aggregate: directorAggregate,
+            stores: directorStoreData
+        };
+    }, [selectedDirector, getPeriodData, currentPeriod, aggregate, allStoresBreakdownData]);
 
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
@@ -547,7 +566,16 @@ const App: React.FC = () => {
           
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
-          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={Kpi.SOP} period={currentPeriod} onPhotoUpdate={handlePhotoUpdate} />
+          <DirectorProfileModal 
+            isOpen={isProfileOpen} 
+            onClose={() => setProfileOpen(false)} 
+            director={selectedDirector} 
+            directorAggregateData={directorModalData?.aggregate}
+            directorStoreData={directorModalData?.stores}
+            selectedKpi={Kpi.SOP} 
+            period={currentPeriod} 
+            onPhotoUpdate={handlePhotoUpdate} 
+          />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} userLocation={userLocation} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
           <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
-import { DirectorProfile, Kpi, Period } from '../types';
+import { DirectorProfile, Kpi, Period, PerformanceData } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
 import { marked } from 'marked';
 import { KPI_CONFIG } from '../constants';
@@ -10,13 +10,14 @@ interface DirectorProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   director?: DirectorProfile;
-  performanceData?: any;
+  directorAggregateData?: PerformanceData;
+  directorStoreData?: { [storeId: string]: { actual: PerformanceData }};
   selectedKpi: Kpi;
   period: Period;
   onPhotoUpdate: (photoData: { directorId: string; base64Image: string }[]) => void;
 }
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, performanceData, selectedKpi, period, onPhotoUpdate }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onPhotoUpdate }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
@@ -44,14 +45,11 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   }, [snapshot]);
 
   const handleGenerateSnapshot = async () => {
-    if (!director || !performanceData) return;
+    if (!director || !directorAggregateData) return;
     setIsLoading(true);
     setSnapshot('');
-    const dataForDirector = performanceData[director.name]?.aggregated;
-    if (dataForDirector) {
-      const result = await getDirectorPerformanceSnapshot(director.name, period.label, dataForDirector);
-      setSnapshot(result);
-    }
+    const result = await getDirectorPerformanceSnapshot(director.name, period.label, directorAggregateData);
+    setSnapshot(result);
     setIsLoading(false);
   };
 
@@ -79,13 +77,13 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
   if (!director) return null;
 
-  const topStore = (director.stores && director.stores.length > 0) ? director.stores.reduce((best, current) => {
-    if (!performanceData?.[current]?.actual) return best;
-    if (!performanceData?.[best]?.actual) return current;
+  const topStore = (director.stores && director.stores.length > 0 && directorStoreData) ? director.stores.reduce((best, current) => {
+    if (!directorStoreData?.[current]?.actual) return best;
+    if (!directorStoreData?.[best]?.actual) return current;
 
     const kpiConfig = KPI_CONFIG[selectedKpi];
-    const bestPerf = performanceData[best].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-    const currentPerf = performanceData[current].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    const bestPerf = directorStoreData[best].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    const currentPerf = directorStoreData[current].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
     
     if (kpiConfig.higherIsBetter) {
       return currentPerf > bestPerf ? current : best;
