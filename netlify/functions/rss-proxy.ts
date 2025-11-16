@@ -25,8 +25,8 @@ const RSS_FEEDS = [
 
 /**
  * A more robust, dependency-free RSS parser. It handles common XML variations like tag attributes,
- * decodes HTML entities, and cleans the final content for better display. This fixes bugs where
- * feeds with slightly different formats would fail to parse, resulting in a blank news panel.
+ * decodes HTML entities, and checks for multiple content tags (`description`, `content:encoded`)
+ * for better compatibility.
  */
 const parseRssFeed = (xml: string, sourceName: string): Article[] => {
     const articles: Article[] = [];
@@ -66,6 +66,11 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
         const link = getTagContent(itemXml, 'link');
         const pubDate = getTagContent(itemXml, 'pubDate');
         let content = getTagContent(itemXml, 'description');
+
+        // Fallback for feeds that use content:encoded
+        if (!content) {
+            content = getTagContent(itemXml, 'content:encoded');
+        }
         
         if (title && link && pubDate && content) {
             articles.push({ title, link, pubDate, content, sourceName });
@@ -79,18 +84,23 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
 export const handler = async () => {
     try {
         const feedPromises = RSS_FEEDS.map(feed =>
-            fetch(feed.url)
-                .then(response => {
-                    if (!response.ok) {
-                        console.warn(`Failed to fetch ${feed.url}, status: ${response.status}`);
-                        return { xml: '', sourceName: feed.name };
-                    }
-                    return response.text().then(xml => ({ xml, sourceName: feed.name }));
-                })
-                .catch(error => {
-                    console.error(`Error fetching ${feed.url}:`, error);
-                    return { xml: '', sourceName: feed.name }; // Return empty on error to not fail the whole process
-                })
+            fetch(feed.url, {
+                headers: {
+                    // Add a User-Agent to mimic a browser and avoid being blocked
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.warn(`Failed to fetch ${feed.url}, status: ${response.status}`);
+                    return { xml: '', sourceName: feed.name };
+                }
+                return response.text().then(xml => ({ xml, sourceName: feed.name }));
+            })
+            .catch(error => {
+                console.error(`Error fetching ${feed.url}:`, error);
+                return { xml: '', sourceName: feed.name }; // Return empty on error to not fail the whole process
+            })
         );
         
         const feedResults = await Promise.all(feedPromises);
@@ -98,8 +108,12 @@ export const handler = async () => {
         let allArticles: Article[] = [];
         for (const { xml, sourceName } of feedResults) {
             if (xml) {
-                const parsedArticles = parseRssFeed(xml, sourceName);
-                allArticles = allArticles.concat(parsedArticles);
+                try {
+                    const parsedArticles = parseRssFeed(xml, sourceName);
+                    allArticles = allArticles.concat(parsedArticles);
+                } catch (parseError) {
+                    console.error(`Error parsing feed for ${sourceName}:`, parseError);
+                }
             }
         }
         
