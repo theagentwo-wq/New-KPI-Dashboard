@@ -24,44 +24,54 @@ const RSS_FEEDS = [
 ];
 
 /**
- * A robust, dependency-free RSS parser that handles content both with and without CDATA wrappers.
+ * A more robust, dependency-free RSS parser. It handles common XML variations like tag attributes,
+ * decodes HTML entities, and cleans the final content for better display. This fixes bugs where
+ * feeds with slightly different formats would fail to parse, resulting in a blank news panel.
  */
 const parseRssFeed = (xml: string, sourceName: string): Article[] => {
     const articles: Article[] = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match;
+    let itemMatch;
 
-    const getTagContent = (xml: string, tagName: string): string | null => {
-        const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, 's');
-        const match = regex.exec(xml);
-        if (!match || !match[1]) return null;
+    const decodeEntities = (encodedString: string): string => {
+        const translate_re = /&(nbsp|amp|quot|lt|gt);/g;
+        const translate: { [key: string]: string } = {
+            "nbsp": " ", "amp": "&", "quot": "\"", "lt": "<", "gt": ">"
+        };
+        return encodedString
+            .replace(translate_re, (_, entity) => translate[entity])
+            .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+    };
 
+    const getTagContent = (itemXml: string, tagName: string): string => {
+        // Regex that ignores attributes in the opening tag
+        const tagRegex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`);
+        const match = itemXml.match(tagRegex);
+        
+        if (!match || typeof match[1] === 'undefined') return '';
+        
         let content = match[1].trim();
-        // Strip CDATA wrapper if it exists
+
         if (content.startsWith('<![CDATA[') && content.endsWith(']]>')) {
             content = content.substring(9, content.length - 3);
         }
-        return content.trim();
+
+        return decodeEntities(content.trim());
     };
 
-    while ((match = itemRegex.exec(xml)) !== null) {
-        const itemContent = match[1];
+    while ((itemMatch = itemRegex.exec(xml)) !== null) {
+        const itemXml = itemMatch[1];
         
-        const title = getTagContent(itemContent, 'title');
-        const link = getTagContent(itemContent, 'link');
-        const pubDate = getTagContent(itemContent, 'pubDate');
-        const content = getTagContent(itemContent, 'description');
-
+        const title = getTagContent(itemXml, 'title');
+        const link = getTagContent(itemXml, 'link');
+        const pubDate = getTagContent(itemXml, 'pubDate');
+        let content = getTagContent(itemXml, 'description');
+        
         if (title && link && pubDate && content) {
-            articles.push({
-                title,
-                link,
-                pubDate,
-                content,
-                sourceName,
-            });
+            articles.push({ title, link, pubDate, content, sourceName });
         }
     }
+    
     return articles;
 };
 
