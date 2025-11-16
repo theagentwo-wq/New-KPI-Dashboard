@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note } from '../types';
 
 const PROXY_URL = '/.netlify/functions/gemini-proxy';
 
@@ -160,5 +160,15 @@ export const getMarketingIdeas = async (location: string, userLocation?: { latit
     } catch (error) {
         console.error("Error fetching marketing ideas:", error);
         return "Could not generate marketing ideas at this time.";
+    }
+};
+
+export const getNoteTrends = async (notes: Note[]): Promise<string> => {
+    try {
+        const result = await callProxy('getNoteTrends', { notes });
+        return result.content || "Could not analyze note trends at this time.";
+    } catch (error) {
+        console.error("Error fetching note trends:", error);
+        return "Could not analyze note trends at this time.";
     }
 };

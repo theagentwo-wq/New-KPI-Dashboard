@@ -93,3 +93,7 @@ export const getInitialPeriod = (): Period => {
     return ALL_PERIODS.find(p => p.type === 'Week' && today >= p.startDate && today <= p.endDate) 
         || ALL_PERIODS.find(p => p.type === 'Week')!;
 };
+
+export const getMonthlyPeriodForDate = (date: Date): Period | undefined => {
+    return ALL_PERIODS.find(p => p.type === 'Month' && date >= p.startDate && date <= p.endDate);
+};

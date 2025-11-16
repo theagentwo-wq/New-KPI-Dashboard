@@ -371,14 +371,14 @@ const App: React.FC = () => {
         setLocationInsightsOpen(true);
     };
     
-    const addNote = useCallback(async (periodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }) => {
+    const addNote = useCallback(async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
         try {
             const response = await fetch('/.netlify/functions/notes-proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'addNote',
-                    payload: { periodLabel, category, content, view: scope.view, storeId: scope.storeId }
+                    payload: { monthlyPeriodLabel, category, content, view: scope.view, storeId: scope.storeId, imageUrl }
                 })
             });
             if (!response.ok) throw new Error('Failed to add note');
@@ -509,7 +509,12 @@ const App: React.FC = () => {
                                 <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} heightClass="h-[500px]" />
                             </>
                         )
-                        : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
+                        : (
+                            <>
+                                <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
+                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                            </>
+                        )
                     }
                 </div>
                 <div className="lg:col-span-1 space-y-6 flex flex-col">
@@ -519,7 +524,6 @@ const App: React.FC = () => {
                         allStoresData={allStoresBreakdownData}
                         directorAggregates={aggregatedData}
                     />
-                    {currentView === 'Total Company' && <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />}
                     <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
             </div>

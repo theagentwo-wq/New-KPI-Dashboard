@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast } from '../../types';
+import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast, Note } from '../../types';
 import { KPI_CONFIG } from '../../constants';
 
 // This function runs on Netlify's backend.
@@ -407,6 +407,25 @@ ${JSON.stringify(data, null, 2)}`;
                     if (sources.size > 0) content += "\n\n**Sources & Relevant Locations:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
                 return { statusCode: 200, body: JSON.stringify({ content }) };
+            }
+
+            case 'getNoteTrends': {
+                const { notes } = payload as { notes: Note[] };
+                const formattedNotes = notes.map(n => `- Note (${n.category}, ${new Date(n.createdAt).toLocaleDateString()}): ${n.content}`).join('\n');
+                const prompt = `${AI_CONTEXT} As an operations analyst, I have a collection of internal notes for a specific restaurant or region. Your task is to analyze these notes and identify recurring themes or critical issues.
+
+**Instructions:**
+1.  Read all the notes provided below.
+2.  Identify up to 3 of the most significant, recurring themes (e.g., "Staffing Shortages", "Equipment Maintenance", "Positive Guest Feedback on new Menu Item", "Marketing Success").
+3.  For each theme, provide a concise one-sentence summary.
+4.  For each theme, suggest one clear, actionable recommendation or next step for management to consider.
+5.  Format your response using markdown with bold headers for each theme. If no significant trends are found, state that.
+
+**Notes to Analyze:**
+${formattedNotes}`;
+
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
             }
 
             default:

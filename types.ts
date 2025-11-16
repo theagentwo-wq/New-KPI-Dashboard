@@ -69,12 +69,13 @@ export type NoteCategory = 'Marketing' | 'Staffing' | 'Reviews' | 'Facilities' |
 
 export interface Note {
   id: string;
-  periodLabel: string;
+  monthlyPeriodLabel: string;
   view: View;
   storeId?: string; // Optional: for store-specific notes
   category: NoteCategory;
   content: string;
   createdAt: string;
+  imageUrl?: string;
 }
 
 export interface Anomaly {

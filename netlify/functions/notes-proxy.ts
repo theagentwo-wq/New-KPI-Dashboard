@@ -47,13 +47,14 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'addNote': {
-                const { periodLabel, category, content, view, storeId } = payload;
+                const { monthlyPeriodLabel, category, content, view, storeId, imageUrl } = payload;
                 const newNote = {
-                    periodLabel,
+                    monthlyPeriodLabel,
                     category,
                     content,
                     view,
                     storeId: storeId || null,
+                    imageUrl: imageUrl || null,
                     createdAt: new Date().toISOString(), // Server-side timestamp
                 };
                 const docRef = await notesCollection.add(newNote);
