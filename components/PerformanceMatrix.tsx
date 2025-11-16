@@ -125,34 +125,38 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     const kpiLabels = { x: xAxisKpi, y: yAxisKpi, z: zAxisKpi };
 
     const renderMatrixChart = () => (
-        <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis type="number" dataKey="x" name={xAxisKpi} unit="%" domain={domain} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} stroke="#9ca3af" />
-            <YAxis type="number" dataKey="y" name={yAxisKpi} unit="%" domain={domain} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} stroke="#9ca3af" />
-            <ZAxis type="number" dataKey="z" name={zAxisKpi} range={[50, 500]} domain={reviewDomain} />
-            <Tooltip content={<CustomTooltipContent kpiLabels={kpiLabels} />} cursor={{ strokeDasharray: '3 3' }} />
-            <ReferenceLine y={0} stroke="#64748b" strokeDasharray="4 4" />
-            <ReferenceLine x={0} stroke="#64748b" strokeDasharray="4 4" />
-            <Scatter name="Locations" data={data} >
-                {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getQuadrantColor(entry.x, entry.y)} className="opacity-70" />
-                ))}
-            </Scatter>
-        </ScatterChart>
+        <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis type="number" dataKey="x" name={xAxisKpi} unit="%" domain={domain} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} stroke="#9ca3af" />
+                <YAxis type="number" dataKey="y" name={yAxisKpi} unit="%" domain={domain} tickFormatter={(val) => `${(val * 100).toFixed(0)}`} stroke="#9ca3af" />
+                <ZAxis type="number" dataKey="z" name={zAxisKpi} range={[50, 500]} domain={reviewDomain} />
+                <Tooltip content={<CustomTooltipContent kpiLabels={kpiLabels} />} cursor={{ strokeDasharray: '3 3' }} />
+                <ReferenceLine y={0} stroke="#64748b" strokeDasharray="4 4" />
+                <ReferenceLine x={0} stroke="#64748b" strokeDasharray="4 4" />
+                <Scatter name="Locations" data={data} >
+                    {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={getQuadrantColor(entry.x, entry.y)} className="opacity-70" />
+                    ))}
+                </Scatter>
+            </ScatterChart>
+        </ResponsiveContainer>
     );
     
     const renderBarChart = () => (
-         <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, bottom: 20, left: 60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
-            <YAxis type="category" dataKey="name" stroke="#9ca3af" width={60} tick={{ fontSize: 12 }} />
-            <Tooltip cursor={{ fill: 'rgba(30, 41, 59, 0.5)' }} contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
-            <Bar dataKey="y" name={yAxisKpi} >
-                 {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.y > 0 ? '#4ade80' : '#f87171'} />
-                ))}
-            </Bar>
-         </BarChart>
+        <ResponsiveContainer width="100%" height="100%">
+             <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, bottom: 20, left: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
+                <YAxis type="category" dataKey="name" stroke="#9ca3af" width={60} tick={{ fontSize: 12 }} />
+                <Tooltip cursor={{ fill: 'rgba(30, 41, 59, 0.5)' }} contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
+                <Bar dataKey="y" name={yAxisKpi} >
+                     {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.y > 0 ? '#4ade80' : '#f87171'} />
+                    ))}
+                </Bar>
+             </BarChart>
+        </ResponsiveContainer>
     );
 
     const containerClass = isFullScreen
@@ -188,20 +192,18 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
             </div>
             
             <div className={isFullScreen ? 'flex-1' : 'h-[250px]'}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <AnimatePresence mode="wait">
-                         <motion.div
-                            key={chartType}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="w-full h-full"
-                        >
-                            {chartType === 'matrix' ? renderMatrixChart() : renderBarChart()}
-                        </motion.div>
-                    </AnimatePresence>
-                </ResponsiveContainer>
+                <AnimatePresence mode="wait">
+                     <motion.div
+                        key={chartType}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-full h-full"
+                    >
+                        {chartType === 'matrix' ? renderMatrixChart() : renderBarChart()}
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             <div className="mt-4">
