@@ -71,3 +71,11 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
 export const ALL_KPIS = Object.values(Kpi);
 
 export const NOTE_CATEGORIES: NoteCategory[] = ['General', 'Marketing', 'Staffing', 'Reviews', 'Facilities'];
+
+export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {
+  'General': 'border-slate-500',
+  'Marketing': 'border-blue-500',
+  'Staffing': 'border-yellow-500',
+  'Reviews': 'border-purple-500',
+  'Facilities': 'border-orange-500',
+};

@@ -367,6 +367,16 @@ const App: React.FC = () => {
         };
         setNotes(prev => [...prev, newNote]);
     }, []);
+    
+    const updateNote = useCallback((noteId: string, newContent: string, newCategory: NoteCategory) => {
+        setNotes(prev => prev.map(note => note.id === noteId ? { ...note, content: newContent, category: newCategory } : note));
+    }, []);
+
+    const deleteNote = useCallback((noteId: string) => {
+        if (window.confirm("Are you sure you want to delete this note?")) {
+            setNotes(prev => prev.filter(note => note.id !== noteId));
+        }
+    }, []);
 
     const handleSaveData = (storeId: string, weekStartDate: Date, data: PerformanceData) => {
         const newDataEntry: StorePerformanceData = { storeId, weekStartDate, data };
@@ -446,7 +456,12 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                      {currentView !== 'Total Company' 
-                        ? <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
+                        ? (
+                            <>
+                                <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
+                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                            </>
+                        )
                         : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
                     }
                 </div>
@@ -457,7 +472,7 @@ const App: React.FC = () => {
                         allStoresData={allStoresBreakdownData}
                         directorAggregates={aggregatedData}
                     />
-                    <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                    {currentView === 'Total Company' && <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />}
                     <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
             </div>
