@@ -47,6 +47,7 @@ export interface DirectorProfile {
   stores: string[];
   photo: string;
   bio: string;
+  homeLocation: string;
 }
 
 export interface Goal {

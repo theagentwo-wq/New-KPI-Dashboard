@@ -24,7 +24,6 @@ import { AnomalyDetailModal } from './components/AnomalyDetailModal';
 import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
-import { ImageUploaderModal } from './components/ImageUploaderModal';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -107,7 +106,6 @@ const App: React.FC = () => {
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isAnomalyDetailOpen, setAnomalyDetailOpen] = useState(false);
     const [isReviewAnalysisOpen, setReviewAnalysisOpen] = useState(false);
-    const [isImageUploaderOpen, setImageUploaderOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
@@ -430,7 +428,8 @@ const App: React.FC = () => {
                 return newData ? { ...profile, photo: newData.base64Image } : profile;
             });
             try {
-                localStorage.setItem('directorPhotos', JSON.stringify(photoData));
+                const allPhotosToSave = updatedProfiles.map(p => ({ directorId: p.id, base64Image: p.photo }));
+                localStorage.setItem('directorPhotos', JSON.stringify(allPhotosToSave));
             } catch (error) {
                 console.error("Failed to save director photos to localStorage", error);
             }
@@ -534,10 +533,6 @@ const App: React.FC = () => {
               <div className="mt-auto pt-4 border-t border-slate-700 space-y-2">
                   <button onClick={() => setScenarioModelerOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Run What-If Scenario</button>
                   <button onClick={() => setDataEntryOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Data Entry</button>
-                  <button onClick={() => setImageUploaderOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">
-                    <Icon name="photo" className="w-5 h-5" />
-                    <span>Update Photos</span>
-                  </button>
               </div>
           </aside>
           <main className="flex-1 overflow-y-auto">
@@ -552,11 +547,10 @@ const App: React.FC = () => {
           
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
-          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={Kpi.SOP} period={currentPeriod} />
+          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={Kpi.SOP} period={currentPeriod} onPhotoUpdate={handlePhotoUpdate} />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
           <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
-          <ImageUploaderModal isOpen={isImageUploaderOpen} onClose={() => setImageUploaderOpen(false)} onUpdate={handlePhotoUpdate} directors={directorProfiles} />
       </div>
     );
 };
