@@ -95,7 +95,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
             <div className="p-4">
                 <h3 className="text-lg font-bold text-cyan-400">Company Snapshot</h3>
             </div>
-            <div className="overflow-x-auto max-h-[600px]">
+            <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-slate-400">
                     <thead className="text-xs text-cyan-400 uppercase bg-slate-900 sticky top-0 z-10">
                         <tr>

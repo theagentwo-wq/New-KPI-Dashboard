@@ -1,9 +1,9 @@
 
+
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Kpi, PerformanceData, View, Anomaly, ForecastDataPoint } from '../types';
 
-// Fix: Initialize the Gemini AI client using process.env.API_KEY as per the coding guidelines.
-// This assumes the API key is available in the environment.
+// FIX: Updated API key retrieval to use process.env.API_KEY as per the guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const AI_CONTEXT = "You are an expert restaurant operations analyst for Tupelo Honey Cafe, a southern restaurant chain (website: https://tupelohoneycafe.com). Your analysis should be sharp, insightful, and tailored to a restaurant executive audience.";
@@ -64,7 +64,7 @@ export const getExecutiveSummary = async (data: any, view: View, periodLabel: st
     return response.text;
   } catch (error) {
     console.error("Error fetching executive summary:", error);
-    return "Could not generate summary at this time.";
+    return "AI features disabled. API key may be missing or invalid.";
   }
 };
 
@@ -248,7 +248,6 @@ ${formattedData}`;
     }
 };
 
-// Fix: Add the missing runWhatIfScenario function for the Scenario Modeler component.
 const parseScenarioFunctionDeclaration: FunctionDeclaration = {
   name: 'parseScenario',
   description: 'Parses a user query about a business scenario to extract key parameters for modeling.',
@@ -321,19 +320,16 @@ Scenario: "${userPrompt}"`;
 
 export const getSalesForecast = async (location: string, historicalData: PerformanceData[]): Promise<ForecastDataPoint[]> => {
     try {
-        // Fix: Improved prompt to be more specific about JSON-only output.
         const prompt = `Based on the historical sales data for the restaurant in ${location}, generate a 7-day sales forecast. Use Google Search to factor in the current weather forecast and any significant local events (festivals, conferences, etc.) that could impact traffic. The response MUST be a JSON array of objects, where each object has "date" (YYYY-MM-DD) and "predictedSales" (number). Output ONLY the JSON array, with no other text, markdown, or explanation.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            // Fix: Removed responseMimeType and responseSchema to comply with googleSearch tool guidelines.
             config: {
                 tools: [{ googleSearch: {} }],
             }
         });
         
-        // Fix: Implement robust JSON parsing from the model's text response.
         const text = response.text.trim();
         let jsonString = text;
         
@@ -346,7 +342,6 @@ export const getSalesForecast = async (location: string, historicalData: Perform
 
     } catch (error) {
         console.error("Error fetching sales forecast:", error);
-        // Return a mock forecast on error to prevent UI crash
         const today = new Date();
         return Array.from({ length: 7 }).map((_, i) => ({
             date: new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0],
