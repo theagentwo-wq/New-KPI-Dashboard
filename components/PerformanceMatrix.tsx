@@ -134,6 +134,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
             <div className="flex items-start justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-cyan-400 mb-1">Strategic Analysis Hub</h3>
+                    <p className="text-xs text-slate-400 mb-1">{`Displaying: ${currentView} for ${periodLabel}`}</p>
                     <p className="text-xs text-slate-400 mb-4">{`${yAxisKpi} Var. vs. ${xAxisKpi} Var.`}</p>
                 </div>
                 <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white">
