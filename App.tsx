@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Rectangle } from 'recharts';
-import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory } from './types';
+import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory, Anomaly } from './types';
 import { KPI_CONFIG, DIRECTORS, ALL_KPIS, KPI_ICON_MAP, ALL_STORES } from './constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from './utils/dateUtils';
 import { generateMockPerformanceData, generateMockBudgets, generateMockGoals } from './data/mockData';
@@ -20,6 +20,9 @@ import { GoalSetter } from './components/GoalSetter';
 import { LocationInsightsModal } from './components/LocationInsightsModal';
 import { CompanyStoreRankings } from './components/CompanyStoreRankings';
 import { AnimatedNumberDisplay } from './components/AnimatedNumberDisplay';
+import { AIAlerts } from './components/AIAlerts';
+import { AnomalyDetailModal } from './components/AnomalyDetailModal';
+import { getAnomalyDetections } from './services/geminiService';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -57,7 +60,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     return (
         <motion.div 
             className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col justify-between"
-            whileHover={{ scale: 1.03 }}
+            whileHover={{ scale: 1.03, borderColor: '#22d3ee' }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
             <div className="flex items-center justify-between text-slate-400">
@@ -77,29 +80,14 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
 };
 
 
-// Custom 3D Bar Shape for Recharts
-const CustomBar = (props: any) => {
-  const { x, y, width, height, fill } = props;
-  const barWidth = Math.max(width, 0);
-  const barHeight = Math.max(height, 0);
-
-  return (
-    <g>
-      <Rectangle {...props} width={barWidth} height={barHeight} fill={fill} />
-      {barHeight > 0 && <path d={`M${x + barWidth},${y} L${x + barWidth + 5},${y - 5} L${x + barWidth + 5},${y + barHeight - 5} L${x + barWidth},${y + barHeight} Z`} fill={fill} fillOpacity="0.5" />}
-      {barWidth > 0 && <path d={`M${x},${y + barHeight} L${x + 5},${y + barHeight - 5} L${x + barWidth + 5},${y + barHeight - 5} L${x + barWidth},${y + barHeight} Z`} fill={fill} fillOpacity="0.2" />}
-    </g>
-  );
-};
-
-
 // Main App Component
 const App: React.FC = () => {
     // State
     const [allData, setAllData] = useState<StorePerformanceData[]>(generateMockPerformanceData());
     const [budgets, setBudgets] = useState<Budget[]>(generateMockBudgets());
-    const [goals] = useState<Goal[]>(generateMockGoals());
+    const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
+    const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
 
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -115,8 +103,10 @@ const App: React.FC = () => {
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
+    const [isAnomalyDetailOpen, setAnomalyDetailOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
+    const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
 
     useEffect(() => {
         if (navigator.geolocation) {
@@ -160,7 +150,6 @@ const App: React.FC = () => {
         return totals;
     }, []);
 
-    // Data Aggregation Logic
     const aggregatedData = useMemo(() => {
         const currentPeriodData = getPeriodData(currentPeriod);
         
@@ -229,6 +218,16 @@ const App: React.FC = () => {
         return results;
     }, [currentPeriod, comparisonMode, getPeriodData, aggregate, budgets, allData]);
 
+    useEffect(() => {
+        const fetchAnomalies = async () => {
+            if (Object.keys(allStoresBreakdownData).length > 0) {
+                const detectedAnomalies = await getAnomalyDetections(allStoresBreakdownData, currentPeriod.label);
+                setAnomalies(detectedAnomalies);
+            }
+        };
+        fetchAnomalies();
+    }, [allStoresBreakdownData, currentPeriod]);
+
     const summaryData = useMemo(() => {
         const sourceData = currentView === 'Total Company'
             ? Object.values(aggregatedData).map((d: any) => d.aggregated)
@@ -278,7 +277,6 @@ const App: React.FC = () => {
         const periodsOfType = ALL_PERIODS.filter(p => p.type === periodType);
         const currentIndex = periodsOfType.findIndex(p => p.label === currentPeriod.label);
         
-        // Get the current period and up to 3 previous periods
         const relevantPeriods = periodsOfType.slice(Math.max(0, currentIndex - 3), currentIndex + 1);
 
         const storesForView = currentView === 'Total Company'
@@ -292,7 +290,7 @@ const App: React.FC = () => {
                 periodLabel: period.label,
                 data: aggregated
             };
-        }).filter(p => Object.keys(p.data).length > 0); // Filter out periods with no data
+        }).filter(p => Object.keys(p.data).length > 0);
 
     }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
 
@@ -312,7 +310,6 @@ const App: React.FC = () => {
         }));
     }, [aggregatedData, selectedChartKpi, currentView]);
 
-    // Handlers
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
         const firstPeriodOfType = ALL_PERIODS.find(p => p.type === type);
@@ -396,19 +393,39 @@ const App: React.FC = () => {
       });
     }, []);
 
+     const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
+        setGoals(prevGoals => {
+            const newGoals = [...prevGoals];
+            const goalIndex = newGoals.findIndex(g => g.directorId === directorId && g.quarter === quarter && g.year === year && g.kpi === kpi);
+
+            if (goalIndex > -1) {
+                newGoals[goalIndex] = { ...newGoals[goalIndex], target };
+            } else {
+                newGoals.push({ directorId, quarter, year, kpi, target });
+            }
+            return newGoals;
+        });
+    };
+
+    const handleShowAnomalyDetail = (anomaly: Anomaly) => {
+        setSelectedAnomaly(anomaly);
+        setAnomalyDetailOpen(true);
+    };
+
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <TimeSelector period={currentPeriod} setPeriod={setCurrentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
-            <ExecutiveSummary data={aggregatedData} view={currentView} period={currentPeriod} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <ExecutiveSummary data={aggregatedData} view={currentView} period={currentPeriod} />
+                </div>
+                <AIAlerts anomalies={anomalies} onSelectAnomaly={handleShowAnomalyDetail} />
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <KPICard title={Kpi.Sales} value={summaryData[Kpi.Sales] || 0} variance={summaryVariance[Kpi.Sales] || 0} />
                 <KPICard title={Kpi.SOP} value={summaryData[Kpi.SOP] || 0} variance={summaryVariance[Kpi.SOP] || 0} />
                 <KPICard title={Kpi.PrimeCost} value={summaryData[Kpi.PrimeCost] || 0} variance={summaryVariance[Kpi.PrimeCost] || 0} />
                 <KPICard title={Kpi.AvgReviews} value={summaryData[Kpi.AvgReviews] || 0} variance={summaryVariance[Kpi.AvgReviews] || 0} />
-                <KPICard title={Kpi.FoodCost} value={summaryData[Kpi.FoodCost] || 0} variance={summaryVariance[Kpi.FoodCost] || 0} />
-                <KPICard title={Kpi.LaborCost} value={summaryData[Kpi.LaborCost] || 0} variance={summaryVariance[Kpi.LaborCost] || 0} />
-                <KPICard title={Kpi.VariableLabor} value={summaryData[Kpi.VariableLabor] || 0} variance={summaryVariance[Kpi.VariableLabor] || 0} />
-                <KPICard title={Kpi.CulinaryAuditScore} value={summaryData[Kpi.CulinaryAuditScore] || 0} variance={summaryVariance[Kpi.CulinaryAuditScore] || 0} />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -426,32 +443,21 @@ const App: React.FC = () => {
                                  {ALL_KPIS.map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
                              </select>
                         </div>
-                        <ResponsiveContainer width="100%" height={400}>
+                        <ResponsiveContainer width="100%" height={250}>
                             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                 <defs>
-                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="#0891b2" stopOpacity={0.9}/>
-                                    </linearGradient>
-                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                                 <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => formatDisplayValue(val, selectedChartKpi)} />
                                 <YAxis type="category" dataKey="name" stroke="#9ca3af" width={120} />
                                 <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} formatter={(value: number) => formatDisplayValue(value, selectedChartKpi)} cursor={{fill: 'rgba(100, 116, 139, 0.1)'}}/>
                                 <Legend />
-                                <Bar dataKey="Actual" fill="url(#barGradient)" shape={<CustomBar />} />
-                                <Bar dataKey="Comparison" fill="#64748b" shape={<CustomBar />} />
+                                <Bar dataKey="Actual" fill="#22d3ee" />
+                                <Bar dataKey="Comparison" fill="#64748b" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                     <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
                     <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
-            </div>
-
-            <div className="flex gap-4">
-                <button onClick={() => setScenarioModelerOpen(true)} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">Run What-If Scenario</button>
-                <button onClick={() => setDataEntryOpen(true)} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">Data Entry</button>
             </div>
         </div>
     );
@@ -508,13 +514,17 @@ const App: React.FC = () => {
                       })}
                   </div>
               </div>
+              <div className="mt-auto pt-4 border-t border-slate-700 space-y-2">
+                  <button onClick={() => setScenarioModelerOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Run What-If Scenario</button>
+                  <button onClick={() => setDataEntryOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Data Entry</button>
+              </div>
           </aside>
           <main className="flex-1 overflow-y-auto">
               <AnimatePresence mode="wait">
                   <motion.div key={currentPage} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} >
                       {currentPage === 'Dashboard' && renderDashboard()}
                       {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
-                      {currentPage === 'Goal Setter' && <GoalSetter />}
+                      {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
                   </motion.div>
               </AnimatePresence>
           </main>
@@ -522,7 +532,8 @@ const App: React.FC = () => {
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
           <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={selectedChartKpi} period={currentPeriod} />
-          <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} />
+          <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
+          <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
       </div>
     );
 };

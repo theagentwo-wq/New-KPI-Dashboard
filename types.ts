@@ -71,3 +71,18 @@ export interface Note {
   category: NoteCategory;
   content: string;
 }
+
+export interface Anomaly {
+  id: string;
+  location: string;
+  kpi: Kpi;
+  deviation: number;
+  periodLabel: string;
+  summary: string;
+  analysis: string;
+}
+
+export interface ForecastDataPoint {
+    date: string;
+    predictedSales: number;
+}
