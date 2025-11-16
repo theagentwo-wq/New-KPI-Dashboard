@@ -40,6 +40,9 @@ export interface Budget {
 export interface DirectorProfile {
   id: View;
   name: string;
+  lastName: string;
+  email: string;
+  phone: string;
   title: string;
   stores: string[];
   photo: string;

@@ -2,27 +2,39 @@ import { DirectorProfile, Kpi, NoteCategory } from './types';
 
 export const DIRECTORS: DirectorProfile[] = [
   {
-    id: 'Danny', name: 'Danny', title: 'Area Director', 
+    id: 'Danny', name: 'Danny', lastName: 'Serafini',
+    email: 'd.serafini@tupelohoneycafe.com',
+    phone: '858-717-2925',
+    title: 'Area Director', 
     stores: ['Denver, CO', 'Las Colinas, TX', 'Omaha, NB', 'Lenexa, KS', 'Boise, ID', 'Frisco, TX', 'Des Moines, IA'],
-    photo: 'https://picsum.photos/seed/danny/200',
+    photo: 'https://api.dicebear.com/8.x/adventurer/svg?seed=Danny&backgroundColor=22d3ee,64748b,94a3b8&backgroundType=gradientLinear',
     bio: 'Danny has been a pivotal part of our growth, focusing on operational excellence and team development in his diverse region.'
   },
   {
-    id: 'Heather', name: 'Heather', title: 'Area Director', 
+    id: 'Heather', name: 'Heather', lastName: 'Roberts',
+    email: 'h.roberts@tupelohoneycafe.com',
+    phone: '865-454-1184',
+    title: 'Area Director', 
     stores: ['Knoxville, TN', 'Farragut, TN', 'Chattanooga, TN', 'Huntsville, AL', 'Downtown Asheville, NC', 'Gainesville, GA', 'Raleigh, NC'],
-    photo: 'https://picsum.photos/seed/heather/200',
+    photo: 'https://api.dicebear.com/8.x/adventurer/svg?seed=Heather&backgroundColor=22d3ee,64748b,94a3b8&backgroundType=gradientLinear',
     bio: 'With a background in culinary arts and management, Heather brings a unique blend of creativity and discipline to the Southeast region.'
   },
   {
-    id: 'Ryan', name: 'Ryan', title: 'Area Director', 
+    id: 'Ryan', name: 'Ryan', lastName: 'Bowen',
+    email: 'r.bowen@tupelohoneycafe.com',
+    phone: '703-209-7515',
+    title: 'Area Director', 
     stores: ['Indianapolis, IN', 'Grand Rapids, MI', 'Pittsburgh, PA', 'Franklin, TN', 'Milwaukee, WI', 'Columbus, OH'],
-    photo: 'https://picsum.photos/seed/ryan/200',
+    photo: 'https://api.dicebear.com/8.x/adventurer/svg?seed=Ryan&backgroundColor=22d3ee,64748b,94a3b8&backgroundType=gradientLinear',
     bio: 'Ryan is a data-driven leader who excels at optimizing prime costs and enhancing guest satisfaction across his Midwest stores.'
   },
   {
-    id: 'Robert', name: 'Robert', title: 'Area Director', 
+    id: 'Robert', name: 'Robert', lastName: 'Simms',
+    email: 'robert@tupelohoneycafe.com',
+    phone: '864-906-8070',
+    title: 'Area Director', 
     stores: ['Greenville, SC', 'Columbia, SC', 'Virginia Beach, VA', 'Charlotte, NC', 'South Asheville, NC', 'Myrtle Beach, SC', 'Arlington, VA'],
-    photo: 'https://picsum.photos/seed/robert/200',
+    photo: 'https://api.dicebear.com/8.x/adventurer/svg?seed=Robert&backgroundColor=22d3ee,64748b,94a3b8&backgroundType=gradientLinear',
     bio: 'Robert champions a culture of hospitality and is known for his ability to build high-performing teams that deliver consistent results in the Carolinas and Virginia.'
   }
 ];
