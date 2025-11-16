@@ -506,7 +506,7 @@ const App: React.FC = () => {
                         ? (
                             <>
                                 <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
-                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} heightClass="h-[500px]" />
                             </>
                         )
                         : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />

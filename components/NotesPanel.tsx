@@ -11,9 +11,10 @@ interface NotesPanelProps {
   deleteNote: (noteId: string) => void;
   currentView: View;
   mainDashboardPeriod: Period;
+  heightClass?: string;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]' }) => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>('General');
   
@@ -89,7 +90,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   }, [allNotes, selectedPeriodLabel, selectedScope]);
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 max-h-[500px] flex flex-col">
+    <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
       <div className="p-4 border-b border-slate-700 space-y-2">
         <h3 className="text-lg font-bold text-cyan-400">Notes</h3>
         <div className="grid grid-cols-2 gap-2">
