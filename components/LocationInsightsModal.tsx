@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
+import { Icon } from './Icon';
 
 interface LocationInsightsModalProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
   const [isLoading, setIsLoading] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisType>('none');
   const [sanitizedHtml, setSanitizedHtml] = useState('');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     const renderMarkdown = async () => {
@@ -79,6 +81,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         setForecastResult([]);
         setMarketResult(null);
         setMarketingResult(null);
+        setIsFullScreen(false); // Reset fullscreen state
     }
   }, [isOpen]);
 
@@ -123,7 +126,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
   const renderContent = () => {
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center space-x-2 min-h-[250px]">
+            <div className="flex items-center justify-center space-x-2 h-full">
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
@@ -133,7 +136,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     }
     
     if ((currentAnalysis === 'brief' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml) {
-         return <div className="prose prose-sm prose-invert max-w-none text-slate-200 custom-scrollbar pr-2 max-h-[40vh] overflow-y-auto" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+         return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
     }
 
     if (currentAnalysis === 'forecast' && forecastResult.length > 0) {
@@ -160,10 +163,22 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     return <p className="text-slate-300 text-center py-8">Select an AI action to run for {location}.</p>;
   }
 
+  const headerControls = (
+    <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white">
+        <Icon name={isFullScreen ? 'compress' : 'expand'} className="w-5 h-5" />
+    </button>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Store Actions for ${location}`}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 p-2 bg-slate-900 rounded-md">
+    <Modal 
+        isOpen={isOpen} 
+        onClose={onClose} 
+        title={`Store Actions for ${location}`} 
+        size={isFullScreen ? 'fullscreen' : 'large'}
+        headerControls={headerControls}
+    >
+      <div className="flex flex-col h-full">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-2 bg-slate-900 rounded-md">
           <button onClick={() => handleAnalysis('brief')} disabled={isLoading || !performanceData} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed">
             Generate HOT TOPICS
           </button>
@@ -178,7 +193,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 min-h-[250px]">
+        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto min-h-[250px] custom-scrollbar">
             {renderContent()}
         </div>
       </div>

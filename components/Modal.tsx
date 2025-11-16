@@ -7,9 +7,22 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  size?: 'default' | 'large' | 'fullscreen';
+  headerControls?: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'default', headerControls }) => {
+  const getSizeClass = () => {
+    switch (size) {
+      case 'large':
+        return 'w-full max-w-4xl';
+      case 'fullscreen':
+        return 'w-screen h-screen max-w-none rounded-none';
+      default:
+        return 'w-full max-w-2xl';
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -25,16 +38,19 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl text-slate-200 border border-slate-700"
+            className={`bg-slate-800 rounded-lg shadow-xl text-slate-200 border border-slate-700 flex flex-col ${getSizeClass()}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-slate-700">
               <h2 className="text-xl font-bold text-cyan-400">{title}</h2>
-              <button onClick={onClose} className="text-slate-400 hover:text-white">
-                <Icon name="x" className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                {headerControls}
+                <button onClick={onClose} className="text-slate-400 hover:text-white">
+                  <Icon name="x" className="w-6 h-6" />
+                </button>
+              </div>
             </div>
-            <div className="p-6">{children}</div>
+            <div className="p-6 flex-1 overflow-y-auto">{children}</div>
           </motion.div>
         </motion.div>
       )}

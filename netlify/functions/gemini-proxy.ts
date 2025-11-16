@@ -308,7 +308,7 @@ ${JSON.stringify(data, null, 2)}`;
             
             case 'getLocationMarketAnalysis': {
                 const { location } = payload;
-                const prompt = `${AI_CONTEXT} You are a market research specialist. A manager for our restaurant in ${location} needs a snapshot of their local market to understand factors that could impact business. Use your tools to research and provide a concise summary. The response MUST be formatted using markdown with the following headers: ### 🗓️ Upcoming Local Events, ### 🏟️ Sports Scene, ### 🏗️ Major Construction/Traffic, and ### 📈 Economic Health. Under each header, provide 2-3 bullet points of the most relevant, recent information. Focus on information within the next 30-60 days where possible.`;
+                const prompt = `${AI_CONTEXT} You are a hyper-local market intelligence expert. A manager for our restaurant in ${location} needs a comprehensive, real-time snapshot of their local market to understand all factors that could impact foot traffic and sales. Use your tools to research and provide a detailed, well-organized summary. The response MUST be formatted using markdown with the following specific headers: ### 🗓️ Major Upcoming Events (Next 30-60 days), ### 🏟️ Sports Scene, ### 🎭 Arts & Culture, ### ✨ Notable Happenings, ### 🏗️ Major Construction & Traffic, and ### 📈 Economic Pulse. Under each header, provide 2-3 bullet points of the most relevant, recent information, such as major festivals, conventions, home games, concerts, theater productions, street fairs, celebrity visits, or significant road work.`;
                 
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
