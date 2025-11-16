@@ -1,29 +1,42 @@
-import { StorePerformanceData, Kpi, Budget, Goal } from '../types';
+import { StorePerformanceData, Kpi, Budget, Goal, Period } from '../types';
 import { ALL_STORES, DIRECTORS } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 
-const getRandomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+// A simple deterministic random number generator based on a seed
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
 
-export const generateMockPerformanceData = (): StorePerformanceData[] => {
+export const generateDataForPeriod = (period: Period): StorePerformanceData[] => {
   const data: StorePerformanceData[] = [];
-  const weeklyPeriods = ALL_PERIODS.filter(p => p.type === 'Week');
+  // Find all weekly periods that are fully contained within the given period
+  const weeklyPeriodsInPeriod = ALL_PERIODS.filter(p => p.type === 'Week' && p.startDate >= period.startDate && p.endDate <= period.endDate);
 
   for (const storeId of ALL_STORES) {
-    for (const period of weeklyPeriods) {
-      const foodCost = getRandomInRange(0.28, 0.34);
-      const laborCost = getRandomInRange(0.25, 0.32);
+    for (const week of weeklyPeriodsInPeriod) {
+      // Create a unique, deterministic seed for each store and week
+      const seed = storeId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + week.startDate.getTime();
+      
+      const getRandomInRange = (min: number, max: number, offset: number = 0) => {
+        return seededRandom(seed + offset) * (max - min) + min;
+      };
+
+      const foodCost = getRandomInRange(0.28, 0.34, 1);
+      const laborCost = getRandomInRange(0.25, 0.32, 2);
+      
       data.push({
         storeId,
-        weekStartDate: period.startDate,
+        weekStartDate: week.startDate,
         data: {
-          [Kpi.Sales]: getRandomInRange(25000, 75000),
-          [Kpi.SOP]: getRandomInRange(0.1, 0.25),
-          [Kpi.PrimeCost]: foodCost + laborCost + getRandomInRange(-0.02, 0.02),
-          [Kpi.AvgReviews]: getRandomInRange(3.8, 4.9),
+          [Kpi.Sales]: getRandomInRange(25000, 75000, 3),
+          [Kpi.SOP]: getRandomInRange(0.1, 0.25, 4),
+          [Kpi.PrimeCost]: foodCost + laborCost + getRandomInRange(-0.02, 0.02, 5),
+          [Kpi.AvgReviews]: getRandomInRange(3.8, 4.9, 6),
           [Kpi.FoodCost]: foodCost,
           [Kpi.LaborCost]: laborCost,
-          [Kpi.VariableLabor]: getRandomInRange(0.14, 0.20),
-          [Kpi.CulinaryAuditScore]: getRandomInRange(0.85, 0.98),
+          [Kpi.VariableLabor]: getRandomInRange(0.14, 0.20, 7),
+          [Kpi.CulinaryAuditScore]: getRandomInRange(0.85, 0.98, 8),
         },
       });
     }
@@ -46,13 +59,13 @@ export const generateMockBudgets = (): Budget[] => {
         year: parseInt(yearMatch[1], 10),
         month: parseInt(periodMatch[1], 10),
         targets: {
-          [Kpi.Sales]: getRandomInRange(120000, 300000),
-          [Kpi.SOP]: getRandomInRange(0.12, 0.22),
-          [Kpi.PrimeCost]: getRandomInRange(0.58, 0.65),
+          [Kpi.Sales]: seededRandom(1) * (300000 - 120000) + 120000,
+          [Kpi.SOP]: seededRandom(2) * (0.22 - 0.12) + 0.12,
+          [Kpi.PrimeCost]: seededRandom(3) * (0.65 - 0.58) + 0.58,
           [Kpi.AvgReviews]: 4.5,
-          [Kpi.FoodCost]: getRandomInRange(0.29, 0.32),
-          [Kpi.LaborCost]: getRandomInRange(0.26, 0.30),
-          [Kpi.VariableLabor]: getRandomInRange(0.15, 0.18),
+          [Kpi.FoodCost]: seededRandom(4) * (0.32 - 0.29) + 0.29,
+          [Kpi.LaborCost]: seededRandom(5) * (0.30 - 0.26) + 0.26,
+          [Kpi.VariableLabor]: seededRandom(6) * (0.18 - 0.15) + 0.15,
           [Kpi.CulinaryAuditScore]: 0.92,
         },
       });
@@ -76,7 +89,7 @@ export const generateMockGoals = (): Goal[] => {
             year: parseInt(yearMatch[1], 10),
             quarter: parseInt(quarterMatch[1], 10),
             kpi: Kpi.SOP,
-            target: getRandomInRange(0.18, 0.23),
+            target: seededRandom(10) * (0.23 - 0.18) + 0.18,
         });
     }
   }

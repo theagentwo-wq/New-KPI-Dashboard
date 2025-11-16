@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory, Anomaly } from './types';
 import { KPI_CONFIG, DIRECTORS, ALL_KPIS, KPI_ICON_MAP, ALL_STORES } from './constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from './utils/dateUtils';
-import { generateMockPerformanceData, generateMockBudgets, generateMockGoals } from './data/mockData';
+import { generateDataForPeriod, generateMockBudgets, generateMockGoals } from './data/mockData';
 import { useAnimatedNumber } from './hooks/useAnimatedNumber';
 import { Icon } from './components/Icon';
 import { TimeSelector } from './components/TimeSelector';
@@ -85,7 +85,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
 // Main App Component
 const App: React.FC = () => {
     // State
-    const [allData, setAllData] = useState<StorePerformanceData[]>(generateMockPerformanceData());
+    const [loadedData, setLoadedData] = useState<StorePerformanceData[]>([]);
     const [budgets, setBudgets] = useState<Budget[]>(generateMockBudgets());
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
@@ -141,11 +141,22 @@ const App: React.FC = () => {
         };
         fetchNotes();
     }, []);
+    
+    useEffect(() => {
+        const comparisonPeriod = comparisonMode === 'vs. Prior Period'
+            ? getPreviousPeriod(currentPeriod)
+            : (comparisonMode === 'vs. Last Year' ? getYoYPeriod(currentPeriod) : undefined);
+
+        const currentData = generateDataForPeriod(currentPeriod);
+        const comparisonData = comparisonPeriod ? generateDataForPeriod(comparisonPeriod) : [];
+
+        setLoadedData([...currentData, ...comparisonData]);
+    }, [currentPeriod, comparisonMode]);
 
     const getPeriodData = useCallback((period: Period | undefined) => {
         if (!period) return [];
-        return allData.filter(d => d.weekStartDate >= period.startDate && d.weekStartDate <= period.endDate);
-    }, [allData]);
+        return loadedData.filter(d => d.weekStartDate >= period.startDate && d.weekStartDate <= period.endDate);
+    }, [loadedData]);
 
     const aggregate = useCallback((data: StorePerformanceData[], stores: string[]) => {
         const filteredData = data.filter(d => stores.includes(d.storeId));
@@ -209,7 +220,7 @@ const App: React.FC = () => {
         }
         return results;
 
-    }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate]);
+    }, [loadedData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate]);
     
     const allStoresBreakdownData = useMemo(() => {
         const currentPeriodData = getPeriodData(currentPeriod);
@@ -234,7 +245,7 @@ const App: React.FC = () => {
             results[storeId] = { actual, comparison, variance };
         });
         return results;
-    }, [currentPeriod, comparisonMode, getPeriodData, aggregate, budgets, allData]);
+    }, [currentPeriod, comparisonMode, getPeriodData, aggregate, budgets, loadedData]);
 
     useEffect(() => {
         const fetchAnomalies = async () => {
@@ -302,7 +313,7 @@ const App: React.FC = () => {
             : DIRECTORS.find(d => d.id === currentView)?.stores || [];
 
         return relevantPeriods.map(period => {
-            const periodData = getPeriodData(period);
+            const periodData = generateDataForPeriod(period);
             const aggregated = aggregate(periodData, storesForView);
             return {
                 periodLabel: period.label,
@@ -310,7 +321,7 @@ const App: React.FC = () => {
             };
         }).filter(p => Object.keys(p.data).length > 0);
 
-    }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
+    }, [currentPeriod, periodType, currentView, aggregate]);
     
     const directorModalData = useMemo(() => {
         if (!selectedDirector) return null;
@@ -427,7 +438,7 @@ const App: React.FC = () => {
 
     const handleSaveData = (storeId: string, weekStartDate: Date, data: PerformanceData) => {
         const newDataEntry: StorePerformanceData = { storeId, weekStartDate, data };
-        setAllData(prev => [...prev.filter(d => !(d.storeId === storeId && d.weekStartDate.getTime() === weekStartDate.getTime())), newDataEntry]);
+        setLoadedData(prev => [...prev.filter(d => !(d.storeId === storeId && d.weekStartDate.getTime() === weekStartDate.getTime())), newDataEntry]);
     };
 
     const handleUpdateBudget = useCallback((storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
