@@ -211,8 +211,10 @@ ${JSON.stringify(dataForAnomalies, null, 2)}
 
         const jsonString = response.text?.trim();
         if (!jsonString) {
+            console.warn("Received empty response from anomaly detection API.");
             return [];
         }
+
         const parsedAnomalies = JSON.parse(jsonString);
 
         return parsedAnomalies.map((item: any, index: number) => ({
@@ -336,11 +338,13 @@ export const getSalesForecast = async (location: string): Promise<ForecastDataPo
         
         const text = response.text?.trim();
         if (!text) {
-             throw new Error("Empty response from forecast API");
+             console.warn("Received empty response from forecast API.");
+             return [];
         }
 
         let jsonString = text;
         
+        // The API might wrap the JSON in markdown, so we extract it if necessary.
         const match = /```json\n([\s\S]*?)\n```/.exec(text);
         if (match && match[1]) {
             jsonString = match[1];
@@ -350,9 +354,10 @@ export const getSalesForecast = async (location: string): Promise<ForecastDataPo
 
     } catch (error) {
         console.error("Error fetching sales forecast:", error);
+        // Fallback to mock data on error
         const today = new Date();
-        return Array.from({ length: 7 }).map((_) => ({
-            date: new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0],
+        return Array.from({ length: 7 }).map((_, i) => ({
+            date: new Date(new Date().setDate(today.getDate() + i)).toISOString().split('T')[0],
             predictedSales: 50000 + Math.random() * 10000
         }));
     }

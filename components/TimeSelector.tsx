@@ -4,7 +4,6 @@ import { Icon } from './Icon';
 
 interface TimeSelectorProps {
   period: Period;
-  setPeriod: (period: Period) => void;
   comparisonMode: ComparisonMode;
   setComparisonMode: (mode: ComparisonMode) => void;
   periodType: 'Week' | 'Month' | 'Quarter' | 'Year';

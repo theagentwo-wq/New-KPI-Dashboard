@@ -414,7 +414,7 @@ const App: React.FC = () => {
 
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            <TimeSelector period={currentPeriod} setPeriod={setCurrentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
+            <TimeSelector period={currentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <ExecutiveSummary data={aggregatedData} view={currentView} period={currentPeriod} />

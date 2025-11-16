@@ -1,4 +1,4 @@
-import { addDays, addWeeks, format, getWeek } from 'date-fns';
+import { addDays, addWeeks, format } from 'date-fns';
 import { Period } from '../types';
 
 const FY2026_START_DATE = new Date('2025-12-29T00:00:00');
