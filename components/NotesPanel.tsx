@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Note, NoteCategory, View, Period } from '../types';
-import { NOTE_CATEGORIES, DIRECTORS, ALL_STORES } from '../constants';
+import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 
 interface NotesPanelProps {

@@ -1,15 +1,8 @@
-
-
-// FIX: Removed unused 'subYears' import which was causing an error.
-import { addDays, addWeeks, startOfWeek, format, getWeek, getYear, subDays } from 'date-fns';
+import { addDays, addWeeks, format, getWeek } from 'date-fns';
 import { Period } from '../types';
 
 const FY2026_START_DATE = new Date('2025-12-29T00:00:00');
 const WEEKS_IN_YEAR = 52;
-const FY_START_WEEK_OFFSET = getWeek(FY2026_START_DATE) - 1;
-
-// Assuming FY2026 starts on a Monday. Adjust if needed.
-const FY_START_OF_WEEK_OPTIONS = { weekStartsOn: 1 as const };
 
 const getFiscalYearStartDate = (year: number): Date => {
   const yearDiff = year - 2026;

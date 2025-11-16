@@ -53,7 +53,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
       const res = await generateHuddleBrief(location, performanceData);
       setBriefResult(res);
     } else if (type === 'forecast') {
-      const res = await getSalesForecast(location, []); // Pass historical data if available
+      // FIX: Removed second argument from getSalesForecast call as it only expects one argument.
+      const res = await getSalesForecast(location); // Pass historical data if available
       setForecastResult(res);
     }
     setIsLoading(false);

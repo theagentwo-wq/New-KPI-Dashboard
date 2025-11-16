@@ -1,6 +1,5 @@
 import React from 'react';
 import { Anomaly } from '../types';
-import { Icon } from './Icon';
 
 interface AIAlertsProps {
   anomalies: Anomaly[];

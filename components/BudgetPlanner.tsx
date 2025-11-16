@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Budget, Kpi, PerformanceData } from '../types';
+import { Budget, Kpi } from '../types';
 import { ALL_STORES, ALL_KPIS, KPI_CONFIG } from '../constants';
 
 interface BudgetPlannerProps {

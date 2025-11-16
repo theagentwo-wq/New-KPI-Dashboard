@@ -49,17 +49,20 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
   if (!director) return null;
 
-  const topStore = director.stores.reduce((best, current) => {
+  const topStore = (director.stores && director.stores.length > 0) ? director.stores.reduce((best, current) => {
+    if (!performanceData?.[current]?.actual) return best;
+    if (!performanceData?.[best]?.actual) return current;
+
     const kpiConfig = KPI_CONFIG[selectedKpi];
-    const bestPerf = performanceData?.[best]?.actual?.[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-    const currentPerf = performanceData?.[current]?.actual?.[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    const bestPerf = performanceData[best].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+    const currentPerf = performanceData[current].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
     
     if (kpiConfig.higherIsBetter) {
       return currentPerf > bestPerf ? current : best;
     } else {
       return currentPerf < bestPerf ? current : best;
     }
-  }, director.stores[0]);
+  }, director.stores[0]) : 'N/A';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={director.name}>

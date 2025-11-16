@@ -1,10 +1,6 @@
-
-
-
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Kpi, PerformanceData, View, Anomaly, ForecastDataPoint } from '../types';
 
-// FIX: Updated API key retrieval to use process.env.API_KEY as per the guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const AI_CONTEXT = "You are an expert restaurant operations analyst for Tupelo Honey Cafe, a southern restaurant chain (website: https://tupelohoneycafe.com). Your analysis should be sharp, insightful, and tailored to a restaurant executive audience.";
@@ -62,7 +58,7 @@ export const getExecutiveSummary = async (data: any, view: View, periodLabel: st
       contents: prompt,
     });
     
-    return response.text;
+    return response.text ?? "AI features disabled. API key may be missing or invalid.";
   } catch (error) {
     console.error("Error fetching executive summary:", error);
     return "AI features disabled. API key may be missing or invalid.";
@@ -100,6 +96,10 @@ export const getInsights = async (
         });
 
         let content = response.text;
+        if (!content) {
+            return "I'm sorry, I couldn't process that request.";
+        }
+
         const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
         if (groundingChunks && groundingChunks.length > 0) {
             const sources = new Set<string>();
@@ -141,7 +141,7 @@ ${formattedData}`;
       contents: prompt,
     });
     
-    return response.text;
+    return response.text ?? "Could not generate trend analysis at this time.";
   } catch (error) {
     console.error("Error fetching trend analysis:", error);
     return "Could not generate trend analysis at this time.";
@@ -169,7 +169,7 @@ ${formattedData}`;
             contents: prompt,
         });
 
-        return response.text;
+        return response.text ?? "Could not generate performance snapshot at this time.";
     } catch (error) {
         console.error("Error fetching director snapshot:", error);
         return "Could not generate performance snapshot at this time.";
@@ -209,7 +209,10 @@ ${JSON.stringify(dataForAnomalies, null, 2)}
             }
         });
 
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim();
+        if (!jsonString) {
+            return [];
+        }
         const parsedAnomalies = JSON.parse(jsonString);
 
         return parsedAnomalies.map((item: any, index: number) => ({
@@ -242,7 +245,7 @@ ${formattedData}`;
             contents: prompt,
         });
         
-        return response.text;
+        return response.text ?? "Could not generate huddle brief at this time.";
     } catch (error) {
         console.error("Error generating huddle brief:", error);
         return "Could not generate huddle brief at this time.";
@@ -319,7 +322,7 @@ Scenario: "${userPrompt}"`;
   }
 };
 
-export const getSalesForecast = async (location: string, historicalData: PerformanceData[]): Promise<ForecastDataPoint[]> => {
+export const getSalesForecast = async (location: string): Promise<ForecastDataPoint[]> => {
     try {
         const prompt = `Based on the historical sales data for the restaurant in ${location}, generate a 7-day sales forecast. Use Google Search to factor in the current weather forecast and any significant local events (festivals, conferences, etc.) that could impact traffic. The response MUST be a JSON array of objects, where each object has "date" (YYYY-MM-DD) and "predictedSales" (number). Output ONLY the JSON array, with no other text, markdown, or explanation.`;
 
@@ -331,7 +334,11 @@ export const getSalesForecast = async (location: string, historicalData: Perform
             }
         });
         
-        const text = response.text.trim();
+        const text = response.text?.trim();
+        if (!text) {
+             throw new Error("Empty response from forecast API");
+        }
+
         let jsonString = text;
         
         const match = /```json\n([\s\S]*?)\n```/.exec(text);
@@ -344,7 +351,7 @@ export const getSalesForecast = async (location: string, historicalData: Perform
     } catch (error) {
         console.error("Error fetching sales forecast:", error);
         const today = new Date();
-        return Array.from({ length: 7 }).map((_, i) => ({
+        return Array.from({ length: 7 }).map((_) => ({
             date: new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0],
             predictedSales: 50000 + Math.random() * 10000
         }));

@@ -1,9 +1,5 @@
-
-
-
-
 import React from 'react';
-import { Period, ComparisonMode, SavedView, View } from '../types';
+import { Period, ComparisonMode, SavedView } from '../types';
 import { Icon } from './Icon';
 
 interface TimeSelectorProps {
@@ -22,7 +18,6 @@ interface TimeSelectorProps {
 
 export const TimeSelector: React.FC<TimeSelectorProps> = ({
   period,
-  setPeriod,
   comparisonMode,
   setComparisonMode,
   periodType,
