@@ -206,6 +206,43 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 return { statusCode: 200, body: JSON.stringify({ data }) };
             }
 
+            // FIX: Add handlers for video generation (start, poll, fetch).
+            case 'generateVideoStart': {
+                const { prompt, aspectRatio } = payload;
+                const ai = new GoogleGenAI({ apiKey }); 
+                const operation = await ai.models.generateVideos({
+                    model: 'veo-3.1-fast-generate-preview',
+                    prompt,
+                    config: {
+                        numberOfVideos: 1,
+                        resolution: '720p',
+                        aspectRatio,
+                    }
+                });
+                return { statusCode: 200, body: JSON.stringify(operation) };
+            }
+
+            case 'pollVideoOperation': {
+                const { operation } = payload;
+                const ai = new GoogleGenAI({ apiKey });
+                const updatedOperation = await ai.operations.getVideosOperation({ operation });
+                return { statusCode: 200, body: JSON.stringify(updatedOperation) };
+            }
+
+            case 'fetchVideo': {
+                const { uri } = payload;
+                const fetchUrl = `${uri}&key=${apiKey}`;
+                const response = await fetch(fetchUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch video from URI: ${response.statusText}`);
+                }
+                const videoBuffer = await response.arrayBuffer();
+                // Buffer is available in Node.js environment on Netlify
+                const base64Video = Buffer.from(videoBuffer).toString('base64');
+                const videoUrl = `data:video/mp4;base64,${base64Video}`;
+                return { statusCode: 200, body: JSON.stringify({ url: videoUrl }) };
+            }
+
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
         }
