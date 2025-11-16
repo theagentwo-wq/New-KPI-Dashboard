@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast } from '../../types';
+import { KPI_CONFIG } from '../../constants';
 
 // This function runs on Netlify's backend.
 // The API key is securely accessed from environment variables and never exposed to the client.
@@ -267,24 +268,33 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 const { data, periodLabel, kpiAxes } = payload;
                 const { x, y, z } = kpiAxes;
                 
+                const isXCost = KPI_CONFIG[x as Kpi].higherIsBetter === false;
+                const xGoodDirection = isXCost ? 'negative' : 'positive';
+                const xBadDirection = isXCost ? 'positive' : 'negative';
+
                 const prompt = `${AI_CONTEXT} You are a master business strategist. Analyze the following restaurant performance data for the period "${periodLabel}", which is visualized in a 4-quadrant Performance Matrix.
+
+**IMPORTANT CONTEXT ON DATA:**
+- The data points (x, y) represent ABSOLUTE variance, not relative percentages.
+- For currency KPIs (like Sales), the value is the dollar variance (e.g., 5000 means +$5,000).
+- For percentage KPIs (like SOP or Prime Cost), the value is the percentage POINT variance (e.g., 0.02 means a +2% point change).
 
 **Matrix Definition:**
 - **X-Axis:** ${x} Variance (Represents efficiency/profitability changes)
-- **Y-Axis:** ${y} Variance (Represents growth/quality changes)
+- **Y-Axis:** ${y} Variance (Represents growth/quality changes. Higher is always better.)
 - **Bubble Size:** ${z} (Absolute value, represents context)
-- **Center Point (0,0):** The comparison baseline. A positive variance is good for ${y} but bad for cost-based KPIs like ${x}.
+- **Center Point (0,0):** The comparison baseline.
 
 **The Four Quadrants:**
-1. **Top-Right (Stars):** High Growth/Quality, Good Cost Control. (y > 0, x < 0 for costs OR x > 0 for profits)
-2. **Top-Left (Growth Focus):** High Growth/Quality, Weaker Cost Control. (y > 0, x > 0 for costs OR x < 0 for profits)
-3. **Bottom-Right (Profit Focus):** Low Growth/Quality, Good Cost Control. (y < 0, x < 0 for costs OR x > 0 for profits)
-4. **Bottom-Left (Needs Attention):** Low Growth/Quality, Weaker Cost Control. (y < 0, x > 0 for costs OR x < 0 for profits)
+1.  **Top-Right (Stars):** High Growth/Quality (y > 0) AND Good Profit/Cost Management (x is ${xGoodDirection}). These are top performers.
+2.  **Top-Left (Growth Focus):** High Growth/Quality (y > 0) BUT Weaker Profit/Cost Management (x is ${xBadDirection}).
+3.  **Bottom-Right (Profit Focus):** Low Growth/Quality (y < 0) BUT Good Profit/Cost Management (x is ${xGoodDirection}).
+4.  **Bottom-Left (Needs Attention):** Low Growth/Quality (y < 0) AND Weaker Profit/Cost Management (x is ${xBadDirection}).
 
 **Your Task:**
 Provide a concise, high-level strategic analysis based on the distribution of locations in these quadrants.
 1. Briefly summarize the overall business health based on where most locations are clustered.
-2. Identify 1-2 key outliers (e.g., a "Star" with a huge ${z}, or a location deep in the "Needs Attention" quadrant) and explain their significance.
+2. Identify 1-2 key outliers (e.g., a "Star" with a huge ${z} value, or a location deep in the "Needs Attention" quadrant) and explain their significance.
 3. Provide one key strategic recommendation for the business based on the overall pattern.
 
 Present your analysis in clean, readable markdown.
