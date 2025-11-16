@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { DirectorProfile, Kpi, Period, PerformanceData } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
@@ -14,19 +14,15 @@ interface DirectorProfileModalProps {
   directorStoreData?: { [storeId: string]: { actual: PerformanceData }};
   selectedKpi: Kpi;
   period: Period;
-  onPhotoUpdate: (photoData: { directorId: string; base64Image: string }[]) => void;
 }
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onPhotoUpdate }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
-  const [stagedPhoto, setStagedPhoto] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
-      setStagedPhoto(null);
       setSnapshot('');
       setSanitizedHtml('');
     }
@@ -53,28 +49,6 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     setIsLoading(false);
   };
 
-  const handlePhotoClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setStagedPhoto(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSaveChanges = () => {
-    if (stagedPhoto && director) {
-      onPhotoUpdate([{ directorId: director.id, base64Image: stagedPhoto }]);
-      setStagedPhoto(null);
-    }
-  };
-
   if (!director) return null;
 
   const topStore = (director.stores && director.stores.length > 0 && directorStoreData) ? director.stores.reduce((best, current) => {
@@ -98,31 +72,11 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         <div className="flex-shrink-0 text-center">
           <div className="relative group w-32 h-32 mx-auto">
             <img 
-              src={stagedPhoto || director.photo} 
+              src={director.photo} 
               alt={`${director.name} ${director.lastName}`} 
               className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover"
             />
-            <button 
-              onClick={handlePhotoClick}
-              className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity duration-300 cursor-pointer"
-              aria-label="Change profile photo"
-            >
-              <Icon name="photo" className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/png, image/jpeg, image/gif, image/webp"
-              className="hidden"
-            />
           </div>
-          {stagedPhoto && (
-            <div className="flex gap-2 justify-center mt-3">
-              <button onClick={handleSaveChanges} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-1 px-3 rounded-md">Save</button>
-              <button onClick={() => setStagedPhoto(null)} className="text-xs bg-slate-600 hover:bg-slate-700 text-white font-bold py-1 px-3 rounded-md">Cancel</button>
-            </div>
-          )}
 
           <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
           <p className="text-cyan-400">{director.title}</p>

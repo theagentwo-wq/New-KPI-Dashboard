@@ -128,23 +128,6 @@ const App: React.FC = () => {
         }
     }, []);
 
-    useEffect(() => {
-        try {
-            const savedPhotos = localStorage.getItem('directorPhotos');
-            if (savedPhotos) {
-                const parsedPhotos: { directorId: string; base64Image: string }[] = JSON.parse(savedPhotos);
-                setDirectorProfiles(prevProfiles => {
-                    return prevProfiles.map(profile => {
-                        const saved = parsedPhotos.find(p => p.directorId?.trim() === profile.id?.trim());
-                        return saved ? { ...profile, photo: saved.base64Image } : profile;
-                    });
-                });
-            }
-        } catch (error) {
-            console.error("Failed to load director photos from localStorage", error);
-        }
-    }, []);
-
     const getPeriodData = useCallback((period: Period | undefined) => {
         if (!period) return [];
         return allData.filter(d => d.weekStartDate >= period.startDate && d.weekStartDate <= period.endDate);
@@ -441,29 +424,6 @@ const App: React.FC = () => {
         setReviewAnalysisOpen(true);
     };
 
-    const handlePhotoUpdate = (photoData: { directorId: string; base64Image: string }[]) => {
-        setDirectorProfiles(prevProfiles => {
-            const updatedProfiles = prevProfiles.map(profile => {
-                const currentId = profile.id?.trim();
-                const newData = photoData.find(p => p.directorId?.trim() === currentId);
-                if (newData) {
-                    return { ...profile, photo: newData.base64Image };
-                }
-                return profile;
-            });
-            try {
-                const allPhotosToSave = updatedProfiles.map(p => ({
-                    directorId: p.id.trim(),
-                    base64Image: p.photo
-                }));
-                localStorage.setItem('directorPhotos', JSON.stringify(allPhotosToSave));
-            } catch (error) {
-                console.error("Failed to save director photos to localStorage", error);
-            }
-            return updatedProfiles;
-        });
-    };
-
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <TimeSelector period={currentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
@@ -586,7 +546,6 @@ const App: React.FC = () => {
             directorStoreData={directorModalData?.stores}
             selectedKpi={Kpi.SOP} 
             period={currentPeriod} 
-            onPhotoUpdate={handlePhotoUpdate} 
           />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} userLocation={userLocation} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
