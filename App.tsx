@@ -434,7 +434,6 @@ const App: React.FC = () => {
                      <PerformanceMatrix
                         periodLabel={currentPeriod.label}
                         currentView={currentView}
-                        directors={DIRECTORS}
                         allStoresData={allStoresBreakdownData}
                         directorAggregates={aggregatedData}
                     />

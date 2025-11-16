@@ -4,7 +4,7 @@ import { getQuadrantAnalysis } from '../services/geminiService';
 import { marked } from 'marked';
 import { Icon } from './Icon';
 import { Kpi, View, DirectorProfile, PerformanceData } from '../types';
-import { KPI_CONFIG, ALL_KPIS } from '../constants';
+import { KPI_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type ChartDataPoint = {
@@ -27,7 +27,6 @@ type DataItem = {
 interface PerformanceMatrixProps {
     periodLabel: string;
     currentView: View;
-    directors: DirectorProfile[];
     allStoresData: { [storeId: string]: DataItem };
     directorAggregates: { [directorName: string]: DataItem };
 }
@@ -57,7 +56,7 @@ const getQuadrantColor = (x: number, y: number) => {
 const valueKpis = [Kpi.Sales, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
 const costKpis = [Kpi.SOP, Kpi.PrimeCost, Kpi.FoodCost, Kpi.LaborCost, Kpi.VariableLabor];
 
-export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, currentView, directors, allStoresData, directorAggregates }) => {
+export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, currentView, allStoresData, directorAggregates }) => {
     const [analysis, setAnalysis] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
