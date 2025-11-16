@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData } from '../types';
 
 const PROXY_URL = '/.netlify/functions/gemini-proxy';
 
@@ -120,5 +120,15 @@ export const getReviewSummary = async (location: string): Promise<string> => {
     } catch (error) {
         console.error("Error fetching review summary:", error);
         return "Could not generate a review summary at this time.";
+    }
+};
+
+export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
+    try {
+        const result = await callProxy('getVarianceAnalysis', { location, kpi, variance, allKpis });
+        return result.content || "Could not provide analysis.";
+    } catch (error) {
+        console.error("Error fetching variance analysis:", error);
+        return "Could not provide analysis.";
     }
 };

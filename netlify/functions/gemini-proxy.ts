@@ -254,6 +254,14 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
                 return { statusCode: 200, body: JSON.stringify({ content }) };
             }
+            
+            case 'getVarianceAnalysis': {
+                const { location, kpi, variance, allKpis } = payload;
+                const formattedKpis = Object.entries(allKpis).map(([key, val]) => `${key}: ${(val as number).toFixed(4)}`).join(', ');
+                const prompt = `For the ${location} restaurant, ${kpi} had a variance of ${variance.toFixed(4)}. Given the other KPI values for this period (${formattedKpis}), provide a very brief, one-sentence hypothesis explaining a potential reason for this specific variance. Start your response directly with the hypothesis. Example: 'The negative variance in SOP is likely driven by the increase in Food Cost.'`;
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+            }
 
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: `Unknown action: ${action}` }) };

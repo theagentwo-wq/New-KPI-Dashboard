@@ -4,6 +4,7 @@ import { KPI_CONFIG, ALL_KPIS } from '../constants';
 import { Icon } from './Icon';
 import { getWeatherForLocation } from '../services/weatherService';
 import { WeatherIcon } from './WeatherIcon';
+import { VarianceExplainer } from './VarianceExplainer';
 
 interface KPITableProps {
   data: {
@@ -153,7 +154,15 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                                         </td>
                                         <td className="px-2 py-3 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
                                         <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>
-                                            {formatValue(storeData.variance[kpi], kpi)}
+                                            <div className="flex items-center justify-center">
+                                                <span>{formatValue(storeData.variance[kpi], kpi)}</span>
+                                                <VarianceExplainer 
+                                                    storeId={storeId}
+                                                    kpi={kpi}
+                                                    variance={storeData.variance[kpi]}
+                                                    allKpis={storeData.actual}
+                                                />
+                                            </div>
                                         </td>
                                     </React.Fragment>
                                 ))}
