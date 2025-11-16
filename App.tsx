@@ -296,26 +296,6 @@ const App: React.FC = () => {
 
     }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
 
-
-    const matrixData = useMemo(() => {
-        return Object.entries(aggregatedData).map(([name, d]: [string, any]) => {
-            const actuals = currentView === 'Total Company' ? d.aggregated : d.actual;
-            const variance = d.variance;
-            
-            if (!variance || !actuals) return null;
-
-            return {
-                name: name,
-                // X-Axis: Store Operating Profit (SOP) Variance. Represents profitability change.
-                x: variance[Kpi.SOP] || 0, 
-                // Y-Axis: Sales Variance. Represents sales growth.
-                y: variance[Kpi.Sales] || 0,
-                // Z-Axis (bubble size): Average Reviews. Represents guest satisfaction.
-                z: actuals[Kpi.AvgReviews] || 0
-            };
-        }).filter((item): item is { name: string; x: number; y: number; z: number } => item !== null);
-    }, [aggregatedData, currentView]);
-
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
         const firstPeriodOfType = ALL_PERIODS.find(p => p.type === type);
@@ -451,7 +431,13 @@ const App: React.FC = () => {
                     }
                 </div>
                 <div className="lg:col-span-1 space-y-6 flex flex-col">
-                    <PerformanceMatrix data={matrixData} periodLabel={currentPeriod.label} />
+                     <PerformanceMatrix
+                        periodLabel={currentPeriod.label}
+                        currentView={currentView}
+                        directors={DIRECTORS}
+                        allStoresData={allStoresBreakdownData}
+                        directorAggregates={aggregatedData}
+                    />
                     <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
                     <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>

@@ -192,7 +192,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
              case 'getSalesForecast': {
-// FIX: The type assertion was invalid. It should be an object type with a `weatherForecast` property. This fixes this error and several subsequent parsing errors in the file.
                 const { location, weatherForecast } = payload as { location: string; weatherForecast: DailyForecast[] };
                 const formattedWeather = weatherForecast.map(day => 
                     `${day.date}: ${day.shortForecast}, Temp: ${day.temperature}°F`
@@ -265,30 +264,32 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
             
             case 'getQuadrantAnalysis': {
-                const { data, periodLabel } = payload;
+                const { data, periodLabel, kpiAxes } = payload;
+                const { x, y, z } = kpiAxes;
+                
                 const prompt = `${AI_CONTEXT} You are a master business strategist. Analyze the following restaurant performance data for the period "${periodLabel}", which is visualized in a 4-quadrant Performance Matrix.
 
 **Matrix Definition:**
-- **X-Axis:** Store Operating Profit (SOP) Variance (Profitability Growth)
-- **Y-Axis:** Sales Variance (Sales Growth)
-- **Bubble Size:** Average Customer Review Score (Guest Satisfaction)
-- **Center Point (0,0):** The comparison baseline.
+- **X-Axis:** ${x} Variance (Represents efficiency/profitability changes)
+- **Y-Axis:** ${y} Variance (Represents growth/quality changes)
+- **Bubble Size:** ${z} (Absolute value, represents context)
+- **Center Point (0,0):** The comparison baseline. A positive variance is good for ${y} but bad for cost-based KPIs like ${x}.
 
 **The Four Quadrants:**
-1. **Top-Right (Stars):** High Sales Growth, High Profit Growth. (y > 0, x > 0)
-2. **Top-Left (Growth Focus):** High Sales Growth, Low Profit Growth. (y > 0, x < 0)
-3. **Bottom-Right (Profit Focus):** Low Sales Growth, High Profit Growth. (y < 0, x > 0)
-4. **Bottom-Left (Needs Attention):** Low Sales Growth, Low Profit Growth. (y < 0, x < 0)
+1. **Top-Right (Stars):** High Growth/Quality, Good Cost Control. (y > 0, x < 0 for costs OR x > 0 for profits)
+2. **Top-Left (Growth Focus):** High Growth/Quality, Weaker Cost Control. (y > 0, x > 0 for costs OR x < 0 for profits)
+3. **Bottom-Right (Profit Focus):** Low Growth/Quality, Good Cost Control. (y < 0, x < 0 for costs OR x > 0 for profits)
+4. **Bottom-Left (Needs Attention):** Low Growth/Quality, Weaker Cost Control. (y < 0, x > 0 for costs OR x < 0 for profits)
 
 **Your Task:**
 Provide a concise, high-level strategic analysis based on the distribution of locations in these quadrants.
 1. Briefly summarize the overall business health based on where most locations are clustered.
-2. Identify 1-2 key outliers (e.g., a "Star" with a huge review score, or a location deep in the "Needs Attention" quadrant) and explain their significance.
-3. Provide one key strategic recommendation for each of the four quadrants based on the data.
+2. Identify 1-2 key outliers (e.g., a "Star" with a huge ${z}, or a location deep in the "Needs Attention" quadrant) and explain their significance.
+3. Provide one key strategic recommendation for the business based on the overall pattern.
 
 Present your analysis in clean, readable markdown.
 
-**Data (name, sop_variance, sales_variance, avg_review_score):**
+**Data (name, x_variance, y_variance, z_value):**
 ${JSON.stringify(data, null, 2)}`;
                 
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });

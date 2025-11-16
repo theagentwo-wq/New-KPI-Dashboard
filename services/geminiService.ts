@@ -133,9 +133,9 @@ export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: 
     }
 };
 
-export const getQuadrantAnalysis = async (data: any[], periodLabel: string): Promise<string> => {
+export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
     try {
-        const result = await callProxy('getQuadrantAnalysis', { data, periodLabel });
+        const result = await callProxy('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
         return result.content || "Could not generate quadrant analysis at this time.";
     } catch (error) {
         console.error("Error fetching quadrant analysis:", error);
