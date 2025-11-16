@@ -26,7 +26,10 @@ const formatValue = (value: number | undefined, kpi: Kpi) => {
     const config = KPI_CONFIG[kpi];
     switch (config.format) {
         case 'currency':
-            return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+             if (Math.abs(value) >= 1000) {
+                return `${(value / 1000).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`;
+            }
+            return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
         case 'percent':
             return `${(value * 100).toFixed(1)}%`;
         case 'number':
@@ -34,6 +37,13 @@ const formatValue = (value: number | undefined, kpi: Kpi) => {
         default:
             return value.toString();
     }
+};
+
+const getAbbreviatedLabel = (label: string) => {
+    if (label.includes('Prior Period')) return 'vs. PP';
+    if (label.includes('Last Year')) return 'vs. LY';
+    if (label.includes('Budget')) return 'vs. Bud';
+    return label;
 };
 
 const getVarianceColor = (variance: number, kpi: Kpi) => {
@@ -52,8 +62,12 @@ const getRankIndicator = (rank: number) => {
     }
 };
 
+const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
+
 export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, comparisonLabel, onLocationSelect }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
+    const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     const sortedStores = useMemo(() => {
         const storeArray: [string, typeof data[string]][] = Object.entries(data);
@@ -71,12 +85,10 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                     comparison = -1;
                 }
 
-                // If lower is better, we invert the comparison so lower values are "greater"
                 if (!higherIsBetter) {
                     comparison *= -1;
                 }
 
-                // If descending, we invert the final comparison
                 if (sortConfig.direction === 'descending') {
                     comparison *= -1;
                 }
@@ -108,24 +120,44 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
         return weather;
     }, [data]);
 
+    const toggleKPI = (kpi: Kpi) => {
+        setVisibleKPIs(prev => prev.includes(kpi) ? prev.filter(k => k !== kpi) : [...prev, kpi]);
+    };
+
     return (
         <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-            <div className="p-4">
+            <div className="p-4 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-cyan-400">Company Snapshot</h3>
+                 <div className="relative">
+                    <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2 p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">
+                        <Icon name="filter" className="w-5 h-5" />
+                        <span>Filter KPIs</span>
+                    </button>
+                    {dropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-10">
+                            {ALL_KPIS.map(kpi => (
+                                <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
+                                    <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
+                                    {kpi}
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-slate-400">
                     <thead className="text-xs text-cyan-400 uppercase bg-slate-900 sticky top-0 z-10">
                         <tr>
-                            <th scope="col" className="px-6 py-3 sticky left-0 bg-slate-900 z-30 text-center">Rank</th>
-                            <th scope="col" className="px-6 py-3 sticky left-16 bg-slate-900 z-20">Location</th>
-                            {ALL_KPIS.map(kpi => (
+                            <th scope="col" className="px-2 py-3 sticky left-0 bg-slate-900 z-30 text-center">Rank</th>
+                            <th scope="col" className="px-2 py-3 sticky left-16 bg-slate-900 z-20">Location</th>
+                            {visibleKPIs.map(kpi => (
                                 <React.Fragment key={kpi}>
-                                    <th scope="col" className="px-6 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
-                                        {kpi} Actual {getSortIndicator(kpi)}
+                                    <th scope="col" className="px-2 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
+                                        {kpi} Act. {getSortIndicator(kpi)}
                                     </th>
-                                    <th scope="col" className="px-6 py-3 text-center">{comparisonLabel}</th>
-                                    <th scope="col" className="px-6 py-3 text-center">Variance</th>
+                                    <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonLabel)}</th>
+                                    <th scope="col" className="px-2 py-3 text-center">Var.</th>
                                 </React.Fragment>
                             ))}
                         </tr>
@@ -133,10 +165,10 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                     <tbody>
                         {sortedStores.map(([storeId, storeData], index) => (
                             <tr key={storeId} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700">
-                                <td className="px-6 py-4 font-bold text-center sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
+                                <td className="px-2 py-3 font-bold text-center sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
                                     {getRankIndicator(index + 1)}
                                 </td>
-                                <th scope="row" className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap sticky left-16 bg-slate-800 hover:bg-slate-700 z-10">
+                                <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-16 bg-slate-800 hover:bg-slate-700 z-10">
                                     <div className="flex items-center gap-2">
                                         <span>{weatherData[storeId]?.icon}</span>
                                         <span>{storeId}</span>
@@ -145,13 +177,13 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                                         </button>
                                     </div>
                                 </th>
-                                {ALL_KPIS.map(kpi => (
+                                {visibleKPIs.map(kpi => (
                                     <React.Fragment key={`${storeId}-${kpi}`}>
-                                        <td className="px-6 py-4 text-center font-semibold text-slate-200">
+                                        <td className="px-2 py-3 text-center font-semibold text-slate-200">
                                             {formatValue(storeData.actual[kpi], kpi)}
                                         </td>
-                                        <td className="px-6 py-4 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
-                                        <td className={`px-6 py-4 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>
+                                        <td className="px-2 py-3 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
+                                        <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>
                                             {formatValue(storeData.variance[kpi], kpi)}
                                         </td>
                                     </React.Fragment>
