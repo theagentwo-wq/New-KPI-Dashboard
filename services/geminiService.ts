@@ -112,3 +112,13 @@ export const getSalesForecast = async (location: string): Promise<ForecastDataPo
         }));
     }
 };
+
+export const getReviewSummary = async (location: string): Promise<string> => {
+    try {
+        const result = await callProxy('getReviewSummary', { location });
+        return result.content || "Could not generate a review summary at this time.";
+    } catch (error) {
+        console.error("Error fetching review summary:", error);
+        return "Could not generate a review summary at this time.";
+    }
+};
