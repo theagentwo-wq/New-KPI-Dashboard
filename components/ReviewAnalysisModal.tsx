@@ -41,9 +41,9 @@ export const ReviewAnalysisModal: React.FC<ReviewAnalysisModalProps> = ({ isOpen
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Review Analysis for ${location}`}>
-      <div className="space-y-4 min-h-[300px]">
+      <div className="space-y-4 min-h-[300px] max-h-[65vh] overflow-y-auto pr-4 custom-scrollbar">
         {isLoading ? (
-          <div className="flex items-center justify-center space-x-2 h-full">
+          <div className="flex items-center justify-center space-x-2 h-full min-h-[300px]">
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
