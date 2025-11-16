@@ -444,11 +444,19 @@ const App: React.FC = () => {
     const handlePhotoUpdate = (photoData: { directorId: string; base64Image: string }[]) => {
         setDirectorProfiles(prevProfiles => {
             const updatedProfiles = prevProfiles.map(profile => {
-                const newData = photoData.find(p => p.directorId === profile.id);
-                return newData ? { ...profile, photo: newData.base64Image } : profile;
+                // Defensive trimming to handle potential whitespace issues in IDs
+                const currentId = profile.id?.trim();
+                const newData = photoData.find(p => p.directorId?.trim() === currentId);
+                if (newData) {
+                    return { ...profile, photo: newData.base64Image };
+                }
+                return profile;
             });
             try {
-                const allPhotosToSave = updatedProfiles.map(p => ({ directorId: p.id, base64Image: p.photo }));
+                const allPhotosToSave = updatedProfiles.map(p => ({
+                    directorId: p.id,
+                    base64Image: p.photo
+                }));
                 localStorage.setItem('directorPhotos', JSON.stringify(allPhotosToSave));
             } catch (error) {
                 console.error("Failed to save director photos to localStorage", error);
