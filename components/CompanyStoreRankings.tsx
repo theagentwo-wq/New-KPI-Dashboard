@@ -14,6 +14,7 @@ interface CompanySnapshotProps {
   };
   comparisonLabel: string;
   onLocationSelect: (location: string) => void;
+  onReviewClick: (location: string) => void;
 }
 
 type SortConfig = {
@@ -53,6 +54,13 @@ const getVarianceColor = (variance: number, kpi: Kpi) => {
     return isGood ? 'text-green-400' : 'text-red-400';
 };
 
+const getValueColor = (value: number | undefined, kpi: Kpi) => {
+    if (value === undefined) return 'text-slate-200';
+    const { baseline } = KPI_CONFIG[kpi];
+    if (baseline === undefined || isNaN(value)) return 'text-slate-200';
+    return value >= baseline ? 'text-green-400' : 'text-red-400';
+}
+
 const getRankIndicator = (rank: number) => {
     switch (rank) {
         case 1: return <div className="flex items-center justify-center gap-1 text-yellow-400"><Icon name="trophy" className="w-5 h-5" /> <span>1st</span></div>;
@@ -64,7 +72,7 @@ const getRankIndicator = (rank: number) => {
 
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
-export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, comparisonLabel, onLocationSelect }) => {
+export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, comparisonLabel, onLocationSelect, onReviewClick }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -134,7 +142,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                         <span>Filter KPIs</span>
                     </button>
                     {dropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-10">
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-20">
                             {ALL_KPIS.map(kpi => (
                                 <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
                                     <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
@@ -179,8 +187,14 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                                 </th>
                                 {visibleKPIs.map(kpi => (
                                     <React.Fragment key={`${storeId}-${kpi}`}>
-                                        <td className="px-2 py-3 text-center font-semibold text-slate-200">
-                                            {formatValue(storeData.actual[kpi], kpi)}
+                                        <td className={`px-2 py-3 text-center font-semibold ${getValueColor(storeData.actual[kpi], kpi)}`}>
+                                            {kpi === Kpi.AvgReviews ? (
+                                                <button onClick={() => onReviewClick(storeId)} className="hover:underline hover:text-cyan-400">
+                                                    {formatValue(storeData.actual[kpi], kpi)}
+                                                </button>
+                                            ) : (
+                                                formatValue(storeData.actual[kpi], kpi)
+                                            )}
                                         </td>
                                         <td className="px-2 py-3 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
                                         <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>

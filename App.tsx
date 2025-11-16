@@ -23,6 +23,7 @@ import { AnimatedNumberDisplay } from './components/AnimatedNumberDisplay';
 import { AIAlerts } from './components/AIAlerts';
 import { AnomalyDetailModal } from './components/AnomalyDetailModal';
 import { getAnomalyDetections } from './services/geminiService';
+import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -104,9 +105,11 @@ const App: React.FC = () => {
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isAnomalyDetailOpen, setAnomalyDetailOpen] = useState(false);
+    const [isReviewAnalysisOpen, setReviewAnalysisOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
+    const [selectedLocationForReview, setSelectedLocationForReview] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         if (navigator.geolocation) {
@@ -412,6 +415,11 @@ const App: React.FC = () => {
         setAnomalyDetailOpen(true);
     };
 
+    const handleOpenReviewAnalysis = (location: string) => {
+        setSelectedLocationForReview(location);
+        setReviewAnalysisOpen(true);
+    };
+
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <TimeSelector period={currentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
@@ -435,8 +443,8 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                      {currentView !== 'Total Company' 
-                        ? <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} />
-                        : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} />
+                        ? <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
+                        : <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
                     }
                 </div>
                 <div className="lg:col-span-1 space-y-6 flex flex-col">
@@ -538,6 +546,7 @@ const App: React.FC = () => {
           <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={selectedChartKpi} period={currentPeriod} />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
+          <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
       </div>
     );
 };

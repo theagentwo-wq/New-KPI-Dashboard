@@ -14,6 +14,7 @@ interface KPITableProps {
   };
   comparisonLabel: string;
   onLocationSelect: (location: string) => void;
+  onReviewClick: (location: string) => void;
 }
 
 const formatValue = (value: number | undefined, kpi: Kpi) => {
@@ -48,7 +49,8 @@ const getVarianceColor = (variance: number, kpi: Kpi) => {
     return isGood ? 'text-green-400' : 'text-red-400';
 };
 
-const getValueColor = (value: number, kpi: Kpi) => {
+const getValueColor = (value: number | undefined, kpi: Kpi) => {
+    if (value === undefined) return 'text-slate-200';
     const { baseline } = KPI_CONFIG[kpi];
     if (baseline === undefined || isNaN(value)) return 'text-slate-200';
     return value >= baseline ? 'text-green-400' : 'text-red-400';
@@ -56,7 +58,7 @@ const getValueColor = (value: number, kpi: Kpi) => {
 
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
-export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLocationSelect }) => {
+export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLocationSelect, onReviewClick }) => {
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -83,7 +85,7 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                         <span>Filter KPIs</span>
                     </button>
                     {dropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-10">
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-20">
                             {ALL_KPIS.map(kpi => (
                                 <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
                                     <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
@@ -98,10 +100,10 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                 <table className="w-full text-sm text-left text-slate-400">
                     <thead className="text-xs text-cyan-400 uppercase bg-slate-900">
                         <tr>
-                            <th scope="col" className="px-2 py-3 sticky left-0 bg-slate-900">Location</th>
+                            <th scope="col" className="px-2 py-3 sticky left-0 bg-slate-900 z-10">Location</th>
                             {visibleKPIs.map(kpi => (
                                 <React.Fragment key={kpi}>
-                                    <th scope="col" className="px-2 py-3 text-center">{kpi} Act.</th>
+                                    <th scope="col" className="px-2 py-3 text-center">Act.</th>
                                     <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonLabel)}</th>
                                     <th scope="col" className="px-2 py-3 text-center">Var.</th>
                                 </React.Fragment>
@@ -109,9 +111,9 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                         </tr>
                     </thead>
                     <tbody>
-                        {storeIds.map(storeId => (
+                        {Object.entries(data).map(([storeId, storeData]) => (
                             <tr key={storeId} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700">
-                                <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-0 bg-slate-800 hover:bg-slate-700">
+                                <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-0 bg-slate-800 hover:bg-slate-700 z-10">
                                     <div className="flex items-center gap-2">
                                         <span>{weatherData[storeId]?.icon}</span>
                                         <span>{storeId}</span>
@@ -121,13 +123,19 @@ export const KPITable: React.FC<KPITableProps> = ({ data, comparisonLabel, onLoc
                                     </div>
                                 </th>
                                 {visibleKPIs.map(kpi => (
-                                    <React.Fragment key={`${storeId}-${kpi}`}>
-                                        <td className={`px-2 py-3 text-center font-semibold ${getValueColor(data[storeId].actual[kpi], kpi)}`}>
-                                            {formatValue(data[storeId].actual[kpi], kpi)}
+                                    <React.Fragment key={kpi}>
+                                        <td className={`px-2 py-3 text-center font-bold ${getValueColor(storeData.actual[kpi], kpi)}`}>
+                                            {kpi === Kpi.AvgReviews ? (
+                                                <button onClick={() => onReviewClick(storeId)} className="hover:underline hover:text-cyan-400">
+                                                    {formatValue(storeData.actual[kpi], kpi)}
+                                                </button>
+                                            ) : (
+                                                formatValue(storeData.actual[kpi], kpi)
+                                            )}
                                         </td>
-                                        <td className="px-2 py-3 text-center">{formatValue(data[storeId].comparison?.[kpi], kpi)}</td>
-                                        <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(data[storeId].variance[kpi], kpi)}`}>
-                                            {formatValue(data[storeId].variance[kpi], kpi)}
+                                        <td className="px-2 py-3 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
+                                        <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>
+                                            {formatValue(storeData.variance[kpi], kpi)}
                                         </td>
                                     </React.Fragment>
                                 ))}

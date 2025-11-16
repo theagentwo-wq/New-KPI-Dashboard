@@ -206,6 +206,32 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 return { statusCode: 200, body: JSON.stringify({ data }) };
             }
 
+            case 'getReviewSummary': {
+                const { location } = payload;
+                const prompt = `${AI_CONTEXT}\nA user wants to understand customer sentiment for the restaurant location in "${location}". Use Google Search to find recent Google Reviews for this specific restaurant. Analyze the reviews to identify the top 3 positive themes and the top 3 areas for improvement. For each theme, provide 1-2 anonymous, representative customer quotes from the reviews you found. Format the entire response as clean markdown with the headers "### 👍 Top 3 Positives", "### 📉 Areas for Improvement", and "### 💬 Representative Quotes".`;
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        tools: [{ googleSearch: {} }],
+                    },
+                });
+
+                let content = response.text || "Review analysis could not be generated at this time.";
+
+                const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks?.length) {
+                    const sources = new Set<string>();
+                    groundingChunks.forEach((chunk: any) => {
+                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Review Source'}](${chunk.web.uri})`);
+                    });
+                    if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
+                }
+
+                return { statusCode: 200, body: JSON.stringify({ content }) };
+            }
+
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
         }
