@@ -90,8 +90,7 @@ const App: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-    const [directorProfiles, setDirectorProfiles] = useState<DirectorProfile[]>(DIRECTORS);
-
+    
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
@@ -166,12 +165,12 @@ const App: React.FC = () => {
 
         const storesForView = currentView === 'Total Company'
             ? ALL_STORES
-            : directorProfiles.find(d => d.id === currentView)?.stores || [];
+            : DIRECTORS.find(d => d.id === currentView)?.stores || [];
         
         const results: any = {};
         
         if (currentView === 'Total Company') {
-            directorProfiles.forEach(dir => {
+            DIRECTORS.forEach(dir => {
                 const actual = aggregate(currentPeriodData, dir.stores);
                 const comparison = aggregate(comparisonPeriodData, dir.stores);
                 const variance = ALL_KPIS.reduce((acc, kpi) => {
@@ -195,7 +194,7 @@ const App: React.FC = () => {
         }
         return results;
 
-    }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate, directorProfiles]);
+    }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate]);
     
     const allStoresBreakdownData = useMemo(() => {
         const currentPeriodData = getPeriodData(currentPeriod);
@@ -285,7 +284,7 @@ const App: React.FC = () => {
 
         const storesForView = currentView === 'Total Company'
             ? ALL_STORES
-            : directorProfiles.find(d => d.id === currentView)?.stores || [];
+            : DIRECTORS.find(d => d.id === currentView)?.stores || [];
 
         return relevantPeriods.map(period => {
             const periodData = getPeriodData(period);
@@ -296,7 +295,7 @@ const App: React.FC = () => {
             };
         }).filter(p => Object.keys(p.data).length > 0);
 
-    }, [currentPeriod, periodType, currentView, getPeriodData, aggregate, directorProfiles]);
+    }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
     
     const directorModalData = useMemo(() => {
         if (!selectedDirector) return null;
@@ -484,7 +483,7 @@ const App: React.FC = () => {
                   <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Views</h2>
                   <div className="space-y-1">
                       <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('Total Company'); }} className={`block p-2 rounded-md text-sm ${currentView === 'Total Company' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>Total Company</a>
-                      {directorProfiles.map(dir => {
+                      {DIRECTORS.map(dir => {
                           const directorData = aggregatedData[dir.name]?.aggregated;
                           const quarterMatch = currentPeriod.label.match(/Q(\d).*FY(\d{4})/);
                           let goalProgress = -1;
