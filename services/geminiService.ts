@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast } from '../types';
 
 const PROXY_URL = '/.netlify/functions/gemini-proxy';
 
@@ -98,9 +98,9 @@ export const runWhatIfScenario = async (data: any, userPrompt: string): Promise<
     }
 };
 
-export const getSalesForecast = async (location: string): Promise<ForecastDataPoint[]> => {
+export const getSalesForecast = async (location: string, weatherForecast: DailyForecast[]): Promise<ForecastDataPoint[]> => {
     try {
-        const result = await callProxy('getSalesForecast', { location });
+        const result = await callProxy('getSalesForecast', { location, weatherForecast });
         return result.data || [];
     } catch (error) {
         console.error("Error fetching sales forecast:", error);

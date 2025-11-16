@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { Kpi, PerformanceData, View, ForecastDataPoint } from '../../types';
+import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast } from '../../types';
 
 // This function runs on Netlify's backend.
 // The API key is securely accessed from environment variables and never exposed to the client.
@@ -191,16 +191,39 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 return { statusCode: 200, body: JSON.stringify({ data: responseData }) };
             }
 
-            case 'getSalesForecast': {
-                const { location } = payload;
-                const prompt = `Based on the historical sales data for the restaurant in ${location}, generate a 7-day sales forecast. Use Google Search to factor in the current weather forecast and any significant local events (festivals, conferences, etc.) that could impact traffic. The response MUST be a JSON array of objects, where each object has "date" (YYYY-MM-DD) and "predictedSales" (number). Output ONLY the JSON array, with no other text, markdown, or explanation.`;
-                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { tools: [{ googleSearch: {} }] } });
+             case 'getSalesForecast': {
+                const { location, weatherForecast } = payload as { location: string; weatherForecast: DailyForecast[] };
+                const formattedWeather = weatherForecast.map(day => 
+                    `${day.date}: ${day.shortForecast}, Temp: ${day.temperature}°F`
+                ).join('; ');
+
+                const prompt = `Based on typical sales patterns for a southern-style restaurant in ${location}, and factoring in the following detailed 7-day weather forecast, generate a 7-day sales forecast. Give significant weight to the weather, especially weekend weather. Sunny warm days increase sales (patio dining), while rain or snow decreases them. The response MUST be a JSON array of objects, where each object has "date" (matching the input dates) and "predictedSales" (number). Output ONLY the JSON array, with no other text, markdown, or explanation.\n\nWeather Forecast:\n${formattedWeather}`;
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                });
+
                 const text = response.text?.trim();
                 let data: ForecastDataPoint[] = [];
                 if (text) {
-                    const match = /\[[\s\S]*\]/.exec(text);
-                    if (match && match[0]) {
-                        data = JSON.parse(match[0]);
+                    try {
+                        const match = /\[[\s\S]*\]/.exec(text);
+                        if (match && match[0]) {
+                            const parsed = JSON.parse(match[0]);
+                            // Merge weather data back in for frontend display
+                            data = parsed.map((item: any) => {
+                                const weatherDay = weatherForecast.find(wf => new Date(wf.date).toDateString() === new Date(item.date).toDateString());
+                                return {
+                                    ...item,
+                                    date: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
+                                    weatherIcon: weatherDay?.condition,
+                                    weatherDescription: `${weatherDay?.temperature}°F - ${weatherDay?.shortForecast}`
+                                };
+                            });
+                        }
+                    } catch (e) {
+                         console.error("Failed to parse sales forecast JSON:", e);
                     }
                 }
                 return { statusCode: 200, body: JSON.stringify({ data }) };

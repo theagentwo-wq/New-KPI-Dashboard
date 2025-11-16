@@ -1,28 +1,25 @@
-export interface Weather {
-    condition: 'Sunny' | 'Cloudy' | 'Rain' | 'Snow';
-    icon: string;
-}
+import { WeatherCondition } from '../types';
 
-const conditions: Weather[] = [
-    { condition: 'Sunny', icon: '☀️' },
-    { condition: 'Cloudy', icon: '☁️' },
-    { condition: 'Rain', icon: '🌧️' },
-    { condition: 'Snow', icon: '❄️' }
-];
+/**
+ * Maps an NWS API icon URL to a simplified weather condition string.
+ * This helps in selecting the correct animated icon to display.
+ * E.g., https://api.weather.gov/icons/land/day/sct?size=medium -> 'cloudy'
+ * @param iconUrl The full icon URL from the NWS API response.
+ * @returns A WeatherCondition string.
+ */
+export const mapNwsIconToCondition = (iconUrl: string): WeatherCondition => {
+    if (!iconUrl) return 'sunny'; // Default to sunny if no icon
+    
+    const lowerIcon = iconUrl.toLowerCase();
 
-// Simple hash function to get a deterministic "random" number from a string
-const simpleHash = (str: string): number => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-};
-
-export const getMockWeather = (city: string): Weather => {
-    const hash = simpleHash(city);
-    const index = hash % conditions.length;
-    return conditions[index];
+    if (lowerIcon.includes('tsra')) return 'thunderstorm';
+    if (lowerIcon.includes('snow') || lowerIcon.includes('ip') || lowerIcon.includes('fzra')) return 'snow';
+    if (lowerIcon.includes('rain') || lowerIcon.includes('shwrs')) return 'rain';
+    if (lowerIcon.includes('wind')) return 'windy';
+    if (lowerIcon.includes('sct') || lowerIcon.includes('bkn') || lowerIcon.includes('ovc')) return 'cloudy';
+    if (lowerIcon.includes('few') || lowerIcon.includes('skc')) return 'sunny';
+    if (lowerIcon.includes('cold') || lowerIcon.includes('hot')) return 'sunny';
+    
+    // Default for fog, haze, etc.
+    return 'cloudy';
 };

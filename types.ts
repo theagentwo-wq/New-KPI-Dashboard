@@ -85,4 +85,22 @@ export interface Anomaly {
 export interface ForecastDataPoint {
     date: string;
     predictedSales: number;
+    weatherIcon?: string;
+    weatherDescription?: string;
+}
+
+export type WeatherCondition = 'sunny' | 'cloudy' | 'rain' | 'snow' | 'windy' | 'thunderstorm' | 'loading';
+
+export interface WeatherInfo {
+  condition: WeatherCondition;
+  temperature: number;
+  shortForecast: string;
+  detailedForecast: string;
+}
+
+export interface DailyForecast {
+    date: string;
+    condition: WeatherCondition;
+    temperature: number;
+    shortForecast: string;
 }

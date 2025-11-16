@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Kpi, PerformanceData } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Kpi, PerformanceData, WeatherInfo } from '../types';
 import { KPI_CONFIG, ALL_KPIS } from '../constants';
 import { Icon } from './Icon';
-import { getMockWeather, Weather } from '../utils/weatherUtils';
+import { getWeatherForLocation } from '../services/weatherService';
+import { WeatherIcon } from './WeatherIcon';
 
 interface CompanySnapshotProps {
   data: {
@@ -76,6 +77,24 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [weatherData, setWeatherData] = useState<{ [key: string]: WeatherInfo | null }>({});
+    const storeIds = useMemo(() => Object.keys(data), [data]);
+
+     useEffect(() => {
+        const fetchAllWeather = async () => {
+            const weatherPromises = storeIds.map(id => getWeatherForLocation(id));
+            const weatherResults = await Promise.all(weatherPromises);
+            const newWeatherData: { [key: string]: WeatherInfo | null } = {};
+            storeIds.forEach((id, index) => {
+                newWeatherData[id] = weatherResults[index];
+            });
+            setWeatherData(newWeatherData);
+        };
+
+        if (storeIds.length > 0) {
+            fetchAllWeather();
+        }
+    }, [storeIds]);
 
     const sortedStores = useMemo(() => {
         const storeArray: [string, typeof data[string]][] = Object.entries(data);
@@ -119,14 +138,6 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
         if (!sortConfig || sortConfig.key !== kpi) return null;
         return sortConfig.direction === 'ascending' ? '▲' : '▼';
     }
-    
-    const weatherData = useMemo(() => {
-        const weather: { [key: string]: Weather } = {};
-        Object.keys(data).forEach(id => {
-            weather[id] = getMockWeather(id);
-        });
-        return weather;
-    }, [data]);
 
     const toggleKPI = (kpi: Kpi) => {
         setVisibleKPIs(prev => prev.includes(kpi) ? prev.filter(k => k !== kpi) : [...prev, kpi]);
@@ -178,7 +189,15 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                                 </td>
                                 <th scope="row" className="px-2 py-3 font-medium text-slate-200 whitespace-nowrap sticky left-16 bg-slate-800 hover:bg-slate-700 z-10">
                                     <div className="flex items-center gap-2">
-                                        <span>{weatherData[storeId]?.icon}</span>
+                                        <div className="group relative flex items-center">
+                                            <WeatherIcon condition={weatherData[storeId]?.condition || 'loading'} />
+                                            {weatherData[storeId] && (
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-slate-900 border border-slate-700 rounded-md text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-lg">
+                                                    <p className="font-bold text-white">{weatherData[storeId]?.temperature}°F - {weatherData[storeId]?.shortForecast}</p>
+                                                    <p className="text-slate-400 font-normal">{weatherData[storeId]?.detailedForecast}</p>
+                                                </div>
+                                            )}
+                                        </div>
                                         <span>{storeId}</span>
                                         <button onClick={() => onLocationSelect(storeId)} className="text-slate-500 hover:text-cyan-400">
                                             <Icon name="ellipsis" className="w-5 h-5" />
