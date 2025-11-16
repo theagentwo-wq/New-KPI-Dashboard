@@ -24,6 +24,7 @@ import { AnomalyDetailModal } from './components/AnomalyDetailModal';
 import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
+import { ImageUploaderModal } from './components/ImageUploaderModal';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -89,6 +90,7 @@ const App: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+    const [directorProfiles, setDirectorProfiles] = useState<DirectorProfile[]>(DIRECTORS);
 
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -105,6 +107,7 @@ const App: React.FC = () => {
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isAnomalyDetailOpen, setAnomalyDetailOpen] = useState(false);
     const [isReviewAnalysisOpen, setReviewAnalysisOpen] = useState(false);
+    const [isImageUploaderOpen, setImageUploaderOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
@@ -123,6 +126,23 @@ const App: React.FC = () => {
                     console.error("Error getting user location:", error);
                 }
             );
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
+            const savedPhotos = localStorage.getItem('directorPhotos');
+            if (savedPhotos) {
+                const parsedPhotos: { directorId: string; base64Image: string }[] = JSON.parse(savedPhotos);
+                setDirectorProfiles(prevProfiles => {
+                    return prevProfiles.map(profile => {
+                        const saved = parsedPhotos.find(p => p.directorId === profile.id);
+                        return saved ? { ...profile, photo: saved.base64Image } : profile;
+                    });
+                });
+            }
+        } catch (error) {
+            console.error("Failed to load director photos from localStorage", error);
         }
     }, []);
 
@@ -164,12 +184,12 @@ const App: React.FC = () => {
 
         const storesForView = currentView === 'Total Company'
             ? ALL_STORES
-            : DIRECTORS.find(d => d.id === currentView)?.stores || [];
+            : directorProfiles.find(d => d.id === currentView)?.stores || [];
         
         const results: any = {};
         
         if (currentView === 'Total Company') {
-            DIRECTORS.forEach(dir => {
+            directorProfiles.forEach(dir => {
                 const actual = aggregate(currentPeriodData, dir.stores);
                 const comparison = aggregate(comparisonPeriodData, dir.stores);
                 const variance = ALL_KPIS.reduce((acc, kpi) => {
@@ -193,7 +213,7 @@ const App: React.FC = () => {
         }
         return results;
 
-    }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate]);
+    }, [allData, budgets, currentPeriod, comparisonMode, currentView, getPeriodData, aggregate, directorProfiles]);
     
     const allStoresBreakdownData = useMemo(() => {
         const currentPeriodData = getPeriodData(currentPeriod);
@@ -283,7 +303,7 @@ const App: React.FC = () => {
 
         const storesForView = currentView === 'Total Company'
             ? ALL_STORES
-            : DIRECTORS.find(d => d.id === currentView)?.stores || [];
+            : directorProfiles.find(d => d.id === currentView)?.stores || [];
 
         return relevantPeriods.map(period => {
             const periodData = getPeriodData(period);
@@ -294,7 +314,7 @@ const App: React.FC = () => {
             };
         }).filter(p => Object.keys(p.data).length > 0);
 
-    }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
+    }, [currentPeriod, periodType, currentView, getPeriodData, aggregate, directorProfiles]);
 
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
@@ -403,6 +423,21 @@ const App: React.FC = () => {
         setReviewAnalysisOpen(true);
     };
 
+    const handlePhotoUpdate = (photoData: { directorId: string; base64Image: string }[]) => {
+        setDirectorProfiles(prevProfiles => {
+            const updatedProfiles = prevProfiles.map(profile => {
+                const newData = photoData.find(p => p.directorId === profile.id);
+                return newData ? { ...profile, photo: newData.base64Image } : profile;
+            });
+            try {
+                localStorage.setItem('directorPhotos', JSON.stringify(photoData));
+            } catch (error) {
+                console.error("Failed to save director photos to localStorage", error);
+            }
+            return updatedProfiles;
+        });
+    };
+
     const renderDashboard = () => (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <TimeSelector period={currentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
@@ -463,7 +498,7 @@ const App: React.FC = () => {
                   <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Views</h2>
                   <div className="space-y-1">
                       <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('Total Company'); }} className={`block p-2 rounded-md text-sm ${currentView === 'Total Company' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>Total Company</a>
-                      {DIRECTORS.map(dir => {
+                      {directorProfiles.map(dir => {
                           const directorData = aggregatedData[dir.name]?.aggregated;
                           const quarterMatch = currentPeriod.label.match(/Q(\d).*FY(\d{4})/);
                           let goalProgress = -1;
@@ -499,6 +534,10 @@ const App: React.FC = () => {
               <div className="mt-auto pt-4 border-t border-slate-700 space-y-2">
                   <button onClick={() => setScenarioModelerOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Run What-If Scenario</button>
                   <button onClick={() => setDataEntryOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Data Entry</button>
+                  <button onClick={() => setImageUploaderOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">
+                    <Icon name="photo" className="w-5 h-5" />
+                    <span>Update Photos</span>
+                  </button>
               </div>
           </aside>
           <main className="flex-1 overflow-y-auto">
@@ -517,6 +556,7 @@ const App: React.FC = () => {
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
           <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
+          <ImageUploaderModal isOpen={isImageUploaderOpen} onClose={() => setImageUploaderOpen(false)} onUpdate={handlePhotoUpdate} directors={directorProfiles} />
       </div>
     );
 };
