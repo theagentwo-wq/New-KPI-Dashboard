@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory, Anomaly } from './types';
 import { KPI_CONFIG, DIRECTORS, ALL_KPIS, KPI_ICON_MAP, ALL_STORES } from './constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from './utils/dateUtils';
@@ -24,6 +23,7 @@ import { AIAlerts } from './components/AIAlerts';
 import { AnomalyDetailModal } from './components/AnomalyDetailModal';
 import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
+import { PerformanceMatrix } from './components/PerformanceMatrix';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -96,7 +96,6 @@ const App: React.FC = () => {
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [savedViews, setSavedViews] = useState<SavedView[]>([]);
-    const [selectedChartKpi, setSelectedChartKpi] = useState<Kpi>(Kpi.Sales);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     
     // Modal States
@@ -298,20 +297,24 @@ const App: React.FC = () => {
     }, [currentPeriod, periodType, currentView, getPeriodData, aggregate]);
 
 
-    const chartData = useMemo(() => {
-        if (currentView === 'Total Company') {
-            return Object.entries(aggregatedData).map(([name, data]: [string, any]) => ({
-                name,
-                Actual: data.aggregated?.[selectedChartKpi] || 0,
-                Comparison: data.comparison?.[selectedChartKpi] || 0,
-            }));
-        }
-        return Object.entries(aggregatedData).map(([name, data]: [string, any]) => ({
-            name,
-            Actual: data.actual?.[selectedChartKpi] || 0,
-            Comparison: data.comparison?.[selectedChartKpi] || 0,
-        }));
-    }, [aggregatedData, selectedChartKpi, currentView]);
+    const matrixData = useMemo(() => {
+        return Object.entries(aggregatedData).map(([name, d]: [string, any]) => {
+            const actuals = currentView === 'Total Company' ? d.aggregated : d.actual;
+            const variance = d.variance;
+            
+            if (!variance || !actuals) return null;
+
+            return {
+                name: name,
+                // X-Axis: Store Operating Profit (SOP) Variance. Represents profitability change.
+                x: variance[Kpi.SOP] || 0, 
+                // Y-Axis: Sales Variance. Represents sales growth.
+                y: variance[Kpi.Sales] || 0,
+                // Z-Axis (bubble size): Average Reviews. Represents guest satisfaction.
+                z: actuals[Kpi.AvgReviews] || 0
+            };
+        }).filter((item): item is { name: string; x: number; y: number; z: number } => item !== null);
+    }, [aggregatedData, currentView]);
 
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
@@ -448,25 +451,7 @@ const App: React.FC = () => {
                     }
                 </div>
                 <div className="lg:col-span-1 space-y-6 flex flex-col">
-                    <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-cyan-400">Performance Chart</h3>
-                             <select value={selectedChartKpi} onChange={(e) => setSelectedChartKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-1 text-sm focus:ring-cyan-500 focus:border-cyan-500">
-                                 {ALL_KPIS.map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
-                             </select>
-                        </div>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                <XAxis type="number" stroke="#9ca3af" tickFormatter={(val) => formatDisplayValue(val, selectedChartKpi)} />
-                                <YAxis type="category" dataKey="name" stroke="#9ca3af" width={120} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb' }} formatter={(value: number) => formatDisplayValue(value, selectedChartKpi)} cursor={{fill: 'rgba(100, 116, 139, 0.1)'}}/>
-                                <Legend />
-                                <Bar dataKey="Actual" fill="#22d3ee" />
-                                <Bar dataKey="Comparison" fill="#64748b" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <PerformanceMatrix data={matrixData} periodLabel={currentPeriod.label} />
                     <NotesPanel allNotes={notes} addNote={addNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
                     <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
@@ -543,7 +528,7 @@ const App: React.FC = () => {
           
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
-          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={selectedChartKpi} period={currentPeriod} />
+          <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={Kpi.SOP} period={currentPeriod} />
           <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
           <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
