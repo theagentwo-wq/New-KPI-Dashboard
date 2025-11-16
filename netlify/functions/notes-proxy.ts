@@ -37,17 +37,15 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
     }
 
     try {
-        const { action, payload } = JSON.parse(event.body || '{}');
-
-        switch (action) {
-            case 'getNotes': {
+        switch (event.httpMethod) {
+            case 'GET': {
                 const snapshot = await notesCollection.orderBy('createdAt', 'desc').get();
                 const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 return { statusCode: 200, headers, body: JSON.stringify(notes) };
             }
 
-            case 'addNote': {
-                const { monthlyPeriodLabel, category, content, view, storeId, imageUrl } = payload;
+            case 'POST': { // Add a new note
+                const { monthlyPeriodLabel, category, content, view, storeId, imageUrl } = JSON.parse(event.body || '{}');
                 const newNote = {
                     monthlyPeriodLabel,
                     category,
@@ -55,14 +53,14 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                     view,
                     storeId: storeId || null,
                     imageUrl: imageUrl || null,
-                    createdAt: new Date().toISOString(), // Server-side timestamp
+                    createdAt: new Date().toISOString(),
                 };
                 const docRef = await notesCollection.add(newNote);
                 return { statusCode: 201, headers, body: JSON.stringify({ id: docRef.id, ...newNote }) };
             }
 
-            case 'updateNote': {
-                const { noteId, newContent, newCategory } = payload;
+            case 'PUT': { // Update an existing note
+                const { noteId, newContent, newCategory } = JSON.parse(event.body || '{}');
                 if (!noteId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Note ID is required.' }) };
                 
                 await notesCollection.doc(noteId).update({
@@ -72,8 +70,8 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 return { statusCode: 200, headers, body: JSON.stringify({ message: 'Note updated successfully.' }) };
             }
 
-            case 'deleteNote': {
-                const { noteId } = payload;
+            case 'DELETE': { // Delete a note
+                const { noteId } = JSON.parse(event.body || '{}');
                 if (!noteId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Note ID is required.' }) };
 
                 await notesCollection.doc(noteId).delete();
@@ -81,7 +79,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             default:
-                return { statusCode: 400, headers, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
+                return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
         }
     } catch (error: any) {
         console.error('Error in notes-proxy function:', error);
