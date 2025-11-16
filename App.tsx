@@ -531,7 +531,10 @@ const App: React.FC = () => {
                           return (
                             <div key={dir.id}>
                                 <div className="flex items-center justify-between">
-                                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView(dir.id); }} className={`flex-1 p-2 rounded-md text-sm ${currentView === dir.id ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>{dir.name}</a>
+                                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView(dir.id); }} className={`flex items-center gap-3 flex-1 p-2 rounded-md text-sm ${currentView === dir.id ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>
+                                      <img src={dir.photo} alt={dir.name} className="w-6 h-6 rounded-full object-cover" />
+                                      <span>{dir.name}</span>
+                                  </a>
                                   <button onClick={() => handleDirectorProfileOpen(dir)} className="p-1 rounded-full hover:bg-slate-700 text-slate-400">
                                       <Icon name="info" className="w-4 h-4" />
                                   </button>
