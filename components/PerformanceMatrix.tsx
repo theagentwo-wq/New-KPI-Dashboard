@@ -3,7 +3,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Res
 import { getQuadrantAnalysis } from '../services/geminiService';
 import { marked } from 'marked';
 import { Icon } from './Icon';
-import { Kpi, View, DirectorProfile, PerformanceData } from '../types';
+import { Kpi, View, PerformanceData } from '../types';
 import { KPI_CONFIG } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
