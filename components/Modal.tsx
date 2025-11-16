@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from './Icon';

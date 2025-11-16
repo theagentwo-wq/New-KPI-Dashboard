@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { getExecutiveSummary } from '../services/geminiService';
 import { View, Period } from '../types';
