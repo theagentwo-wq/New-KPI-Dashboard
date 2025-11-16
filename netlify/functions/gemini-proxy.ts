@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { Kpi, PerformanceData, View, Anomaly, ForecastDataPoint } from '../../types';
+import { Kpi, PerformanceData, View, ForecastDataPoint } from '../../types';
 
 // This function runs on Netlify's backend.
 // The API key is securely accessed from environment variables and never exposed to the client.
