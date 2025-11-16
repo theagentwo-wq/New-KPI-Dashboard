@@ -305,6 +305,60 @@ ${JSON.stringify(data, null, 2)}`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
                 return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
             }
+            
+            case 'getLocationMarketAnalysis': {
+                const { location } = payload;
+                const prompt = `${AI_CONTEXT} You are a market research specialist. A manager for our restaurant in ${location} needs a snapshot of their local market to understand factors that could impact business. Use your tools to research and provide a concise summary. The response MUST be formatted using markdown with the following headers: ### 🗓️ Upcoming Local Events, ### 🏟️ Sports Scene, ### 🏗️ Major Construction/Traffic, and ### 📈 Economic Health. Under each header, provide 2-3 bullet points of the most relevant, recent information. Focus on information within the next 30-60 days where possible.`;
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        tools: [{ googleSearch: {} }],
+                    },
+                });
+
+                let content = response.text || "Market analysis could not be generated at this time.";
+                const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks?.length) {
+                    const sources = new Set<string>();
+                    groundingChunks.forEach((chunk: any) => {
+                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`);
+                    });
+                    if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
+                }
+                return { statusCode: 200, body: JSON.stringify({ content }) };
+            }
+
+            case 'getMarketingIdeas': {
+                const { location, userLocation } = payload;
+                const prompt = `${AI_CONTEXT} You are a creative, data-driven marketing strategist. For our restaurant in ${location}, generate 3 distinct, hyper-local marketing ideas that are easy for the local team to execute and likely to have a positive ROI. Use your tools to identify nearby points of interest (schools, businesses, event venues, charities) that could be marketing partners or targets. For each idea, provide a clear "Concept", a "Rationale" explaining why it would work in this specific area, and simple "Execution Steps". Reference our historically successful campaign types: community engagement (e.g., school fundraisers), local partnerships (e.g., catering for a nearby office), and direct outreach (e.g., handing out coupons at a local event). Format as a markdown list.`;
+
+                const modelConfig: any = {
+                    tools: [{ googleSearch: {} }, { googleMaps: {} }]
+                };
+                if (userLocation) {
+                    modelConfig.toolConfig = { retrievalConfig: { latLng: { latitude: userLocation.latitude, longitude: userLocation.longitude }}};
+                }
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: modelConfig,
+                });
+
+                let content = response.text || "Marketing ideas could not be generated at this time.";
+                const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks?.length) {
+                    const sources = new Set<string>();
+                     groundingChunks.forEach((chunk: any) => {
+                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Web Source'}](${chunk.web.uri})`);
+                        if (chunk.maps?.uri) sources.add(`[${chunk.maps.title || 'Map Location'}](${chunk.maps.uri})`);
+                    });
+                    if (sources.size > 0) content += "\n\n**Sources & Relevant Locations:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
+                }
+                return { statusCode: 200, body: JSON.stringify({ content }) };
+            }
 
             default:
                 return { statusCode: 400, body: JSON.stringify({ error: `Unknown action: ${action}` }) };

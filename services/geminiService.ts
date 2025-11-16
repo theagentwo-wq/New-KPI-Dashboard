@@ -142,3 +142,23 @@ export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiA
         return "Could not generate quadrant analysis at this time.";
     }
 };
+
+export const getLocationMarketAnalysis = async (location: string): Promise<string> => {
+    try {
+        const result = await callProxy('getLocationMarketAnalysis', { location });
+        return result.content || "Could not generate a market analysis at this time.";
+    } catch (error) {
+        console.error("Error fetching market analysis:", error);
+        return "Could not generate a market analysis at this time.";
+    }
+};
+
+export const getMarketingIdeas = async (location: string, userLocation?: { latitude: number; longitude: number } | null): Promise<string> => {
+    try {
+        const result = await callProxy('getMarketingIdeas', { location, userLocation });
+        return result.content || "Could not generate marketing ideas at this time.";
+    } catch (error) {
+        console.error("Error fetching marketing ideas:", error);
+        return "Could not generate marketing ideas at this time.";
+    }
+};

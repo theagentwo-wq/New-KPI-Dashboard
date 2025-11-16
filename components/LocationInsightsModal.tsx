@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas } from '../services/geminiService';
 import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition } from '../types';
@@ -12,9 +12,10 @@ interface LocationInsightsModalProps {
   onClose: () => void;
   location?: string;
   performanceData?: PerformanceData;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
-type AnalysisType = 'brief' | 'forecast' | 'none';
+type AnalysisType = 'brief' | 'forecast' | 'market' | 'marketing' | 'none';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -47,24 +48,28 @@ const CustomXAxisTick = ({ x, y, payload, weatherData }: any) => {
 };
 
 
-export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData }) => {
+export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData, userLocation }) => {
   const [briefResult, setBriefResult] = useState<string | null>(null);
   const [forecastResult, setForecastResult] = useState<ForecastDataPoint[]>([]);
+  const [marketResult, setMarketResult] = useState<string | null>(null);
+  const [marketingResult, setMarketingResult] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisType>('none');
   const [sanitizedHtml, setSanitizedHtml] = useState('');
 
   useEffect(() => {
     const renderMarkdown = async () => {
-        if (briefResult) {
-            const html = await marked.parse(briefResult);
+        const contentToRender = briefResult || marketResult || marketingResult;
+        if (contentToRender) {
+            const html = await marked.parse(contentToRender);
             setSanitizedHtml(html);
         } else {
             setSanitizedHtml('');
         }
     };
     renderMarkdown();
-  }, [briefResult]);
+  }, [briefResult, marketResult, marketingResult]);
 
   useEffect(() => {
     if(!isOpen) {
@@ -72,6 +77,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         setCurrentAnalysis('none');
         setBriefResult(null);
         setForecastResult([]);
+        setMarketResult(null);
+        setMarketingResult(null);
     }
   }, [isOpen]);
 
@@ -80,6 +87,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     setIsLoading(true);
     setBriefResult(null);
     setForecastResult([]);
+    setMarketResult(null);
+    setMarketingResult(null);
     setCurrentAnalysis(type);
 
     if (type === 'brief' && performanceData) {
@@ -91,11 +100,24 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         const res = await getSalesForecast(location, weatherForecast);
         setForecastResult(res);
       } else {
-        // Handle case where weather could not be fetched
-        setForecastResult([]); // Or show an error
+        setForecastResult([]); 
       }
+    } else if (type === 'market') {
+        const res = await getLocationMarketAnalysis(location);
+        setMarketResult(res);
+    } else if (type === 'marketing') {
+        const res = await getMarketingIdeas(location, userLocation);
+        setMarketingResult(res);
     }
     setIsLoading(false);
+  };
+  
+  const loadingMessages: { [key in AnalysisType]: string } = {
+    brief: 'Generating HOT TOPICS...',
+    forecast: 'Generating Weather-Aware Sales Forecast...',
+    market: 'Analyzing local market conditions...',
+    marketing: 'Generating hyper-local marketing ideas...',
+    none: ''
   };
 
   const renderContent = () => {
@@ -105,15 +127,13 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
-                <p className="text-slate-400">
-                    {currentAnalysis === 'brief' ? 'Generating HOT TOPICS...' : 'Generating Weather-Aware Sales Forecast...'}
-                </p>
+                <p className="text-slate-400">{loadingMessages[currentAnalysis]}</p>
             </div>
         );
     }
     
-    if (currentAnalysis === 'brief' && briefResult) {
-         return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+    if ((currentAnalysis === 'brief' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml) {
+         return <div className="prose prose-sm prose-invert max-w-none text-slate-200 custom-scrollbar pr-2 max-h-[40vh] overflow-y-auto" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
     }
 
     if (currentAnalysis === 'forecast' && forecastResult.length > 0) {
@@ -133,8 +153,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             </div>
         );
     }
-     if (currentAnalysis === 'forecast' && !isLoading) {
-        return <p className="text-slate-400 text-center py-8">Could not generate a sales forecast at this time.</p>
+     if ((currentAnalysis === 'forecast' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && !isLoading) {
+        return <p className="text-slate-400 text-center py-8">Could not generate results at this time.</p>
     }
     
     return <p className="text-slate-300 text-center py-8">Select an AI action to run for {location}.</p>;
@@ -143,12 +163,18 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Store Actions for ${location}`}>
       <div className="space-y-4">
-        <div className="flex gap-4 p-2 bg-slate-900 rounded-md">
+        <div className="grid grid-cols-2 gap-4 p-2 bg-slate-900 rounded-md">
           <button onClick={() => handleAnalysis('brief')} disabled={isLoading || !performanceData} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed">
             Generate HOT TOPICS
           </button>
            <button onClick={() => handleAnalysis('forecast')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
             Generate 7-Day Forecast
+          </button>
+           <button onClick={() => handleAnalysis('market')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
+            Local Market Analysis
+          </button>
+           <button onClick={() => handleAnalysis('marketing')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
+            Generate Marketing Ideas
           </button>
         </div>
 

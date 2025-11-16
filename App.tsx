@@ -548,7 +548,7 @@ const App: React.FC = () => {
           <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
           <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
           <DirectorProfileModal isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} director={selectedDirector} performanceData={aggregatedData} selectedKpi={Kpi.SOP} period={currentPeriod} onPhotoUpdate={handlePhotoUpdate} />
-          <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} />
+          <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} userLocation={userLocation} />
           <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
           <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
       </div>
