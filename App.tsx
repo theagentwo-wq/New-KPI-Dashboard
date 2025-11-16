@@ -135,7 +135,7 @@ const App: React.FC = () => {
                 const parsedPhotos: { directorId: string; base64Image: string }[] = JSON.parse(savedPhotos);
                 setDirectorProfiles(prevProfiles => {
                     return prevProfiles.map(profile => {
-                        const saved = parsedPhotos.find(p => p.directorId === profile.id);
+                        const saved = parsedPhotos.find(p => p.directorId?.trim() === profile.id?.trim());
                         return saved ? { ...profile, photo: saved.base64Image } : profile;
                     });
                 });
@@ -444,7 +444,6 @@ const App: React.FC = () => {
     const handlePhotoUpdate = (photoData: { directorId: string; base64Image: string }[]) => {
         setDirectorProfiles(prevProfiles => {
             const updatedProfiles = prevProfiles.map(profile => {
-                // Defensive trimming to handle potential whitespace issues in IDs
                 const currentId = profile.id?.trim();
                 const newData = photoData.find(p => p.directorId?.trim() === currentId);
                 if (newData) {
@@ -454,7 +453,7 @@ const App: React.FC = () => {
             });
             try {
                 const allPhotosToSave = updatedProfiles.map(p => ({
-                    directorId: p.id,
+                    directorId: p.id.trim(),
                     base64Image: p.photo
                 }));
                 localStorage.setItem('directorPhotos', JSON.stringify(allPhotosToSave));
