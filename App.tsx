@@ -426,6 +426,10 @@ const App: React.FC = () => {
                 <KPICard title={Kpi.SOP} value={summaryData[Kpi.SOP] || 0} variance={summaryVariance[Kpi.SOP] || 0} />
                 <KPICard title={Kpi.PrimeCost} value={summaryData[Kpi.PrimeCost] || 0} variance={summaryVariance[Kpi.PrimeCost] || 0} />
                 <KPICard title={Kpi.AvgReviews} value={summaryData[Kpi.AvgReviews] || 0} variance={summaryVariance[Kpi.AvgReviews] || 0} />
+                <KPICard title={Kpi.FoodCost} value={summaryData[Kpi.FoodCost] || 0} variance={summaryVariance[Kpi.FoodCost] || 0} />
+                <KPICard title={Kpi.LaborCost} value={summaryData[Kpi.LaborCost] || 0} variance={summaryVariance[Kpi.LaborCost] || 0} />
+                <KPICard title={Kpi.VariableLabor} value={summaryData[Kpi.VariableLabor] || 0} variance={summaryVariance[Kpi.VariableLabor] || 0} />
+                <KPICard title={Kpi.CulinaryAuditScore} value={summaryData[Kpi.CulinaryAuditScore] || 0} variance={summaryVariance[Kpi.CulinaryAuditScore] || 0} />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

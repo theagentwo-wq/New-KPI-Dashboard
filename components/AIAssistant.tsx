@@ -31,7 +31,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
   ];
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
   
   const processAIResponse = async (text: string): Promise<Message> => {

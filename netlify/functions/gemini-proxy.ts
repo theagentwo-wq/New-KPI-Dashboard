@@ -172,7 +172,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             case 'generateHuddleBrief': {
                 const { location, storeData } = payload;
                 const formattedData = Object.entries(storeData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
-                const prompt = `${AI_CONTEXT} You are an expert restaurant operations coach. Based on the most recent performance data for the ${location} store, generate a concise, motivational pre-shift huddle brief for the store manager. The brief should be under 150 words. Format the response using markdown with these exact three headers: ### 🎯 Goal for Today, ### 🤔 Why it Matters, and ### 🏆 How to Win. Identify the single biggest performance opportunity from the data and make that the focus.\n\nData:\n${formattedData}`;
+                const prompt = `${AI_CONTEXT} You are an expert restaurant operations coach. Based on the most recent performance data for the ${location} store, generate a concise, motivational pre-shift HOT TOPICS brief for the store manager. The brief should be under 150 words. Format the response using markdown with these exact three headers: ### 🎯 Goal for Today, ### 🤔 Why it Matters, and ### 🏆 How to Win. Identify the single biggest performance opportunity from the data and make that the focus.\n\nData:\n${formattedData}`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
                 return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
             }

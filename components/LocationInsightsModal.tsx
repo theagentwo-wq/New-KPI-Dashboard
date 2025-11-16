@@ -68,7 +68,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
                 <p className="text-slate-400">
-                    {currentAnalysis === 'brief' ? 'Generating Huddle Brief...' : 'Generating Sales Forecast...'}
+                    {currentAnalysis === 'brief' ? 'Generating HOT TOPICS...' : 'Generating Sales Forecast...'}
                 </p>
             </div>
         );
@@ -104,7 +104,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
       <div className="space-y-4">
         <div className="flex gap-4 p-2 bg-slate-900 rounded-md">
           <button onClick={() => handleAnalysis('brief')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
-            Generate Huddle Brief
+            Generate HOT TOPICS
           </button>
            <button onClick={() => handleAnalysis('forecast')} disabled={isLoading} className="flex-1 bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
             Generate 7-Day Forecast
