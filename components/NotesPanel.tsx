@@ -46,7 +46,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     if (newMonthlyPeriod && newMonthlyPeriod.label !== notesPeriod.label) {
       setNotesPeriod(newMonthlyPeriod);
     }
-  }, [mainDashboardPeriod, notesPeriod.label]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainDashboardPeriod]);
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));

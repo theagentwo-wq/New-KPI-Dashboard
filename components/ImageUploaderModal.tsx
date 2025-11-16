@@ -77,7 +77,6 @@ export const ImageUploaderModal: React.FC<ImageUploaderModalProps> = ({ isOpen, 
                                 <input
                                     type="file"
                                     accept="image/png, image/jpeg, image/gif, image/webp"
-                                    // FIX: The ref callback function must not return a value. Using a block body `{}` ensures an implicit `undefined` return.
                                     ref={el => { fileInputRefs.current[director.id] = el; }}
                                     onChange={(e) => handleFileChange(e, director.id)}
                                     className="hidden"

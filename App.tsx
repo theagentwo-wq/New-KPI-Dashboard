@@ -130,6 +130,7 @@ const App: React.FC = () => {
             try {
                 const response = await fetch('/.netlify/functions/notes-proxy', {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'getNotes' })
                 });
                 if (!response.ok) throw new Error('Failed to fetch notes');
