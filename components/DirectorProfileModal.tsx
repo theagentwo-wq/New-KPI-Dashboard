@@ -26,6 +26,8 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   useEffect(() => {
     if (!isOpen) {
       setStagedPhoto(null);
+      setSnapshot('');
+      setSanitizedHtml('');
     }
   }, [isOpen]);
 
@@ -41,21 +43,17 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     renderMarkdown();
   }, [snapshot]);
 
-  useEffect(() => {
-    if (isOpen && director && performanceData) {
-      const fetchSnapshot = async () => {
-        setIsLoading(true);
-        setSnapshot('');
-        const dataForDirector = performanceData[director.name]?.aggregated;
-        if (dataForDirector) {
-          const result = await getDirectorPerformanceSnapshot(director.name, period.label, dataForDirector);
-          setSnapshot(result);
-        }
-        setIsLoading(false);
-      };
-      fetchSnapshot();
+  const handleGenerateSnapshot = async () => {
+    if (!director || !performanceData) return;
+    setIsLoading(true);
+    setSnapshot('');
+    const dataForDirector = performanceData[director.name]?.aggregated;
+    if (dataForDirector) {
+      const result = await getDirectorPerformanceSnapshot(director.name, period.label, dataForDirector);
+      setSnapshot(result);
     }
-  }, [isOpen, director, performanceData, period]);
+    setIsLoading(false);
+  };
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -162,8 +160,16 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
           </div>
 
           <div className="mt-4 p-4 bg-slate-900 rounded-md border border-slate-700">
-            <h4 className="text-lg font-bold text-cyan-400 mb-2">AI Performance Snapshot</h4>
-            <div className="max-h-40 overflow-y-auto custom-scrollbar pr-2">
+            <div className="flex justify-between items-center mb-2">
+                <h4 className="text-lg font-bold text-cyan-400">AI Performance Snapshot</h4>
+                {(!isLoading && snapshot) && (
+                    <button onClick={handleGenerateSnapshot} className="text-xs flex items-center gap-1 text-cyan-400 hover:text-cyan-300">
+                        <Icon name="sparkles" className="w-4 h-4" />
+                        Regenerate
+                    </button>
+                )}
+            </div>
+            <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2">
              {isLoading ? (
                 <div className="flex items-center justify-center space-x-2 min-h-[100px]">
                     <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
@@ -171,8 +177,16 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
                     <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
                     <p className="text-slate-400">Generating AI snapshot...</p>
                 </div>
-              ) : (
+              ) : sanitizedHtml ? (
                 <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+              ) : (
+                <div className="text-center py-4">
+                    <p className="text-slate-400 mb-3">Get an AI-powered summary of this director's performance for the period.</p>
+                    <button onClick={handleGenerateSnapshot} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md inline-flex items-center gap-2">
+                        <Icon name="sparkles" className="w-5 h-5" />
+                        Generate Snapshot
+                    </button>
+                </div>
               )}
             </div>
           </div>
