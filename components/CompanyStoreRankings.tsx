@@ -157,8 +157,8 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
     };
 
     const title = useMemo(() => {
-        if (currentView === 'Total Company') return 'Total Company';
-        return `${currentView}'s Area`;
+        if (currentView === 'Total Company') return 'Total Company Snapshot';
+        return `${currentView}'s Area Snapshot`;
     }, [currentView]);
 
     return (

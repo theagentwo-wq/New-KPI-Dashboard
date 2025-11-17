@@ -51,7 +51,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     const formatter = useCallback((v: number) => {
         return formatDisplayValue(v, title)
     }, [title]);
-
+    
     const itemVariants = {
         hidden: { y: 20, opacity: 0 },
         visible: { y: 0, opacity: 1 }
@@ -62,7 +62,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
             variants={itemVariants}
             whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start backdrop-blur-sm"
+            className="bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start"
         >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
@@ -278,7 +278,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         visible: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.05
+                staggerChildren: 0.1
             }
         }
     };
@@ -293,7 +293,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-6"
+                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4"
                     >
                         {mainKpis.map(kpi => (
                             <KPICard 
@@ -331,7 +331,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                 </div>
                 {/* AI Hub (25%) */}
                 <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
-                     <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
+                    <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
                     <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                     <PerformanceMatrix 
                         periodLabel={currentPeriod.label}
