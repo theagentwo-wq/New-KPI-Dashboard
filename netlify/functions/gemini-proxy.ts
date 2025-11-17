@@ -403,23 +403,14 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { location, address } = payload;
-                const prompt = `You are an expert visual asset retrieval specialist for the restaurant chain 'Tupelo Honey Cafe'. Your primary task is to find up to 5 high-quality, publicly available image URLs for the specific restaurant location: "${location}" at the address: "${address}".
+                const prompt = `Use Google Search to find up to 5 image URLs for the restaurant "Tupelo Honey Cafe" at "${address}".
 
-**Critical Instructions:**
-1.  **Mandatory Multi-Query Strategy:** You MUST execute several distinct Google Search queries to find the best images. Do not stop after one search.
-2.  **Utilize Full Address:** Your searches MUST incorporate the specific address: "${address}". This is non-negotiable for accuracy.
-3.  **Prioritize Google Maps:** A primary source for high-quality, relevant photos is the Google Maps listing for the address. Actively search for user-submitted photos there.
-4.  **Query Variations (Examples - you MUST try several):**
-    *   "photos of Tupelo Honey Cafe ${address}"
-    *   "Tupelo Honey Cafe ${location} exterior"
-    *   "Tupelo Honey Cafe ${location} interior dining room"
-    *   "Tupelo Honey Cafe ${location} food photos"
-    *   "Google Maps photos for ${address}"
-5.  **Content Diversity:** Strive for a variety of images: an exterior shot showing the entrance, an interior shot of the dining area, and photos of their popular food dishes.
-6.  **Direct Image URLs ONLY:** Your final output must be direct links to image files (e.g., ending in .jpg, .png, .webp) or from known image content hosts (like lh3.googleusercontent.com). Do NOT return links to web pages (like Yelp pages or news articles).
-7.  **Final Output:** Return a JSON array of up to 5 unique, valid image URL strings. If, after exhaustive searching with multiple queries, you cannot find any suitable images, return an empty array [].
+**Priorities:**
+1.  **Primary Source:** Google Maps. Search for the address on Google Maps and find user-submitted photos. These are the best source.
+2.  **Image Types:** Find a mix of exterior, interior, and food photos.
+3.  **URL Format:** Extract direct image URLs. URLs from Google (e.g., containing "lh3.googleusercontent.com") are strongly preferred.
 
-**Output ONLY the JSON array.**`;
+Your entire response must be ONLY a valid JSON array of strings. Do not add any other text. If no images are found, return an empty array [].`;
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,
