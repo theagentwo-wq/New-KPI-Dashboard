@@ -95,8 +95,19 @@ const parseScenarioFunctionDeclaration: FunctionDeclaration = {
 // --- Netlify Handler ---
 
 export const handler = async (event: { httpMethod: string; body?: string }) => {
+    const headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*', // Allow requests from any origin
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    };
+
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 204, headers };
+    }
+
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return { statusCode: 405, headers, body: 'Method Not Allowed' };
     }
 
     try {
@@ -108,7 +119,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 const formattedData = formatDataForAI(data, view, 'All');
                 const prompt = `${AI_CONTEXT} Based on the following data for ${periodLabel}, provide a concise 2-3 sentence executive summary of the performance for ${view}. Highlight the most significant win and the biggest area for improvement. Data:\n${formattedData}`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
 
             case 'getInsights': {
@@ -133,7 +144,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                     });
                     if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
-                return { statusCode: 200, body: JSON.stringify({ content }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
 
             case 'getTrendAnalysis': {
@@ -141,7 +152,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 const formattedData = formatHistoricalDataForAI(historicalData, view);
                 const prompt = `${AI_CONTEXT} Based on the following historical data for "${view}", analyze the trends for the key KPIs over these periods. Identify 1-2 of the most significant positive or negative trends. Explain what the trend is (e.g., "Food Cost is consistently increasing") and briefly suggest a potential implication. Present the analysis in a clear, bulleted list.\n\nData:\n${formattedData}`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
 
             case 'getDirectorPerformanceSnapshot': {
@@ -149,7 +160,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                  const formattedData = Object.entries(directorData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
                  const prompt = `${AI_CONTEXT}\nBased on the aggregated performance data for director ${directorName}'s region for the period "${periodLabel}", provide a concise performance snapshot. Format the response using markdown with these exact three headers: ### 🏆 Key Win, ### 📉 Key Challenge, and ### 🎯 Strategic Focus. For the "Key Win", identify the top-performing KPI and briefly explain its positive impact. For the "Key Challenge", identify the most significant underperforming KPI and its negative impact. For the "Strategic Focus", provide a single, clear, actionable recommendation based on restaurant industry best practices to improve the key challenge.\n\nData:\n${formattedData}`;
                  const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                 return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                 return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
 
             case 'getAnomalyDetections': {
@@ -167,7 +178,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
                 const jsonString = response.text?.trim();
                 const parsedAnomalies = jsonString ? JSON.parse(jsonString) : [];
                 const data = parsedAnomalies.map((item: any, index: number) => ({ ...item, id: `anomaly-${Date.now()}-${index}`, periodLabel }));
-                return { statusCode: 200, body: JSON.stringify({ data }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ data }) };
             }
 
             case 'generateHuddleBrief': {
@@ -224,7 +235,7 @@ Begin the brief now.`;
                     if (sources.size > 0) content += "\n\n---\n*Sources used for this brief: " + Array.from(sources).join(', ') + "*";
                 }
 
-                return { statusCode: 200, body: JSON.stringify({ content }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
 
             case 'runWhatIfScenario': {
@@ -238,7 +249,7 @@ Begin the brief now.`;
                 if (!analysis && args) {
                     responseData = { analysis: `Scenario parameters successfully parsed. You asked to model a change of ${args.changeValue} ${args.changeUnit} for ${args.kpi} in ${args.scope}.`, args };
                 }
-                return { statusCode: 200, body: JSON.stringify({ data: responseData }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ data: responseData }) };
             }
 
              case 'getSalesForecast': {
@@ -276,7 +287,7 @@ Begin the brief now.`;
                          console.error("Failed to parse sales forecast JSON:", e);
                     }
                 }
-                return { statusCode: 200, body: JSON.stringify({ data }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ data }) };
             }
 
             case 'getReviewSummary': {
@@ -302,7 +313,7 @@ Begin the brief now.`;
                     if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
 
-                return { statusCode: 200, body: JSON.stringify({ content }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
             
             case 'getVarianceAnalysis': {
@@ -310,7 +321,7 @@ Begin the brief now.`;
                 const formattedKpis = Object.entries(allKpis).map(([key, val]) => `${key}: ${(val as number).toFixed(4)}`).join(', ');
                 const prompt = `For the ${location} restaurant, ${kpi} had a variance of ${variance.toFixed(4)}. Given the other KPI values for this period (${formattedKpis}), provide a very brief, one-sentence hypothesis explaining a potential reason for this specific variance. Start your response directly with the hypothesis. Example: 'The negative variance in SOP is likely driven by the increase in Food Cost.'`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
             
             case 'getQuadrantAnalysis': {
@@ -352,7 +363,7 @@ Present your analysis in clean, readable markdown.
 ${JSON.stringify(data, null, 2)}`;
                 
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
             
             case 'getLocationMarketAnalysis': {
@@ -376,7 +387,7 @@ ${JSON.stringify(data, null, 2)}`;
                     });
                     if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
-                return { statusCode: 200, body: JSON.stringify({ content }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
 
             case 'getMarketingIdeas': {
@@ -406,7 +417,7 @@ ${JSON.stringify(data, null, 2)}`;
                     });
                     if (sources.size > 0) content += "\n\n**Sources & Relevant Locations:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
-                return { statusCode: 200, body: JSON.stringify({ content }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
 
             case 'getNoteTrends': {
@@ -425,14 +436,14 @@ ${JSON.stringify(data, null, 2)}`;
 ${formattedNotes}`;
 
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-                return { statusCode: 200, body: JSON.stringify({ content: response.text }) };
+                return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
 
             default:
-                return { statusCode: 400, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
+                return { statusCode: 400, headers, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
         }
     } catch (error: any) {
         console.error('Error in Gemini proxy:', error);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message || 'An internal server error occurred.' }) };
+        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || 'An internal server error occurred.' }) };
     }
 };

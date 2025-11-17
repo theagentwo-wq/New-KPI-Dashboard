@@ -25,6 +25,7 @@ import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
 import { NewsFeed } from './components/NewsFeed';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById } from './services/firebaseService';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -128,14 +129,10 @@ const App: React.FC = () => {
 
         const fetchNotes = async () => {
             try {
-                const response = await fetch('/.netlify/functions/notes-proxy', {
-                    method: 'GET',
-                });
-                if (!response.ok) throw new Error('Failed to fetch notes');
-                const fetchedNotes = await response.json();
+                const fetchedNotes = await getNotes();
                 setNotes(fetchedNotes);
             } catch (error) {
-                console.error("Error fetching notes:", error);
+                console.error("Error fetching notes from Firebase:", error);
             }
         };
         fetchNotes();
@@ -383,14 +380,7 @@ const App: React.FC = () => {
     
     const addNote = useCallback(async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
         try {
-            const payload = { monthlyPeriodLabel, category, content, view: scope.view, storeId: scope.storeId, imageUrl };
-            const response = await fetch('/.netlify/functions/notes-proxy', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error('Failed to add note');
-            const newNote = await response.json();
+            const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageUrl);
             setNotes(prev => [newNote, ...prev]);
         } catch (error) {
             console.error("Error adding note:", error);
@@ -399,12 +389,7 @@ const App: React.FC = () => {
     
     const updateNote = useCallback(async (noteId: string, newContent: string, newCategory: NoteCategory) => {
         try {
-            const response = await fetch('/.netlify/functions/notes-proxy', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ noteId, newContent, newCategory })
-            });
-            if (!response.ok) throw new Error('Failed to update note');
+            await updateNoteContent(noteId, newContent, newCategory);
             setNotes(prev => prev.map(note => note.id === noteId ? { ...note, content: newContent, category: newCategory } : note));
         } catch (error) {
             console.error("Error updating note:", error);
@@ -414,12 +399,7 @@ const App: React.FC = () => {
     const deleteNote = useCallback(async (noteId: string) => {
         if (window.confirm("Are you sure you want to delete this note?")) {
             try {
-                const response = await fetch('/.netlify/functions/notes-proxy', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ noteId })
-                });
-                if (!response.ok) throw new Error('Failed to delete note');
+                await deleteNoteById(noteId);
                 setNotes(prev => prev.filter(note => note.id !== noteId));
             } catch (error) {
                 console.error("Error deleting note:", error);

@@ -31,17 +31,19 @@ npm install
 
 ### 3. Environment Variables
 
-This project requires API keys for both Google Gemini and Google Firebase to function. These are used by the backend Netlify Functions.
+This project requires environment variables for both Google Gemini and Google Firebase to function.
 
 1.  Create a file named `.env` in the root of the project.
-2.  Add your API keys to this file.
+2.  Add your configuration to this file.
 
 ```
-# Your Google AI Gemini API Key
+# Your Google AI Gemini API Key (used by a backend function)
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# The entire JSON content from your Firebase Service Account key file
-FIREBASE_SERVICE_ACCOUNT_KEY={"type": "service_account", "project_id": "...", ...}
+# Your Firebase Web App's configuration object, as a JSON string.
+# In the Firebase Console, go to Project Settings > General > Your apps > Web app.
+# Find the firebaseConfig object and copy its entire content as a single line string.
+VITE_FIREBASE_CLIENT_CONFIG='{"apiKey": "...", "authDomain": "...", "projectId": "...", ...}'
 ```
 
 ### 4. Running the Development Server
@@ -85,10 +87,10 @@ This is the most important step for the deployed application to work.
     -   **Key**: `GEMINI_API_KEY`
     -   **Value**: Your Google Gemini API key.
     -   Click "Create variable".
-4.  Add the `FIREBASE_SERVICE_ACCOUNT_KEY`:
+4.  Add the `VITE_FIREBASE_CLIENT_CONFIG`:
     -   Click "Add a variable" again.
-    -   **Key**: `FIREBASE_SERVICE_ACCOUNT_KEY`
-    -   **Value**: Open the `.json` file you downloaded from your Firebase project's service account settings. Copy the **entire contents** of that file and paste it into the value field.
+    -   **Key**: `VITE_FIREBASE_CLIENT_CONFIG`
+    -   **Value**: The same single-line JSON string for your Firebase client config that you used in your `.env` file.
     -   Click "Create variable".
 
 ### 5. Deploy
