@@ -21,10 +21,19 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
 
     try {
         const response = await fetch('/.netlify/functions/firebase-config-proxy');
+        
         if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({ error: 'Proxy request failed' }));
-            throw new Error(errorBody.error || `Request failed with status ${response.status}`);
+            let errorText = `Proxy request failed with status ${response.status}.`;
+            try {
+                const errorBody = await response.json();
+                errorText = errorBody.error || errorText;
+            } catch (e) {
+                errorText += ` Could not parse error response from proxy.`;
+            }
+            // This new, unique message proves the new code is running.
+            throw new Error(`[Proxy Error] ${errorText}`);
         }
+
         const firebaseConfig = await response.json();
 
         if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
@@ -49,9 +58,18 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     } catch (error: any) {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
+        
+        const newErrorMessage = `[New Logic] Failed to initialize Firebase via proxy.
+Error: ${error.message || 'Unknown error'}. 
+
+Troubleshooting steps:
+1. Verify the Netlify environment variable is named FIREBASE_CLIENT_CONFIG (no 'VITE_').
+2. Check the Netlify function logs for 'firebase-config-proxy' for server-side errors.
+3. Trigger a new deploy and clear your browser cache.`;
+
         return { 
             status: 'error', 
-            message: `Could not connect to the database. Failed to fetch or initialize Firebase configuration. Error: ${error.message || 'Unknown error'}. Please ensure the FIREBASE_CLIENT_CONFIG variable is set correctly in your Netlify deployment settings and does not have a 'VITE_' prefix.`
+            message: newErrorMessage
         };
     }
 };
@@ -66,8 +84,6 @@ export const getNotes = async (): Promise<Note[]> => {
         const q = query(notesCollection, orderBy('createdAt', 'desc'));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
-            // FIX: Cast `doc.data()` to `any` to resolve TypeScript errors about accessing properties on an 'unknown' type.
-            // Firestore's `doc.data()` can return a loosely typed object, and this ensures we can access the expected fields.
             const data: any = doc.data();
             const note: Note = {
                 id: doc.id,
@@ -94,7 +110,6 @@ export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory
 
     const createdAtTimestamp = Timestamp.now();
     
-    // Create a clean object, omitting undefined properties
     const newNoteDataForDb: any = {
         monthlyPeriodLabel,
         category,

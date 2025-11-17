@@ -46,7 +46,7 @@ This is the most important step. All API keys are managed in a local environment
 2.  **Rename the file:** Rename this file to **`.env.local`**.
 3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
     *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
-    *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions. **Note:** The `VITE_` prefix has been removed for security.
+    *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
 
 ### 4. Run the Development Server
 
