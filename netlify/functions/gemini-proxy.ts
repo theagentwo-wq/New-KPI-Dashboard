@@ -402,7 +402,7 @@ ${formattedNotes}`;
             }
 
             case 'getStoreVisuals': {
-                const { location, address } = payload;
+                const { address } = payload;
                 const prompt = `Act as an expert image searcher. Find 5 high-quality, publicly available image URLs for the restaurant 'Tupelo Honey Cafe' at the specific address: '${address}'.
 
 **Instructions:**
