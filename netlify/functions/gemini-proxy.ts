@@ -403,7 +403,7 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { location, address } = payload;
-                const prompt = `Use Google Search to find up to 5 image URLs for the restaurant "Tupelo Honey Cafe" at "${address}".
+                const prompt = `Use Google Search to find up to 5 image URLs for the restaurant "Tupelo Honey Cafe" in ${location} at "${address}".
 
 **Priorities:**
 1.  **Primary Source:** Google Maps. Search for the address on Google Maps and find user-submitted photos. These are the best source.
