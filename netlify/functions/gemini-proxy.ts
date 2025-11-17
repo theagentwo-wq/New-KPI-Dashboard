@@ -118,6 +118,27 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
         const { action, payload } = JSON.parse(event.body || '{}');
 
         switch (action) {
+            case 'getStreetViewMetadata': {
+                const { lat, lon } = payload;
+                if (!lat || !lon) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing latitude or longitude' }) };
+                }
+                // We use the Gemini key here, assuming it's a general Google Cloud key with Maps APIs enabled.
+                const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&key=${apiKey}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.status === 'OK') {
+                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'OK' }) };
+                }
+                if (data.status === 'ZERO_RESULTS') {
+                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'ZERO_RESULTS' }) };
+                }
+                // For any other status (e.g., REQUEST_DENIED), treat it as an error/unavailable.
+                console.warn("Street View Metadata API returned non-OK status:", data.status);
+                return { statusCode: 200, headers, body: JSON.stringify({ status: 'ERROR' }) };
+            }
+
             case 'getExecutiveSummary': {
                 const { data, view, periodLabel } = payload;
                 const formattedData = formatDataForAI(data, view, 'All');

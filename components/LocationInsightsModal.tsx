@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getStreetViewMetadata } from '../services/geminiService';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi, StoreDetails } from '../types';
@@ -19,6 +19,7 @@ interface LocationInsightsModalProps {
 
 type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
+type StreetViewStatus = 'loading' | 'OK' | 'ZERO_RESULTS' | 'ERROR';
 
 // --- Reusable Components for the Modal ---
 
@@ -103,6 +104,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     // State for data fetching
     const [weather, setWeather] = useState<WeatherInfo | null>(null);
+    const [streetViewStatus, setStreetViewStatus] = useState<StreetViewStatus>('loading');
 
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -131,20 +133,24 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (!isOpen) {
             setIsFullScreen(false);
             setActiveTab('reviews');
-        } else if (location) {
+        } else if (location && storeDetails) {
             // Reset all content when a new location is opened
             setAnalysisContent({});
             setIsLoading({});
             setWeather(null);
+            setStreetViewStatus('loading');
             
-            const fetchWeather = async () => {
+            const fetchInitialVisuals = async () => {
                 const weatherData = await getWeatherForLocation(location);
                 setWeather(weatherData);
+
+                const svMeta = await getStreetViewMetadata(storeDetails.lat, storeDetails.lon);
+                setStreetViewStatus(svMeta.status);
             };
 
-            fetchWeather();
+            fetchInitialVisuals();
         }
-    }, [isOpen, location]);
+    }, [isOpen, location, storeDetails]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
@@ -221,6 +227,55 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         { id: 'forecast', label: 'Forecast', icon: 'sales' },
         { id: 'marketing', label: 'Marketing', icon: 'sparkles' },
     ];
+    
+    const renderStreetView = () => {
+        if (!storeDetails) return null;
+
+        const containerClasses = "h-40 w-full overflow-hidden rounded-t-lg bg-slate-800 flex items-center justify-center text-slate-400 text-sm";
+        
+        switch (streetViewStatus) {
+            case 'loading':
+                return (
+                    <div className={containerClasses}>
+                        <svg className="animate-spin h-6 w-6 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                );
+            case 'OK':
+                return (
+                    <div className={containerClasses}>
+                        <iframe
+                            key={`sv-${storeDetails.lat}-${storeDetails.lon}`}
+                            title="Google Maps Street View"
+                            className="w-full h-full border-0"
+                            loading="lazy"
+                            allowFullScreen
+                            src={`https://www.google.com/maps?q&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,0,0,0,0&output=svembed`}>
+                        </iframe>
+                    </div>
+                );
+            case 'ZERO_RESULTS':
+            case 'ERROR':
+                return (
+                    <div className={`${containerClasses} relative`}>
+                         <iframe
+                            key={`map-${storeDetails.lat}-${storeDetails.lon}`}
+                            title="Google Maps Satellite View"
+                            className="w-full h-full border-0"
+                            loading="lazy"
+                            allowFullScreen
+                            src={`https://www.google.com/maps?q=${storeDetails.lat},${storeDetails.lon}&z=18&t=k&output=embed`}>
+                        </iframe>
+                        <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs p-1 rounded">
+                           Interactive Street View not available. Showing satellite map.
+                        </div>
+                    </div>
+                );
+        }
+    }
+
 
     const renderTabContent = () => {
         const content = analysisContent[activeTab];
@@ -335,16 +390,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
                      {storeDetails ? (
                         <div className="bg-slate-900/50 rounded-lg border border-slate-700">
-                            <div className="h-40 w-full overflow-hidden rounded-t-lg">
-                                <iframe
-                                    key={`${storeDetails.lat}-${storeDetails.lon}`}
-                                    title="Google Maps Street View"
-                                    className="w-full h-full border-0"
-                                    loading="lazy"
-                                    allowFullScreen
-                                    src={`https://www.google.com/maps?q&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,0,0,0,0&output=svembed`}>
-                                </iframe>
-                            </div>
+                            {renderStreetView()}
                              <div className="p-3 text-sm">
                                 <p className="font-semibold text-slate-300">{storeDetails.address}</p>
                                 <a

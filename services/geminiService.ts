@@ -61,6 +61,16 @@ const getDetailedErrorMessage = (error: unknown): string => {
     return `[AI Service Error] ${rawMessage}`;
 };
 
+export const getStreetViewMetadata = async (lat: number, lon: number): Promise<{ status: 'OK' | 'ZERO_RESULTS' | 'ERROR' }> => {
+    try {
+        const result = await callAIApi('getStreetViewMetadata', { lat, lon });
+        return result || { status: 'ERROR' };
+    } catch (error) {
+        console.error("Error fetching Street View metadata:", error);
+        return { status: 'ERROR' };
+    }
+};
+
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
     try {
         const result = await callAIApi('getExecutiveSummary', { data, view, periodLabel });
