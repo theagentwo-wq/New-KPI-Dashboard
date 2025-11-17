@@ -3,11 +3,11 @@ import { Modal } from './Modal';
 import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getStoreVisuals, getReviewSummary } from '../services/geminiService';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi } from '../types';
+import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi, StoreDetails } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
-import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP, STORE_DETAILS } from '../constants';
 
 interface LocationInsightsModalProps {
   isOpen: boolean;
@@ -122,12 +122,18 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         return DIRECTORS.find(d => d.stores.includes(location));
     }, [location]);
 
+    const storeDetails: StoreDetails | undefined = useMemo(() => {
+        if (!location) return undefined;
+        return STORE_DETAILS[location];
+    }, [location]);
+
+
     // Reset all state when the modal is closed or the location changes
     useEffect(() => {
         if (!isOpen) {
             setIsFullScreen(false);
             setActiveTab('reviews');
-        } else if (location) {
+        } else if (location && storeDetails) {
             // Reset all content when a new location is opened
             setAnalysisContent({});
             setIsLoading({});
@@ -137,7 +143,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             
             const fetchVisuals = async () => {
                 setIsImagesLoading(true);
-                const urls = await getStoreVisuals(location);
+                const urls = await getStoreVisuals(location, storeDetails.address);
                 setStoreImages(urls.length > 0 ? [...urls, ...urls] : []);
                 setIsImagesLoading(false);
             };
@@ -150,7 +156,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             fetchVisuals();
             fetchWeather();
         }
-    }, [isOpen, location]);
+    }, [isOpen, location, storeDetails]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
@@ -331,6 +337,30 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                             </div>
                         )}
                     </div>
+
+                     {storeDetails && (
+                        <div className="bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div className="h-40 w-full overflow-hidden rounded-t-lg">
+                                <iframe
+                                    className="w-full h-full border-0"
+                                    loading="lazy"
+                                    allowFullScreen
+                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(storeDetails.address)}&output=embed&z=15`}>
+                                </iframe>
+                            </div>
+                             <div className="p-3 text-sm">
+                                <p className="font-semibold text-slate-300">{storeDetails.address}</p>
+                                <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(storeDetails.address)}${userLocation ? `&origin=${userLocation.latitude},${userLocation.longitude}` : ''}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block mt-2 text-cyan-400 hover:text-cyan-300 font-semibold"
+                                >
+                                    Get Directions &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    )}
                     
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-between">
                          <div className="text-sm">
@@ -341,19 +371,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                             <span className="text-2xl font-bold text-white">{weather?.temperature}°F</span>
                             <WeatherIcon condition={weather?.condition || 'loading'} className="w-10 h-10"/>
                          </div>
-                    </div>
-                    
-                    <div className="h-40 w-full overflow-hidden bg-slate-900 rounded-lg border border-slate-700 relative group">
-                        {isImagesLoading ? <LoadingSpinner message="Loading images..." /> :
-                         storeImages.length > 0 ? (
-                            <div className="flex h-full animate-scroll-gallery group-hover:[animation-play-state:paused]">
-                                {storeImages.map((url, index) => (
-                                    <div key={index} className="w-64 h-full flex-shrink-0 mx-2">
-                                        <img src={url} alt={`Store image ${index + 1}`} className="w-full h-full object-cover rounded-md"/>
-                                    </div>
-                                ))}
-                            </div>
-                         ) : <p className="text-slate-500 text-center flex items-center justify-center h-full">No images found.</p>}
                     </div>
 
                     {performanceData && (

@@ -202,9 +202,9 @@ export const getNoteTrends = async (notes: Note[]): Promise<string> => {
     }
 };
 
-export const getStoreVisuals = async (location: string): Promise<string[]> => {
+export const getStoreVisuals = async (location: string, address: string): Promise<string[]> => {
     try {
-        const result = await callAIApi('getStoreVisuals', { location });
+        const result = await callAIApi('getStoreVisuals', { location, address });
         return result.data || [];
     } catch (error) {
         console.error("Error fetching store visuals:", error);

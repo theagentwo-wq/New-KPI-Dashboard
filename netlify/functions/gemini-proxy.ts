@@ -402,17 +402,18 @@ ${formattedNotes}`;
             }
 
             case 'getStoreVisuals': {
-                const { location } = payload;
-                const prompt = `Your primary task is to act as an expert image searcher. Your goal is to find 5 high-quality, publicly available image URLs for the restaurant 'Tupelo Honey Cafe' at the specific location: '${location}'.
+                const { location, address } = payload;
+                const prompt = `Act as an expert image searcher. Find 5 high-quality, publicly available image URLs for the restaurant 'Tupelo Honey Cafe' at the specific address: '${address}'.
 
-To accomplish this, follow these steps:
-1. Construct a precise Google Search query. Combine the restaurant name and location. For example, a good query would be "Tupelo Honey Cafe ${location} restaurant photos".
-2. Execute the search using the Google Search tool.
-3. Analyze the search results to find direct links to image files. These URLs must end in .jpg, .png, .webp, or another common image format. Do NOT return links to web pages (like a Google Maps page or a Yelp review page).
-4. Collect up to 5 of the best, most relevant image URLs.
-5. Format your final response as a JSON array of strings, where each string is one of the direct image URLs you found.
+**Instructions:**
+1.  Construct a precise Google Search query like "Tupelo Honey Cafe ${address} photos".
+2.  Execute the search using the Google Search tool.
+3.  From the results, identify direct links to image files (.jpg, .png, .webp).
+4.  Prioritize a mix of photos: restaurant exterior, interior dining area, and specific food dishes.
+5.  Return up to 5 of the best, most relevant direct image URLs.
+6.  Format the response as a JSON array of strings.
 
-Output ONLY the JSON array. Do not include any other text, markdown, or explanation. If, after thorough searching, you cannot find any suitable direct image links, return an empty JSON array [].`;
+**Output ONLY the JSON array.** If no suitable images are found, return an empty array [].`;
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,

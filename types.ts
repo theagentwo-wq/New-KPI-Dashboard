@@ -104,6 +104,12 @@ export interface DailyForecast {
     shortForecast: string;
 }
 
+export interface StoreDetails {
+  address: string;
+  lat: number;
+  lon: number;
+}
+
 // FIX: Add SavedView type to be used by TimeSelector component.
 export interface SavedView {
   name: string;
