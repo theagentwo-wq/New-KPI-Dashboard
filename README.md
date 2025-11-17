@@ -12,53 +12,52 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **AI**: Google Gemini API (via Netlify Proxy)
 - **Database**: Google Firestore
 
-## Local Setup
+## Local Setup (Foolproof Guide)
+
+Follow these steps exactly to get the dashboard running locally.
 
 ### 1. Prerequisites
 
 - Node.js (v18 or later)
 - npm or yarn
+- Netlify CLI (for running the backend functions)
 
 ### 2. Installation
 
-Clone the repository and install the dependencies:
-
 ```bash
+# Clone the repository
 git clone <repository-url>
+
+# Navigate into the project directory
 cd operations-kpi-dashboard
+
+# Install all project dependencies
 npm install
+
+# Install the Netlify CLI globally if you haven't already
+npm install -g netlify-cli
 ```
 
-### 3. Environment Variables
+### 3. Configure Your API Keys
 
-This project requires environment variables for both Google Gemini and Google Firebase to function.
+This is the most important step. All API keys are managed in a local environment file.
 
-1.  Create a file named `.env.local` in the root of the project.
-2.  Add your configuration to this file.
+1.  **Find the template file:** In the project root, you will find a file named `.env.local.example`.
+2.  **Rename the file:** Rename this file to **`.env.local`**.
+3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
+    *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
+    *   `VITE_FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
 
-```
-# This key is only used for local development for the Netlify proxy.
-# The `netlify dev` command will pick this up automatically.
-GEMINI_API_KEY=your_gemini_api_key_here
+### 4. Run the Development Server
 
-# Your Firebase Web App's configuration object, as a JSON string.
-# See the "Firebase Configuration Troubleshooting" section below for details.
-VITE_FIREBASE_CLIENT_CONFIG='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'
-```
-
-### 4. Running the Development Server
-
-This project uses Netlify Functions for its backend. To run it locally, you need to use the Netlify CLI.
+The `netlify dev` command starts both the frontend application and the backend proxy functions. **You must restart this server any time you change your `.env.local` file.**
 
 ```bash
-# Install the Netlify CLI
-npm install -g netlify-cli
-
-# Run the local development server with the proxy
+# Run the local development server
 netlify dev
 ```
 
-The application will be available at `http://localhost:8888`.
+The application will now be running at `http://localhost:8888`.
 
 ## Deployment to Netlify
 
@@ -82,15 +81,15 @@ Netlify should automatically detect these settings:
 
 ### 4. Add Environment Variables
 
-This is the most important step for the deployed application to work.
+This step is critical for the deployed application to work.
 
-1.  In your Netlify site's dashboard, go to "Site configuration" -> "Environment variables".
-2.  Add the `GEMINI_API_KEY`:
+1.  In your Netlify site's dashboard, go to **Site configuration > Environment variables**.
+2.  Add your **Gemini API Key**:
     -   **Key**: `GEMINI_API_KEY`
-    -   **Value**: Your Google Gemini API key.
-3.  Add the `VITE_FIREBASE_CLIENT_CONFIG`:
+    -   **Value**: Paste your Google Gemini API key.
+3.  Add your **Firebase Client Config**:
     -   **Key**: `VITE_FIREBASE_CLIENT_CONFIG`
-    -   **Value**: The same single-line JSON string for your Firebase client config.
+    -   **Value**: Paste the same single-line JSON string for your Firebase client config that you used in your `.env.local` file.
 
 ### 5. Deploy
 
@@ -98,14 +97,22 @@ Trigger a new deploy from the "Deploys" tab.
 
 ---
 
-## Firebase Configuration Troubleshooting
+## Firebase Configuration Guide
 
-The most common point of failure is an incorrectly formatted `VITE_FIREBASE_CLIENT_CONFIG` variable. It **must be a valid JSON object presented as a single-line string.**
+The most common point of failure is an incorrectly formatted `VITE_FIREBASE_CLIENT_CONFIG` variable. Follow these steps exactly.
 
-#### ✅ Correct Method:
+### Step 1: Register Your Web App (The Missing Step)
 
-1.  In the Firebase Console, go to **Project Settings > General > Your apps > Web app**.
-2.  Find the `firebaseConfig` object. It looks like this:
+1.  In the Firebase Console, go to **Project Settings > General**.
+2.  Scroll down to the **"Your apps"** card.
+3.  If it says "There are no apps in your project", click the **Web icon (`</>`)**.
+4.  Give your app a nickname (e.g., "Operations Dashboard").
+5.  Click **"Register app"**. Do **not** set up Hosting at this time.
+6.  On the next screen ("Add Firebase SDK"), Firebase will display the `firebaseConfig` object. This is what you need. Proceed to Step 2.
+
+### Step 2: How to Get and Format Your Config
+
+1.  On the "Add Firebase SDK" screen, find the `firebaseConfig` object. It looks like this:
     ```javascript
     const firebaseConfig = {
       apiKey: "AIzaSy...",
@@ -116,15 +123,15 @@ The most common point of failure is an incorrectly formatted `VITE_FIREBASE_CLIE
       appId: "1:12345..."
     };
     ```
-3.  Copy the entire object, from the opening `{` to the closing `}`.
-4.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a single line.
-5.  Wrap this single line in single quotes (`'`) in your `.env.local` or Netlify environment variable settings.
+2.  Copy the entire object, from the opening `{` to the closing `}`.
+3.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a single line.
+4.  Wrap this single line in single quotes (`'`) and use this as the value in your `.env.local` or Netlify environment variable settings.
 
 #### ✅ Correct Final Format:
 `'{"apiKey":"AIzaSy...","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}'`
 
-#### ❌ Incorrect Formats to Avoid:
--   Multi-line strings.
+#### ❌ Common Mistakes to Avoid:
+-   Using multi-line strings.
 -   Using double quotes around the whole string (this can interfere with the quotes inside the JSON).
 -   Missing quotes around keys or values inside the JSON.
 -   Having a trailing comma after the last property.
