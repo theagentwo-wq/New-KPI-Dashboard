@@ -150,8 +150,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 const weatherData = await getWeatherForLocation(location);
                 setWeather(weatherData);
 
-                // New address-first approach
-                const svMeta = await getStreetViewMetadata(storeDetails.address);
+                // New redundant, address-first approach
+                const svMeta = await getStreetViewMetadata(storeDetails.address, storeDetails.lat, storeDetails.lon);
                 if (svMeta.status === 'OK') {
                     setStreetViewData({ status: 'OK', lat: svMeta.lat, lon: svMeta.lon });
                 } else {

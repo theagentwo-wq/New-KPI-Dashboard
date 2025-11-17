@@ -119,39 +119,46 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
         switch (action) {
             case 'getStreetViewMetadata': {
-                const { address } = payload;
+                const { address, lat: fallbackLat, lon: fallbackLon } = payload;
                 if (!address) {
                     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing address' }) };
                 }
 
-                // 1. Geocode the address to get accurate coordinates
-                const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-                const geocodeResponse = await fetch(geocodeUrl);
-                const geocodeData = await geocodeResponse.json();
+                // Primary Method: Geocode the address for highest accuracy
+                try {
+                    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+                    const geocodeResponse = await fetch(geocodeUrl);
+                    if (!geocodeResponse.ok) throw new Error('Geocoding API request failed');
+                    
+                    const geocodeData = await geocodeResponse.json();
+                    if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
+                        throw new Error(`Geocoding failed with status: ${geocodeData.status}`);
+                    }
 
-                if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
-                    console.error("Geocoding failed for address:", address, geocodeData);
-                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'ERROR', message: 'Geocoding failed.' }) };
+                    const location = geocodeData.results[0].geometry.location;
+                    const { lat, lng: lon } = location;
+
+                    const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&key=${apiKey}`;
+                    const metadataResponse = await fetch(metadataUrl);
+                    const metadata = await metadataResponse.json();
+                    
+                    return { statusCode: 200, headers, body: JSON.stringify({ status: metadata.status, lat, lon }) };
+
+                } catch (error) {
+                    console.warn("Geocoding failed, falling back to stored coordinates. Error:", error);
+                    
+                    // Fallback Method: Use pre-existing coordinates
+                    if (fallbackLat && fallbackLon) {
+                        const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${fallbackLat},${fallbackLon}&key=${apiKey}`;
+                        const metadataResponse = await fetch(metadataUrl);
+                        const metadata = await metadataResponse.json();
+                        
+                        return { statusCode: 200, headers, body: JSON.stringify({ status: metadata.status, lat: fallbackLat, lon: fallbackLon }) };
+                    } else {
+                        // If fallback also fails
+                        return { statusCode: 200, headers, body: JSON.stringify({ status: 'ERROR', message: 'Geocoding failed and no fallback coordinates were provided.' }) };
+                    }
                 }
-
-                const location = geocodeData.results[0].geometry.location;
-                const { lat, lng: lon } = location;
-
-                // 2. Use the accurate coordinates to check for Street View metadata
-                const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&key=${apiKey}`;
-                const metadataResponse = await fetch(metadataUrl);
-                const metadata = await metadataResponse.json();
-                
-                // 3. Return the status and the accurate coordinates to the client
-                return { 
-                    statusCode: 200, 
-                    headers, 
-                    body: JSON.stringify({ 
-                        status: metadata.status, 
-                        lat, 
-                        lon 
-                    }) 
-                };
             }
 
             case 'getExecutiveSummary': {
