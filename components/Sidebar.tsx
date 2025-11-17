@@ -139,6 +139,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
                 <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-4 h-4" />
             </button>
         </div>
-    </aside>
+    </motion.aside>
   );
 };
