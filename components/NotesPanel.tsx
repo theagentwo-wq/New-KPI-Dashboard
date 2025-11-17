@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Note, NoteCategory, View, Period } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS, NOTE_CATEGORY_COLORS } from '../constants';
 import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
@@ -41,6 +42,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   
   const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
+
+  const [filterCategory, setFilterCategory] = useState<NoteCategory | 'All'>('All');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
@@ -125,12 +129,19 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const filteredNotes = useMemo(() => {
     if (!notesPeriod) return [];
     const scope = JSON.parse(selectedScope);
-    return allNotes.filter(note => 
-      note.monthlyPeriodLabel === notesPeriod.label &&
-      note.view === scope.view &&
-      (note.storeId || undefined) === scope.storeId
-    );
-  }, [allNotes, notesPeriod, selectedScope]);
+    return allNotes
+        .filter(note => 
+            note.monthlyPeriodLabel === notesPeriod.label &&
+            note.view === scope.view &&
+            (note.storeId || undefined) === scope.storeId
+        )
+        .filter(note => 
+            filterCategory === 'All' || note.category === filterCategory
+        )
+        .filter(note => 
+            note.content.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+  }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
   
   const handleAnalyzeTrends = async () => {
     if (filteredNotes.length === 0) return;
@@ -151,7 +162,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
     
-    // Determine the title based on the message content
     const isConnectionError = dbStatus.message?.includes('config');
     const title = isConnectionError ? "Database Connection Failed" : "Database Error";
 
@@ -189,48 +199,59 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         </div>
       );
     }
-
-    if (filteredNotes.length === 0) {
-      return <p className="text-slate-400 text-center mt-4">No notes for this selection.</p>;
-    }
     
-    return filteredNotes.map(note => (
-      <div key={note.id} className={`group bg-slate-700 p-3 rounded-md border-l-4 ${NOTE_CATEGORY_COLORS[note.category]}`}>
-        {editingNoteId === note.id ? (
-          <div className="space-y-2">
-              <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
-              <div className="flex justify-between items-center">
-                  <select value={editCategory} onChange={e => setEditCategory(e.target.value as NoteCategory)} className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs focus:ring-cyan-500 focus:border-cyan-500">
-                      {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <div className="flex gap-2">
-                      <button onClick={handleCancelEdit} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
-                      <button onClick={handleSaveEdit} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
-                  </div>
-              </div>
-          </div>
+    return (
+      <AnimatePresence>
+        {filteredNotes.length === 0 ? (
+           <p className="text-slate-400 text-center mt-4">No notes for this selection.</p>
         ) : (
-          <>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className={`text-xs font-bold ${NOTE_CATEGORY_COLORS[note.category].replace('border-', 'text-')}`}>{note.category}</p>
-                  <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
+          filteredNotes.map(note => (
+            <motion.div 
+              key={note.id} 
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.2 } }}
+              className={`bg-slate-700 p-3 rounded-md border-l-4 ${NOTE_CATEGORY_COLORS[note.category]}`}
+            >
+              {editingNoteId === note.id ? (
+                <div className="space-y-2">
+                    <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
+                    <div className="flex justify-between items-center">
+                        <select value={editCategory} onChange={e => setEditCategory(e.target.value as NoteCategory)} className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs focus:ring-cyan-500 focus:border-cyan-500">
+                            {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                            <button onClick={handleCancelEdit} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
+                            <button onClick={handleSaveEdit} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleStartEdit(note)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
-                    <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <p className="text-sm text-slate-200 whitespace-pre-wrap my-2">{note.content}</p>
-              {note.imageUrl && (
-                <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2">
-                  <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
-                </button>
+              ) : (
+                <>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className={`text-xs font-bold ${NOTE_CATEGORY_COLORS[note.category].replace('border-', 'text-')}`}>{note.category}</p>
+                        <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div className="flex gap-2">
+                          <button onClick={() => handleStartEdit(note)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
+                          <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-200 whitespace-pre-wrap my-2">{note.content}</p>
+                    {note.imageUrl && (
+                      <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2">
+                        <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
+                      </button>
+                    )}
+                </>
               )}
-          </>
+            </motion.div>
+          ))
         )}
-      </div>
-    ));
+      </AnimatePresence>
+    );
   };
   
   const getPlaceholderText = () => {
@@ -241,9 +262,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       }
   }
 
+  const allNoteCategories: ('All' | NoteCategory)[] = ['All', ...NOTE_CATEGORIES];
+
   return (
     <>
       <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
+        {/* Header */}
         <div className="p-4 border-b border-slate-700 space-y-2">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -270,15 +294,44 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             </select>
             <DiagnosticErrorPanel />
         </div>
+        
+        {/* Filters */}
+         <div className="p-4 border-b border-slate-700 space-y-3">
+            <input
+              type="search"
+              placeholder="Search notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+                {allNoteCategories.map(cat => (
+                <button
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
+                    className={`flex items-center gap-2 px-3 py-1 text-xs rounded-full transition-colors ${
+                    filterCategory === cat ? 'bg-cyan-600 text-white font-semibold' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                >
+                    {cat !== 'All' && <span className={`w-2 h-2 rounded-full ${NOTE_CATEGORY_COLORS[cat].replace('border-', 'bg-')}`}></span>}
+                    {cat}
+                </button>
+                ))}
+            </div>
+        </div>
+
+        {/* Note List */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
-        <div className="p-4 border-t border-slate-700 space-y-2">
+        
+        {/* Composition Area */}
+        <div className="p-4 border-t border-slate-700 space-y-3">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={getPlaceholderText()}
-            rows={2}
+            rows={3}
             className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
             disabled={dbStatus.status !== 'connected'}
           />
@@ -290,17 +343,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               </button>
             </div>
           )}
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <div className="flex items-center gap-2">
-                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={dbStatus.status !== 'connected'}>
-                  {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
-                   <Icon name="photo" className="w-4 h-4" /> Attach Photo
-                </button>
+           <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-400 flex-shrink-0">Category:</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                  {NOTE_CATEGORIES.map(c => (
+                      <button
+                          key={c}
+                          onClick={() => setCategory(c)}
+                          title={c}
+                          className={`w-5 h-5 rounded-full transition-transform duration-150 ease-in-out ${NOTE_CATEGORY_COLORS[c].replace('border-', 'bg-')} ${category === c ? 'ring-2 ring-offset-2 ring-offset-slate-800 ring-white scale-110' : 'hover:scale-110'}`}
+                      />
+                  ))}
+              </div>
             </div>
-            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected'}>
+          <div className="flex flex-wrap justify-between items-center gap-2">
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
+               <Icon name="photo" className="w-4 h-4" /> Attach Photo
+            </button>
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
+            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>
               Add Note
             </button>
           </div>

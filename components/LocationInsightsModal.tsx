@@ -247,7 +247,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-hidden min-h-0">
+        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto custom-scrollbar min-h-0">
             {renderContent()}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { getQuadrantAnalysis } from '../services/geminiService';
 import { marked } from 'marked';
@@ -129,8 +130,8 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
         ? "fixed inset-0 z-50 bg-slate-800 p-8 flex flex-col"
         : "bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col";
 
-    return (
-        <div className={containerClass}>
+    const matrixContent = (
+         <div className={containerClass}>
             <div className="flex items-start justify-between">
                 <div>
                     <h3 className="text-lg font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">Strategic Analysis Hub</h3>
@@ -193,4 +194,9 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
             )}
         </div>
     );
+
+    if (isFullScreen) {
+        return createPortal(matrixContent, document.body);
+    }
+    return matrixContent;
 };
