@@ -109,7 +109,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
          return { 
             statusCode: 500, 
             headers, 
-            body: JSON.stringify({ error: "GEMINI_API_KEY environment variable not set on the server." }) 
+            body: JSON.stringify({ error: "AI Service Error: The GEMINI_API_KEY environment variable is not configured on the server. Please check your Netlify site settings." }) 
         };
     }
     const ai = new GoogleGenAI({ apiKey });

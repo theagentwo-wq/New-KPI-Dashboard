@@ -9,7 +9,7 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **Charts**: Recharts
-- **AI**: Google Gemini API
+- **AI**: Google Gemini API (via Netlify Proxy)
 - **Database**: Google Firestore
 
 ## Local Setup
@@ -33,66 +33,99 @@ npm install
 
 This project requires environment variables for both Google Gemini and Google Firebase to function.
 
-1.  Create a file named `.env` in the root of the project.
+1.  Create a file named `.env.local` in the root of the project.
 2.  Add your configuration to this file.
 
 ```
-# Your Google AI Gemini API Key (must start with VITE_ to be exposed to the client)
-VITE_GEMINI_API_KEY=your_gemini_api_key_here
+# This key is only used for local development for the Netlify proxy.
+# The `netlify dev` command will pick this up automatically.
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # Your Firebase Web App's configuration object, as a JSON string.
-# In the Firebase Console, go to Project Settings > General > Your apps > Web app.
-# Find the firebaseConfig object and copy its entire content as a single line string.
-VITE_FIREBASE_CLIENT_CONFIG='{"apiKey": "...", "authDomain": "...", "projectId": "...", ...}'
+# See the "Firebase Configuration Troubleshooting" section below for details.
+VITE_FIREBASE_CLIENT_CONFIG='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'
 ```
 
 ### 4. Running the Development Server
 
-Once the dependencies are installed and the environment variables are set, you can start the local development server:
+This project uses Netlify Functions for its backend. To run it locally, you need to use the Netlify CLI.
 
 ```bash
-npm run dev
+# Install the Netlify CLI
+npm install -g netlify-cli
+
+# Run the local development server with the proxy
+netlify dev
 ```
 
-The application will be available at `http://localhost:5173`.
+The application will be available at `http://localhost:8888`.
 
 ## Deployment to Netlify
 
-This project is configured for easy deployment to Netlify.
-
 ### 1. Push to a GitHub Repository
 
-Create a new repository on GitHub and push your local project code to it.
+Push your project code to a GitHub repository.
 
 ### 2. Connect to Netlify
 
 1.  Log in to your Netlify account.
-2.  Click "Add new site" -> "Import an existing project".
-3.  Connect to your Git provider (e.g., GitHub) and select the repository for this project.
+2.  "Add new site" -> "Import an existing project".
+3.  Connect to your Git provider and select the repository.
 
 ### 3. Configure Build Settings
 
-Netlify should automatically detect the following settings. If not, you can set them manually:
+Netlify should automatically detect these settings:
 
 -   **Build command**: `npm run build`
 -   **Publish directory**: `dist`
+-   **Functions directory**: `netlify/functions`
 
 ### 4. Add Environment Variables
 
 This is the most important step for the deployed application to work.
 
-1.  In your site's dashboard on Netlify, go to "Site configuration" -> "Environment variables".
-2.  Click "Add a variable".
-3.  Add the `VITE_GEMINI_API_KEY`:
-    -   **Key**: `VITE_GEMINI_API_KEY`
+1.  In your Netlify site's dashboard, go to "Site configuration" -> "Environment variables".
+2.  Add the `GEMINI_API_KEY`:
+    -   **Key**: `GEMINI_API_KEY`
     -   **Value**: Your Google Gemini API key.
-    -   Click "Create variable".
-4.  Add the `VITE_FIREBASE_CLIENT_CONFIG`:
-    -   Click "Add a variable" again.
+3.  Add the `VITE_FIREBASE_CLIENT_CONFIG`:
     -   **Key**: `VITE_FIREBASE_CLIENT_CONFIG`
-    -   **Value**: The same single-line JSON string for your Firebase client config that you used in your `.env` file.
-    -   Click "Create variable".
+    -   **Value**: The same single-line JSON string for your Firebase client config.
 
 ### 5. Deploy
 
-Trigger a new deploy from the "Deploys" tab in your Netlify dashboard. Netlify will build your site and deploy it to a public URL.
+Trigger a new deploy from the "Deploys" tab.
+
+---
+
+## Firebase Configuration Troubleshooting
+
+The most common point of failure is an incorrectly formatted `VITE_FIREBASE_CLIENT_CONFIG` variable. It **must be a valid JSON object presented as a single-line string.**
+
+#### ✅ Correct Method:
+
+1.  In the Firebase Console, go to **Project Settings > General > Your apps > Web app**.
+2.  Find the `firebaseConfig` object. It looks like this:
+    ```javascript
+    const firebaseConfig = {
+      apiKey: "AIzaSy...",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project",
+      storageBucket: "your-project.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:12345..."
+    };
+    ```
+3.  Copy the entire object, from the opening `{` to the closing `}`.
+4.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a single line.
+5.  Wrap this single line in single quotes (`'`) in your `.env.local` or Netlify environment variable settings.
+
+#### ✅ Correct Final Format:
+`'{"apiKey":"AIzaSy...","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}'`
+
+#### ❌ Incorrect Formats to Avoid:
+-   Multi-line strings.
+-   Using double quotes around the whole string (this can interfere with the quotes inside the JSON).
+-   Missing quotes around keys or values inside the JSON.
+-   Having a trailing comma after the last property.
+-   Copying the `const firebaseConfig = ` part.
