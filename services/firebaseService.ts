@@ -13,86 +13,86 @@ import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
 import { Note, NoteCategory, View } from '../types';
 
+export type FirebaseStatus = 
+  | { status: 'initializing' }
+  | { status: 'connected' }
+  | { status: 'error', message: string, rawValue?: string };
+
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let notesCollection: CollectionReference<DocumentData> | null = null;
 let isInitialized = false;
 
-/**
- * Parses the Firebase config from environment variables.
- * This is a common failure point, so we make it robust.
- * @returns A parsed Firebase config object or null.
- */
-const getFirebaseConfig = () => {
+const getFirebaseConfig = (): { config: any } | { error: string, rawValue?: string } => {
     const configStr = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
 
     if (!configStr) {
-        console.error(
-            "Firebase Error: VITE_FIREBASE_CLIENT_CONFIG is not defined.",
-            "Please check your .env file or environment variables."
-        );
-        return null;
+        return { 
+            error: "VITE_FIREBASE_CLIENT_CONFIG environment variable is not defined.",
+        };
     }
-
+    
     try {
-        // Attempt to clean up common copy-paste errors, like outer single quotes
         const cleanedConfigStr = configStr.trim().replace(/^'|'$/g, '');
-        const config = JSON.parse(cleanedConfigStr);
-
-        // Basic validation
-        if (!config.apiKey || !config.projectId) {
-            console.error(
-                "Firebase Error: The parsed VITE_FIREBASE_CLIENT_CONFIG is missing required keys like 'apiKey' or 'projectId'."
-            );
-            return null;
+        if (!cleanedConfigStr) {
+           return { 
+                error: "VITE_FIREBASE_CLIENT_CONFIG is defined but is an empty string.",
+                rawValue: configStr
+            };
         }
 
-        return config;
-    } catch (error) {
-        console.error(
-            "Firebase Error: Failed to parse VITE_FIREBASE_CLIENT_CONFIG.",
-            "Please ensure it's a valid, single-line JSON string.",
-            "Received:", configStr,
-            "Error:", error
-        );
-        return null;
+        const config = JSON.parse(cleanedConfigStr);
+        if (!config.apiKey || !config.projectId) {
+            return {
+                error: "The parsed configuration is missing required keys like 'apiKey' or 'projectId'.",
+                rawValue: configStr
+            };
+        }
+        return { config };
+    } catch (e) {
+        return {
+            error: "Failed to parse the configuration string. Please ensure it is a valid, single-line JSON object.",
+            rawValue: configStr
+        };
     }
 };
 
 /**
  * Initializes the Firebase app and Firestore services.
- * This function must be called once when the application starts.
- * @returns {Promise<boolean>} A promise that resolves to true if initialization is successful, false otherwise.
+ * @returns {Promise<FirebaseStatus>} A promise that resolves to a detailed status object.
  */
-export const initializeFirebaseService = async (): Promise<boolean> => {
-    if (isInitialized) {
-        return true;
-    }
+export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
+    if (isInitialized) return { status: 'connected' };
 
-    const firebaseConfig = getFirebaseConfig();
+    const configResult = getFirebaseConfig();
 
-    if (!firebaseConfig) {
-        return false;
+    if ('error' in configResult) {
+        console.error("Firebase Initialization Error:", configResult.error);
+        isInitialized = false;
+        return { status: 'error', message: configResult.error, rawValue: configResult.rawValue };
     }
 
     try {
         if (!getApps().length) {
-            app = initializeApp(firebaseConfig);
+            app = initializeApp(configResult.config);
         } else {
             app = getApps()[0];
         }
         
         db = getFirestore(app);
         notesCollection = collection(db, 'notes');
-        
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
-        return true;
+        return { status: 'connected' };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Firebase Error: Failed to initialize Firebase app.", error);
         isInitialized = false;
-        return false;
+        return { 
+            status: 'error', 
+            message: `Firebase SDK failed to initialize. Error: ${error.message || 'Unknown error'}. Please double-check your credentials.`, 
+            rawValue: import.meta.env.VITE_FIREBASE_CLIENT_CONFIG 
+        };
     }
 };
 

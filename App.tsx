@@ -9,7 +9,7 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
@@ -23,7 +23,7 @@ const App: React.FC = () => {
     const [budgets, setBudgets] = useState<Budget[]>(generateMockBudgets());
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
-    const [dbStatus, setDbStatus] = useState<'initializing' | 'connected' | 'error'>('initializing');
+    const [dbStatus, setDbStatus] = useState<FirebaseStatus>({ status: 'initializing' });
     const [directors, setDirectors] = useState<DirectorProfile[]>(DIRECTORS);
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
@@ -39,21 +39,21 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const initDb = async () => {
-            const success = await initializeFirebaseService();
-            setDbStatus(success ? 'connected' : 'error');
+            const result = await initializeFirebaseService();
+            setDbStatus(result);
         };
         initDb();
     }, []);
     
     useEffect(() => {
         const fetchNotes = async () => {
-            if (dbStatus === 'connected') {
+            if (dbStatus.status === 'connected') {
                 try {
                     const fetchedNotes = await getNotes();
                     setNotes(fetchedNotes);
                 } catch (error) {
                     console.error("Error fetching notes from Firebase:", error);
-                    setDbStatus('error');
+                    setDbStatus({ status: 'error', message: 'Successfully connected, but failed to fetch notes.' });
                 }
             }
         };
@@ -61,7 +61,7 @@ const App: React.FC = () => {
     }, [dbStatus]);
     
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
-        if (dbStatus !== 'connected') return;
+        if (dbStatus.status !== 'connected') return;
         try {
             const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageUrl);
             setNotes(prev => [newNote, ...prev]);
@@ -71,7 +71,7 @@ const App: React.FC = () => {
     };
     
     const updateNoteHandler = async (noteId: string, newContent: string, newCategory: NoteCategory) => {
-        if (dbStatus !== 'connected') return;
+        if (dbStatus.status !== 'connected') return;
         try {
             await updateNoteContent(noteId, newContent, newCategory);
             setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, category: newCategory } : n));
@@ -81,7 +81,7 @@ const App: React.FC = () => {
     };
 
     const deleteNoteHandler = async (noteId: string) => {
-        if (dbStatus !== 'connected') return;
+        if (dbStatus.status !== 'connected') return;
         try {
             await deleteNoteById(noteId);
             setNotes(prev => prev.filter(n => n.id !== noteId));

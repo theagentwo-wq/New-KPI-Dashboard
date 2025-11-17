@@ -17,6 +17,7 @@ import { AnomalyDetailModal } from '../components/AnomalyDetailModal';
 import { getAnomalyDetections } from '../services/geminiService';
 import { ReviewAnalysisModal } from '../components/ReviewAnalysisModal';
 import { PerformanceMatrix } from '../components/PerformanceMatrix';
+import { FirebaseStatus } from '../services/firebaseService';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -75,7 +76,7 @@ interface DashboardPageProps {
     onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => void;
     onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
     onDeleteNote: (noteId: string) => void;
-    dbStatus: 'initializing' | 'connected' | 'error';
+    dbStatus: FirebaseStatus;
     loadedData: StorePerformanceData[];
     setLoadedData: React.Dispatch<React.SetStateAction<StorePerformanceData[]>>;
     budgets: Budget[];

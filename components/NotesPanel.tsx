@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { getNoteTrends } from '../services/geminiService';
 import { marked } from 'marked';
+import { FirebaseStatus } from '../services/firebaseService';
 
 interface NotesPanelProps {
   allNotes: Note[];
@@ -15,7 +16,7 @@ interface NotesPanelProps {
   currentView: View;
   mainDashboardPeriod: Period;
   heightClass?: string;
-  dbStatus: 'initializing' | 'connected' | 'error';
+  dbStatus: FirebaseStatus;
 }
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]', dbStatus }) => {
@@ -41,14 +42,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
 
-  // Sync notes period with main dashboard if the month changes
   useEffect(() => {
     const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
     if (newMonthlyPeriod && newMonthlyPeriod.label !== notesPeriod.label) {
       setNotesPeriod(newMonthlyPeriod);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainDashboardPeriod]);
+  }, [mainDashboardPeriod, notesPeriod.label]);
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
@@ -58,16 +57,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   const handlePrevPeriod = () => {
     const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex > 0) {
-      setNotesPeriod(monthlyPeriods[currentIndex - 1]);
-    }
+    if (currentIndex > 0) setNotesPeriod(monthlyPeriods[currentIndex - 1]);
   };
   
   const handleNextPeriod = () => {
     const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex < monthlyPeriods.length - 1) {
-      setNotesPeriod(monthlyPeriods[currentIndex + 1]);
-    }
+    if (currentIndex < monthlyPeriods.length - 1) setNotesPeriod(monthlyPeriods[currentIndex + 1]);
   };
   
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,8 +148,28 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setPreviewModalOpen(true);
   }
 
+  const DiagnosticErrorPanel = () => {
+    if (dbStatus.status !== 'error') return null;
+    return (
+      <div className="p-3 bg-yellow-900/50 border border-yellow-700 rounded-md text-center space-y-2">
+        <div>
+          <p className="text-sm text-yellow-300 font-semibold">Notes Feature Disabled: Database Connection Failed</p>
+          <p className="text-xs text-yellow-400 mt-1">{dbStatus.message}</p>
+        </div>
+        {dbStatus.rawValue && (
+          <div className="text-left">
+            <p className="text-xs text-yellow-300 font-semibold mb-1">Value Received for `VITE_FIREBASE_CLIENT_CONFIG`:</p>
+            <code className="block w-full text-xs text-slate-200 bg-slate-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
+              {dbStatus.rawValue}
+            </code>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderStatusOrContent = () => {
-    if (dbStatus === 'initializing') {
+    if (dbStatus.status === 'initializing') {
       return (
         <div className="flex items-center justify-center h-full">
           <p className="text-slate-400">Connecting to Notes Database...</p>
@@ -162,10 +177,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       );
     }
     
-    if (dbStatus === 'error') {
+    if (dbStatus.status === 'error') {
        return (
         <div className="flex items-center justify-center h-full p-4 text-center">
-          <p className="text-slate-400">Could not connect to the notes database.</p>
+          <p className="text-slate-400">Database connection failed. Please check the configuration error above.</p>
         </div>
       );
     }
@@ -214,7 +229,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   };
   
   const getPlaceholderText = () => {
-      switch (dbStatus) {
+      switch (dbStatus.status) {
           case 'initializing': return 'Connecting...';
           case 'error': return 'Database not connected.';
           case 'connected': return 'Add new note...';
@@ -233,7 +248,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 </div>
                 <button 
                   onClick={handleAnalyzeTrends}
-                  disabled={filteredNotes.length < 2 || dbStatus !== 'connected'}
+                  disabled={filteredNotes.length < 2 || dbStatus.status !== 'connected'}
                   className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title={filteredNotes.length < 2 ? "Need at least 2 notes to analyze trends" : "Analyze Note Trends with AI"}
                 >
@@ -248,12 +263,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 >
                 {noteScopeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
-             {dbStatus === 'error' && (
-                <div className="p-2 bg-yellow-900/50 border border-yellow-700 rounded-md text-center">
-                    <p className="text-xs text-yellow-300 font-semibold">Notes feature disabled: Could not connect to the database.</p>
-                     <p className="text-xs text-yellow-400 mt-1">Please ensure the `VITE_FIREBASE_CLIENT_CONFIG` environment variable is correctly set up as a single-line JSON string.</p>
-                </div>
-            )}
+            <DiagnosticErrorPanel />
         </div>
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
@@ -265,7 +275,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             placeholder={getPlaceholderText()}
             rows={2}
             className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
-            disabled={dbStatus !== 'connected'}
+            disabled={dbStatus.status !== 'connected'}
           />
           {stagedImage && (
             <div className="relative w-fit">
@@ -277,15 +287,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           )}
           <div className="flex flex-wrap justify-between items-center gap-2">
             <div className="flex items-center gap-2">
-                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={dbStatus !== 'connected'}>
+                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={dbStatus.status !== 'connected'}>
                   {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus !== 'connected'}>
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
                    <Icon name="photo" className="w-4 h-4" /> Attach Photo
                 </button>
             </div>
-            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus !== 'connected'}>
+            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected'}>
               Add Note
             </button>
           </div>
