@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Note, NoteCategory, View, Period } from '../types';
-import { NOTE_CATEGORIES, DIRECTORS, NOTE_CATEGORY_COLORS } from '../constants';
+import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
@@ -20,17 +20,28 @@ interface NotesPanelProps {
   dbStatus: FirebaseStatus;
 }
 
-const categoryPillColors: { [key in NoteCategory]: { bg: string, text: string, dot: string } } = {
-  'General': { bg: 'bg-slate-600/50', text: 'text-slate-300', dot: 'bg-slate-400' },
-  'Marketing': { bg: 'bg-blue-500/20', text: 'text-blue-300', dot: 'bg-blue-400' },
-  'Staffing': { bg: 'bg-yellow-500/20', text: 'text-yellow-300', dot: 'bg-yellow-400' },
-  'Reviews': { bg: 'bg-purple-500/20', text: 'text-purple-300', dot: 'bg-purple-400' },
-  'Facilities': { bg: 'bg-orange-500/20', text: 'text-orange-300', dot: 'bg-orange-400' },
+// Styles for the filter pills at the top
+const categoryFilterColors: { [key in NoteCategory]: { base: string, active: string, text: string } } = {
+  'General':    { base: 'bg-slate-700 hover:bg-slate-600',    active: 'bg-slate-500',    text: 'text-slate-200' },
+  'Marketing':  { base: 'bg-blue-900/60 hover:bg-blue-800/70',    active: 'bg-blue-500',    text: 'text-blue-300' },
+  'Staffing':   { base: 'bg-yellow-900/60 hover:bg-yellow-800/70', active: 'bg-yellow-500', text: 'text-yellow-300' },
+  'Reviews':    { base: 'bg-purple-900/60 hover:bg-purple-800/70',  active: 'bg-purple-500',  text: 'text-purple-300' },
+  'Facilities': { base: 'bg-orange-900/60 hover:bg-orange-800/70', active: 'bg-orange-500',  text: 'text-orange-300' },
+};
+
+// Styles for the tags on individual notes
+const categoryDisplayColors: { [key in NoteCategory]: { bg: string, text: string } } = {
+  'General':    { bg: 'bg-slate-600/50', text: 'text-slate-300' },
+  'Marketing':  { bg: 'bg-blue-500/20', text: 'text-blue-300' },
+  'Staffing':   { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
+  'Reviews':    { bg: 'bg-purple-500/20', text: 'text-purple-300' },
+  'Facilities': { bg: 'bg-orange-500/20', text: 'text-orange-300' },
 };
 
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[600px]', dbStatus }) => {
   const [content, setContent] = useState('');
+  // This state is for the new note being composed. It will be automatically set by the filter.
   const [category, setCategory] = useState<NoteCategory>('General');
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +66,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [filterCategory, setFilterCategory] = useState<NoteCategory | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // CORE LOGIC FIX: Sync the new note category with the active filter
+  useEffect(() => {
+    if (filterCategory !== 'All') {
+      setCategory(filterCategory);
+    } else {
+      setCategory('General'); // Default to 'General' when filter is 'All'
+    }
+  }, [filterCategory]);
+
   useEffect(() => {
     const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
     if (newMonthlyPeriod) {
@@ -64,6 +84,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
+    setFilterCategory('All'); // Reset filter when view changes
   }, [currentView]);
 
   const monthlyPeriods = useMemo(() => ALL_PERIODS.filter(p => p.type === 'Month'), []);
@@ -90,9 +111,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const handleAddNote = () => {
     if (content.trim() && notesPeriod) {
       const scope = JSON.parse(selectedScope);
+      // The `category` state is now correctly set by the useEffect hook
       addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
       setContent('');
-      setCategory('General');
+      // No need to reset category, it stays in sync with the filter
       setStagedImage(null);
       if(fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -247,7 +269,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                                 <Icon name="dashboard" className="w-4 h-4 text-slate-400"/>
                            </div>
                            <div>
-                                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryPillColors[note.category].bg} ${categoryPillColors[note.category].text}`}>{note.category}</span>
+                                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryDisplayColors[note.category].bg} ${categoryDisplayColors[note.category].text}`}>{note.category}</span>
                                 <p className="text-xs text-slate-400 mt-1">{new Date(note.createdAt).toLocaleString()}</p>
                            </div>
                       </div>
@@ -275,7 +297,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       switch (dbStatus.status) {
           case 'initializing': return 'Connecting...';
           case 'error': return 'Database not connected.';
-          case 'connected': return 'Add new note...';
+          case 'connected': 
+            if (filterCategory === 'All') return `Add new note (will be saved as General)...`
+            return `Add new note (will be saved as ${filterCategory})...`;
       }
   }
 
@@ -322,18 +346,33 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
             />
             <div className="flex flex-wrap items-center gap-2">
-                {allNoteCategories.map(cat => (
-                <button
-                    key={cat}
-                    onClick={() => setFilterCategory(cat)}
-                    className={`flex items-center justify-center text-center gap-2 px-3 py-1 text-xs rounded-full transition-colors ${
-                    filterCategory === cat ? 'bg-cyan-600 text-white font-semibold' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    }`}
-                >
-                    {cat !== 'All' && <span className={`w-2 h-2 rounded-full ${NOTE_CATEGORY_COLORS[cat].replace('border-', 'bg-')}`}></span>}
-                    {cat}
-                </button>
-                ))}
+                {allNoteCategories.map(cat => {
+                    if (cat === 'All') {
+                        return (
+                            <button
+                                key={cat}
+                                onClick={() => setFilterCategory(cat)}
+                                className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                                filterCategory === cat ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        )
+                    }
+                    const colors = categoryFilterColors[cat];
+                    return (
+                        <button
+                            key={cat}
+                            onClick={() => setFilterCategory(cat)}
+                            className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                            filterCategory === cat ? `${colors.active} text-white` : `${colors.base} ${colors.text}`
+                            }`}
+                        >
+                            {cat}
+                        </button>
+                    );
+                })}
             </div>
         </div>
 
@@ -364,22 +403,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
              <div className="flex items-center gap-3">
                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
                   <Icon name="photo" className="w-5 h-5" />
+                  <span className="hidden sm:inline">Attach Photo</span>
                 </button>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-
-                <div className="flex items-center gap-2" title="Select Category">
-                    {NOTE_CATEGORIES.map(c => (
-                        <button
-                            key={c}
-                            onClick={() => setCategory(c)}
-                            className={`group relative w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${categoryPillColors[c].dot} ${category === c ? 'ring-2 ring-offset-2 ring-offset-slate-800 ring-cyan-400' : 'hover:scale-110'}`}
-                        >
-                           <span className="absolute bottom-full mb-2 w-max px-2 py-1 bg-slate-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                {c}
-                           </span>
-                        </button>
-                    ))}
-                </div>
             </div>
             
             <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>
