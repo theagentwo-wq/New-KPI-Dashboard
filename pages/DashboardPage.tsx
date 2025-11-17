@@ -18,6 +18,7 @@ import { getAnomalyDetections } from '../services/geminiService';
 import { ReviewAnalysisModal } from '../components/ReviewAnalysisModal';
 import { PerformanceMatrix } from '../components/PerformanceMatrix';
 import { FirebaseStatus } from '../services/firebaseService';
+import { motion } from 'framer-motion';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -53,7 +54,11 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     }, [title]);
 
     return (
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-start">
+        <motion.div 
+            whileHover={{ scale: 1.05, y: -5 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-start"
+        >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
                 <div className="text-3xl font-bold text-slate-100 mt-1">
@@ -66,7 +71,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
             <div className="bg-slate-700 p-2 rounded-md">
                 <Icon name={iconName} className="w-6 h-6 text-cyan-400" />
             </div>
-        </div>
+        </motion.div>
     );
 };
 
@@ -235,7 +240,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         setAnomalyModalOpen(true);
     }, []);
 
-    const mainKpis: Kpi[] = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
+    const mainKpis: Kpi[] = [Kpi.Sales, Kpi.VariableLabor, Kpi.FoodCost, Kpi.PrimeCost, Kpi.SOP, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
     
     const historicalDataForAI: { periodLabel: string; data: PerformanceData }[] = useMemo(() => {
         const periods: Period[] = [];
@@ -277,19 +282,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <TimeSelector 
-                period={currentPeriod} 
-                comparisonMode={comparisonMode} 
-                setComparisonMode={setComparisonMode}
-                periodType={periodType}
-                setPeriodType={setPeriodType}
-                onPrev={handlePrev}
-                onNext={handleNext}
                 savedViews={savedViews}
                 saveCurrentView={saveCurrentView}
                 loadView={loadView}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-6">
                 {mainKpis.map(kpi => (
                     <KPICard 
                         key={kpi} 
@@ -299,21 +297,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                     />
                 ))}
             </div>
-
-            <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
             
-            <CompanyStoreRankings 
-                data={processedDataForTable} 
-                comparisonLabel={comparisonMode}
-                onLocationSelect={handleLocationSelect}
-                onReviewClick={handleReviewClick}
-            />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 xl:col-span-2">
-                     <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
-                </div>
-                 <div className="lg:col-span-1 xl:col-span-1 space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2 space-y-6">
+                    <CompanyStoreRankings 
+                        data={processedDataForTable} 
+                        currentView={currentView}
+                        period={currentPeriod}
+                        periodType={periodType}
+                        setPeriodType={setPeriodType}
+                        onPrev={handlePrev}
+                        onNext={handleNext}
+                        comparisonMode={comparisonMode}
+                        setComparisonMode={setComparisonMode}
+                        onLocationSelect={handleLocationSelect}
+                        onReviewClick={handleReviewClick}
+                    />
                     <NotesPanel
                         allNotes={notes}
                         addNote={onAddNote}
@@ -324,17 +323,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                         dbStatus={dbStatus}
                         heightClass="max-h-[600px]"
                     />
+                </div>
+                <div className="xl:col-span-1 space-y-6">
+                    <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
                     <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
+                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
+                    <PerformanceMatrix 
+                        periodLabel={currentPeriod.label}
+                        currentView={currentView}
+                        allStoresData={allStoresProcessedData}
+                        directorAggregates={directorAggregates}
+                    />
                 </div>
             </div>
 
-            <PerformanceMatrix 
-                periodLabel={currentPeriod.label}
-                currentView={currentView}
-                allStoresData={allStoresProcessedData}
-                directorAggregates={directorAggregates}
-            />
-            
             <LocationInsightsModal 
                 isOpen={isLocationInsightsOpen} 
                 onClose={() => setLocationInsightsOpen(false)}

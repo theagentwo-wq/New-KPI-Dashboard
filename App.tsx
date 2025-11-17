@@ -29,6 +29,7 @@ const App: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
     const [currentPeriod] = useState<Period>(getInitialPeriod());
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
     // Modal States
     const [isDataEntryOpen, setDataEntryOpen] = useState(false);
@@ -144,6 +145,8 @@ const App: React.FC = () => {
     return (
         <div className="bg-slate-900 min-h-screen text-slate-200 flex">
             <Sidebar 
+                isCollapsed={isSidebarCollapsed}
+                setIsCollapsed={setIsSidebarCollapsed}
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 currentView={currentView}
@@ -155,7 +158,7 @@ const App: React.FC = () => {
                 onOpenImageUploader={() => setImageUploaderOpen(true)}
             />
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto transition-all duration-300">
                 <AnimatePresence mode="wait">
                     <motion.main
                         key={currentPage}

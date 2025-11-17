@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Kpi, PerformanceData, WeatherInfo } from '../types';
+import { Kpi, PerformanceData, WeatherInfo, View, Period, ComparisonMode } from '../types';
 import { KPI_CONFIG, ALL_KPIS } from '../constants';
 import { Icon } from './Icon';
 import { getWeatherForLocation } from '../services/weatherService';
@@ -14,7 +14,14 @@ interface CompanySnapshotProps {
       variance: PerformanceData;
     }
   };
-  comparisonLabel: string;
+  currentView: View;
+  period: Period;
+  periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
+  setPeriodType: (type: 'Week' | 'Month' | 'Quarter' | 'Year') => void;
+  onPrev: () => void;
+  onNext: () => void;
+  comparisonMode: ComparisonMode;
+  setComparisonMode: (mode: ComparisonMode) => void;
   onLocationSelect: (location: string) => void;
   onReviewClick: (location: string) => void;
 }
@@ -42,11 +49,11 @@ const formatValue = (value: number | undefined, kpi: Kpi) => {
     }
 };
 
-const getAbbreviatedLabel = (label: string) => {
-    if (label.includes('Prior Period')) return 'vs. PP';
-    if (label.includes('Last Year')) return 'vs. LY';
-    if (label.includes('Budget')) return 'vs. Bud';
-    return label;
+const getAbbreviatedLabel = (comparisonMode: ComparisonMode) => {
+    if (comparisonMode === 'vs. Prior Period') return 'vs. PP';
+    if (comparisonMode === 'vs. Last Year') return 'vs. LY';
+    if (comparisonMode === 'vs. Budget') return 'vs. Bud';
+    return comparisonMode;
 };
 
 const getVarianceColor = (variance: number, kpi: Kpi) => {
@@ -74,12 +81,17 @@ const getRankIndicator = (rank: number) => {
 
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
-export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, comparisonLabel, onLocationSelect, onReviewClick }) => {
+export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ 
+    data, currentView, period, periodType, setPeriodType, onPrev, onNext, comparisonMode, setComparisonMode, onLocationSelect, onReviewClick 
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [weatherData, setWeatherData] = useState<{ [key: string]: WeatherInfo | null }>({});
     const storeIds = useMemo(() => Object.keys(data), [data]);
+
+    const periodTypes: ('Week' | 'Month' | 'Quarter' | 'Year')[] = ['Week', 'Month', 'Quarter', 'Year'];
+    const comparisonModes: ComparisonMode[] = ['vs. Budget', 'vs. Prior Period', 'vs. Last Year'];
 
      useEffect(() => {
         const fetchAllWeather = async () => {
@@ -144,26 +156,54 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
         setVisibleKPIs(prev => prev.includes(kpi) ? prev.filter(k => k !== kpi) : [...prev, kpi]);
     };
 
+    const title = useMemo(() => {
+        if (currentView === 'Total Company') return 'Total Company';
+        return `${currentView}'s Area`;
+    }, [currentView]);
+
     return (
         <div className="bg-slate-800 rounded-lg border border-slate-700">
-            <div className="p-4 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-cyan-400">Company Snapshot</h3>
-                 <div className="relative">
-                    <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2 p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">
-                        <Icon name="filter" className="w-5 h-5" />
-                        <span>Filter KPIs</span>
-                    </button>
-                    {dropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-20">
-                            {ALL_KPIS.map(kpi => (
-                                <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
-                                    <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
-                                    {kpi}
-                                </label>
-                            ))}
-                        </div>
-                    )}
+            <div className="p-4 space-y-4">
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                    <h3 className="text-xl font-bold text-cyan-400">{title}</h3>
+                     <div className="flex items-center bg-slate-900 rounded-md p-1">
+                        {periodTypes.map(type => (
+                            <button key={type} onClick={() => setPeriodType(type)} className={`px-3 py-1 text-sm font-semibold rounded ${periodType === type ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+                                {type}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+                 <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <button onClick={onPrev} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronLeft" className="w-5 h-5" /></button>
+                        <div className="text-center font-semibold text-cyan-400 w-48">{period.label}</div>
+                        <button onClick={onNext} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronRight" className="w-5 h-5" /></button>
+                    </div>
+                     <div className="flex items-center gap-4">
+                        <select value={comparisonMode} onChange={(e) => setComparisonMode(e.target.value as ComparisonMode)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500">
+                            {comparisonModes.map(mode => (
+                                <option key={mode} value={mode}>{mode}</option>
+                            ))}
+                        </select>
+                        <div className="relative">
+                            <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2 p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-md">
+                                <Icon name="filter" className="w-5 h-5" />
+                                <span>Filter KPIs</span>
+                            </button>
+                            {dropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-20">
+                                    {ALL_KPIS.map(kpi => (
+                                        <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
+                                            <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
+                                            {kpi}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                     </div>
+                 </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-slate-400">
@@ -176,7 +216,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ data, com
                                     <th scope="col" className="px-2 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
                                         {kpi} Act. {getSortIndicator(kpi)}
                                     </th>
-                                    <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonLabel)}</th>
+                                    <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonMode)}</th>
                                     <th scope="col" className="px-2 py-3 text-center">Var.</th>
                                 </React.Fragment>
                             ))}
