@@ -44,10 +44,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   useEffect(() => {
     const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
-    if (newMonthlyPeriod && newMonthlyPeriod.label !== notesPeriod.label) {
+    if (newMonthlyPeriod) {
       setNotesPeriod(newMonthlyPeriod);
     }
-  }, [mainDashboardPeriod, notesPeriod.label]);
+  }, [mainDashboardPeriod]);
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
