@@ -25,7 +25,7 @@ import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
 import { NewsFeed } from './components/NewsFeed';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, isFirebaseInitialized } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService } from './services/firebaseService';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -91,7 +91,7 @@ const App: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-    const [isDbConnected, setIsDbConnected] = useState(false);
+    const [dbStatus, setDbStatus] = useState<'initializing' | 'connected' | 'error'>('initializing');
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -114,7 +114,12 @@ const App: React.FC = () => {
     const [selectedLocationForReview, setSelectedLocationForReview] = useState<string | undefined>(undefined);
 
     useEffect(() => {
-        setIsDbConnected(isFirebaseInitialized());
+        // Initialize Firebase on component mount
+        const initDb = async () => {
+            const success = await initializeFirebaseService();
+            setDbStatus(success ? 'connected' : 'error');
+        };
+        initDb();
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -129,19 +134,23 @@ const App: React.FC = () => {
                 }
             );
         }
-
+    }, []);
+    
+    // Fetch notes once the DB is connected
+    useEffect(() => {
         const fetchNotes = async () => {
-            if (isFirebaseInitialized()) {
+            if (dbStatus === 'connected') {
                 try {
                     const fetchedNotes = await getNotes();
                     setNotes(fetchedNotes);
                 } catch (error) {
                     console.error("Error fetching notes from Firebase:", error);
+                    setDbStatus('error');
                 }
             }
         };
         fetchNotes();
-    }, []);
+    }, [dbStatus]);
     
     useEffect(() => {
         const comparisonPeriod = comparisonMode === 'vs. Prior Period'
@@ -346,263 +355,233 @@ const App: React.FC = () => {
     const handlePeriodTypeChange = (type: 'Week' | 'Month' | 'Quarter' | 'Year') => {
         setPeriodType(type);
         const firstPeriodOfType = ALL_PERIODS.find(p => p.type === type);
-        if (firstPeriodOfType) setCurrentPeriod(firstPeriodOfType);
+        if (firstPeriodOfType) {
+            setCurrentPeriod(firstPeriodOfType);
+        }
     };
 
-    const handlePrev = () => {
+    const handlePeriodChange = (direction: 'prev' | 'next') => {
         const periodsOfType = ALL_PERIODS.filter(p => p.type === periodType);
         const currentIndex = periodsOfType.findIndex(p => p.label === currentPeriod.label);
-        if (currentIndex > 0) setCurrentPeriod(periodsOfType[currentIndex - 1]);
-    };
-    
-    const handleNext = () => {
-        const periodsOfType = ALL_PERIODS.filter(p => p.type === periodType);
-        const currentIndex = periodsOfType.findIndex(p => p.label === currentPeriod.label);
-        if (currentIndex < periodsOfType.length - 1) setCurrentPeriod(periodsOfType[currentIndex + 1]);
+        
+        if (direction === 'prev' && currentIndex > 0) {
+            setCurrentPeriod(periodsOfType[currentIndex - 1]);
+        } else if (direction === 'next' && currentIndex < periodsOfType.length - 1) {
+            setCurrentPeriod(periodsOfType[currentIndex + 1]);
+        }
     };
 
-    const saveCurrentView = (name: string) => {
-        const newSavedView: SavedView = { name, period: currentPeriod, view: currentView, comparisonMode };
-        setSavedViews([...savedViews, newSavedView]);
+    const handleSaveView = (name: string) => {
+        const newView: SavedView = { name, period: currentPeriod, view: currentView, comparisonMode };
+        setSavedViews(prev => [...prev, newView]);
     };
-    
-    const loadView = (view: SavedView) => {
+
+    const handleLoadView = (view: SavedView) => {
+        setPeriodType(view.period.type);
         setCurrentPeriod(view.period);
         setCurrentView(view.view);
         setComparisonMode(view.comparisonMode);
-        setPeriodType(view.period.type);
     };
 
-    const handleDirectorProfileOpen = (director: DirectorProfile) => {
+    const openProfileModal = (director: DirectorProfile) => {
         setSelectedDirector(director);
         setProfileOpen(true);
     };
-
-    const handleLocationSelect = (location: string) => {
+    
+    const openLocationInsights = (location: string) => {
         setSelectedLocation(location);
         setLocationInsightsOpen(true);
     };
     
-    const addNote = useCallback(async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
-        try {
-            const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageUrl);
-            setNotes(prev => [newNote, ...prev]);
-        } catch (error) {
-            console.error("Error adding note:", error);
-        }
-    }, []);
-    
-    const updateNote = useCallback(async (noteId: string, newContent: string, newCategory: NoteCategory) => {
-        try {
-            await updateNoteContent(noteId, newContent, newCategory);
-            setNotes(prev => prev.map(note => note.id === noteId ? { ...note, content: newContent, category: newCategory } : note));
-        } catch (error) {
-            console.error("Error updating note:", error);
-        }
-    }, []);
-
-    const deleteNote = useCallback(async (noteId: string) => {
-        if (window.confirm("Are you sure you want to delete this note?")) {
-            try {
-                await deleteNoteById(noteId);
-                setNotes(prev => prev.filter(note => note.id !== noteId));
-            } catch (error) {
-                console.error("Error deleting note:", error);
-            }
-        }
-    }, []);
-
-    const handleSaveData = (storeId: string, weekStartDate: Date, data: PerformanceData) => {
-        const newDataEntry: StorePerformanceData = { storeId, weekStartDate, data };
-        setLoadedData(prev => [...prev.filter(d => !(d.storeId === storeId && d.weekStartDate.getTime() === weekStartDate.getTime())), newDataEntry]);
-    };
-
-    const handleUpdateBudget = useCallback((storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
-      setBudgets(prevBudgets => {
-        const newBudgets = [...prevBudgets];
-        const budgetIndex = newBudgets.findIndex(b => b.storeId === storeId && b.year === year && b.month === month);
-        
-        if (budgetIndex > -1) {
-          newBudgets[budgetIndex] = {
-            ...newBudgets[budgetIndex],
-            targets: {
-              ...newBudgets[budgetIndex].targets,
-              [kpi]: target,
-            }
-          };
-        } else {
-          const newBudget: Budget = {
-            storeId,
-            year,
-            month,
-            targets: { [kpi]: target } as PerformanceData
-          };
-          newBudgets.push(newBudget);
-        }
-        return newBudgets;
-      });
-    }, []);
-
-     const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
-        setGoals(prevGoals => {
-            const newGoals = [...prevGoals];
-            const goalIndex = newGoals.findIndex(g => g.directorId === directorId && g.quarter === quarter && g.year === year && g.kpi === kpi);
-
-            if (goalIndex > -1) {
-                newGoals[goalIndex] = { ...newGoals[goalIndex], target };
-            } else {
-                newGoals.push({ directorId, quarter, year, kpi, target });
-            }
-            return newGoals;
-        });
-    };
-
-    const handleShowAnomalyDetail = (anomaly: Anomaly) => {
+    const openAnomalyDetail = (anomaly: Anomaly) => {
         setSelectedAnomaly(anomaly);
         setAnomalyDetailOpen(true);
-    };
-
-    const handleOpenReviewAnalysis = (location: string) => {
+    }
+    
+    const openReviewAnalysis = (location: string) => {
         setSelectedLocationForReview(location);
         setReviewAnalysisOpen(true);
     };
 
-    const renderDashboard = () => (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            <TimeSelector period={currentPeriod} comparisonMode={comparisonMode} setComparisonMode={setComparisonMode} periodType={periodType} setPeriodType={handlePeriodTypeChange} onPrev={handlePrev} onNext={handleNext} savedViews={savedViews} saveCurrentView={saveCurrentView} loadView={loadView} />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <ExecutiveSummary data={aggregatedData} view={currentView} period={currentPeriod} />
-                </div>
-                <AIAlerts anomalies={anomalies} onSelectAnomaly={handleShowAnomalyDetail} />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <KPICard title={Kpi.Sales} value={summaryData[Kpi.Sales] || 0} variance={summaryVariance[Kpi.Sales] || 0} />
-                <KPICard title={Kpi.SOP} value={summaryData[Kpi.SOP] || 0} variance={summaryVariance[Kpi.SOP] || 0} />
-                <KPICard title={Kpi.PrimeCost} value={summaryData[Kpi.PrimeCost] || 0} variance={summaryVariance[Kpi.PrimeCost] || 0} />
-                <KPICard title={Kpi.AvgReviews} value={summaryData[Kpi.AvgReviews] || 0} variance={summaryVariance[Kpi.AvgReviews] || 0} />
-                <KPICard title={Kpi.FoodCost} value={summaryData[Kpi.FoodCost] || 0} variance={summaryVariance[Kpi.FoodCost] || 0} />
-                <KPICard title={Kpi.LaborCost} value={summaryData[Kpi.LaborCost] || 0} variance={summaryVariance[Kpi.LaborCost] || 0} />
-                <KPICard title={Kpi.VariableLabor} value={summaryData[Kpi.VariableLabor] || 0} variance={summaryVariance[Kpi.VariableLabor] || 0} />
-                <KPICard title={Kpi.CulinaryAuditScore} value={summaryData[Kpi.CulinaryAuditScore] || 0} variance={summaryVariance[Kpi.CulinaryAuditScore] || 0} />
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                     {currentView !== 'Total Company' 
-                        ? (
-                            <>
-                                <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
-                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} heightClass="h-[500px]" isDbConnected={isDbConnected} />
-                            </>
-                        )
-                        : (
-                            <>
-                                <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
-                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} isDbConnected={isDbConnected} />
-                            </>
-                        )
-                    }
-                </div>
-                <div className="lg:col-span-1 space-y-6 flex flex-col">
-                     <PerformanceMatrix
-                        periodLabel={currentPeriod.label}
-                        currentView={currentView}
-                        allStoresData={allStoresBreakdownData}
-                        directorAggregates={aggregatedData}
-                    />
-                    <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
-                </div>
-            </div>
-        </div>
-    );
+    const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
+        if (dbStatus !== 'connected') return;
+        try {
+            const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageUrl);
+            setNotes(prev => [newNote, ...prev]);
+        } catch (error) {
+            console.error("Failed to add note:", error);
+        }
+    };
+    
+    const updateNote = async (noteId: string, newContent: string, newCategory: NoteCategory) => {
+        if (dbStatus !== 'connected') return;
+        try {
+            await updateNoteContent(noteId, newContent, newCategory);
+            setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, category: newCategory } : n));
+        } catch (error) {
+            console.error("Failed to update note:", error);
+        }
+    };
+
+    const deleteNote = async (noteId: string) => {
+        if (dbStatus !== 'connected') return;
+        try {
+            await deleteNoteById(noteId);
+            setNotes(prev => prev.filter(n => n.id !== noteId));
+        } catch (error) {
+            console.error("Failed to delete note:", error);
+        }
+    };
+
+    const mainKpis = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
+    const comparisonLabel = comparisonMode === 'vs. Budget' ? 'Budget' : (comparisonMode === 'vs. Prior Period' ? 'Prior Period' : 'Last Year');
 
     return (
-      <div className="flex h-full bg-slate-900 text-slate-200 font-sans">
-          <aside className="w-64 bg-slate-800 p-6 flex-shrink-0 flex flex-col">
-              <h1 className="text-2xl font-bold text-cyan-400 mb-8">Operations KPI</h1>
-              <nav className="space-y-2">
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentPage('Dashboard'); }} className={`flex items-center gap-3 p-2 rounded-md ${currentPage === 'Dashboard' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>
-                      <Icon name="dashboard" className="w-6 h-6" /><span>Dashboard</span>
-                  </a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentPage('Budget Planner'); }} className={`flex items-center gap-3 p-2 rounded-md ${currentPage === 'Budget Planner' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>
-                      <Icon name="budget" className="w-6 h-6" /><span>Budget Planner</span>
-                  </a>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentPage('Goal Setter'); }} className={`flex items-center gap-3 p-2 rounded-md ${currentPage === 'Goal Setter' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>
-                       <Icon name="goal" className="w-6 h-6" /><span>Goal Setter</span>
-                  </a>
-              </nav>
-              <div className="mt-8 pt-4 border-t border-slate-700 flex-1 overflow-y-auto custom-scrollbar">
-                  <h2 className="text-sm font-semibold text-slate-400 uppercase mb-2">Views</h2>
-                  <div className="space-y-1">
-                      <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('Total Company'); }} className={`block p-2 rounded-md text-sm ${currentView === 'Total Company' ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>Total Company</a>
-                      {DIRECTORS.map(dir => {
-                          const directorData = aggregatedData[dir.name]?.aggregated;
-                          const quarterMatch = currentPeriod.label.match(/Q(\d).*FY(\d{4})/);
-                          let goalProgress = -1;
-                          if (directorData && quarterMatch) {
-                              const quarter = parseInt(quarterMatch[1], 10);
-                              const year = parseInt(quarterMatch[2], 10);
-                              const goal = goals.find(g => g.directorId === dir.id && g.quarter === quarter && g.year === year);
-                              if (goal && directorData[goal.kpi]) {
-                                  goalProgress = directorData[goal.kpi] / goal.target;
-                              }
-                          }
-                          return (
-                            <div key={dir.id}>
-                                <div className="flex items-center justify-between">
-                                  <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView(dir.id); }} className={`flex items-center gap-3 flex-1 p-2 rounded-md text-sm ${currentView === dir.id ? 'bg-slate-700 text-cyan-400' : 'hover:bg-slate-700'}`}>
-                                      <img src={dir.photo} alt={dir.name} className="w-6 h-6 rounded-full object-cover" />
-                                      <span>{dir.name}</span>
-                                  </a>
-                                  <button onClick={() => handleDirectorProfileOpen(dir)} className="p-1 rounded-full hover:bg-slate-700 text-slate-400">
-                                      <Icon name="info" className="w-4 h-4" />
-                                  </button>
-                                  {goalProgress >= 1 && <Icon name="trophy" className="w-4 h-4 text-yellow-400" />}
-                                </div>
-                                {goalProgress >= 0 && (
-                                    <div className="px-2 pb-1">
-                                        <div className="w-full bg-slate-700 rounded-full h-1.5">
-                                            <div className="bg-cyan-400 h-1.5 rounded-full" style={{ width: `${Math.min(goalProgress * 100, 100)}%` }}></div>
-                                        </div>
-                                    </div>
-                                )}
+        <div className="bg-slate-900 min-h-screen text-slate-200">
+            {/* Header */}
+            <header className="bg-slate-800/50 backdrop-blur-md p-4 flex justify-between items-center border-b border-slate-700 sticky top-0 z-40">
+                <div className="flex items-center gap-4">
+                    <img src="https://i.postimg.cc/k43r5bZ0/tupelo-honey-logo.png" alt="Tupelo Honey Logo" className="h-10"/>
+                    <h1 className="text-xl font-bold text-white hidden sm:block">Operations KPI Dashboard</h1>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setCurrentPage('Dashboard')} className={`px-3 py-1 text-sm font-semibold rounded ${currentPage === 'Dashboard' ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>Dashboard</button>
+                    <button onClick={() => setCurrentPage('Budget Planner')} className={`px-3 py-1 text-sm font-semibold rounded ${currentPage === 'Budget Planner' ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>Budgets</button>
+                    <button onClick={() => setCurrentPage('Goal Setter')} className={`px-3 py-1 text-sm font-semibold rounded ${currentPage === 'Goal Setter' ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>Goals</button>
+                    <button onClick={() => setDataEntryOpen(true)} className="p-2 bg-slate-700 hover:bg-cyan-600 rounded-md"><Icon name="plus" className="w-5 h-5"/></button>
+                    <button onClick={() => setScenarioModelerOpen(true)} className="p-2 bg-slate-700 hover:bg-cyan-600 rounded-md"><Icon name="sparkles" className="w-5 h-5"/></button>
+                </div>
+            </header>
+
+            <AnimatePresence mode="wait">
+                <motion.main
+                    key={currentPage}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {currentPage === 'Dashboard' && (
+                        <div className="p-4 sm:p-6 lg:p-8">
+                            <TimeSelector
+                                period={currentPeriod}
+                                comparisonMode={comparisonMode}
+                                setComparisonMode={setComparisonMode}
+                                periodType={periodType}
+                                setPeriodType={handlePeriodTypeChange}
+                                onPrev={() => handlePeriodChange('prev')}
+                                onNext={() => handlePeriodChange('next')}
+                                savedViews={savedViews}
+                                saveCurrentView={handleSaveView}
+                                loadView={handleLoadView}
+                            />
+
+                            <div className="mt-6">
+                                <select value={currentView} onChange={(e) => setCurrentView(e.target.value as View)} className="w-full sm:w-auto bg-slate-700 text-white border border-slate-600 rounded-md p-2 mb-6 focus:ring-cyan-500 focus:border-cyan-500">
+                                    <option value="Total Company">Total Company</option>
+                                    {DIRECTORS.map(d => <option key={d.id} value={d.id}>{d.name}'s Region</option>)}
+                                </select>
                             </div>
-                          )
-                      })}
-                  </div>
-                  <NewsFeed />
-              </div>
-              <div className="mt-auto pt-4 border-t border-slate-700 space-y-2">
-                  <button onClick={() => setScenarioModelerOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Run What-If Scenario</button>
-                  <button onClick={() => setDataEntryOpen(true)} className="w-full text-left flex items-center gap-3 p-2 rounded-md text-sm hover:bg-slate-700">Data Entry</button>
-              </div>
-          </aside>
-          <main className="flex-1 overflow-y-auto">
-              <AnimatePresence mode="wait">
-                  <motion.div key={currentPage} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} >
-                      {currentPage === 'Dashboard' && renderDashboard()}
-                      {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
-                      {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
-                  </motion.div>
-              </AnimatePresence>
-          </main>
-          
-          <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={handleSaveData} />
-          <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={aggregatedData} />
-          <DirectorProfileModal 
-            isOpen={isProfileOpen} 
-            onClose={() => setProfileOpen(false)} 
-            director={selectedDirector} 
-            directorAggregateData={directorModalData?.aggregate}
-            directorStoreData={directorModalData?.stores}
-            selectedKpi={Kpi.SOP} 
-            period={currentPeriod} 
-          />
-          <LocationInsightsModal isOpen={isLocationInsightsOpen} onClose={() => setLocationInsightsOpen(false)} location={selectedLocation} performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined} userLocation={userLocation} />
-          <AnomalyDetailModal isOpen={isAnomalyDetailOpen} onClose={() => setAnomalyDetailOpen(false)} anomaly={selectedAnomaly} />
-          <ReviewAnalysisModal isOpen={isReviewAnalysisOpen} onClose={() => setReviewAnalysisOpen(false)} location={selectedLocationForReview} />
-      </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {mainKpis.map(kpi => (
+                                    <KPICard key={kpi} title={kpi} value={summaryData[kpi]} variance={summaryVariance[kpi]} />
+                                ))}
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 space-y-6">
+                                    <ExecutiveSummary data={aggregatedData} view={currentView} period={currentPeriod} />
+                                     {currentView === 'Total Company' ? (
+                                        <CompanyStoreRankings 
+                                            data={allStoresBreakdownData} 
+                                            comparisonLabel={comparisonLabel} 
+                                            onLocationSelect={openLocationInsights}
+                                            onReviewClick={openReviewAnalysis}
+                                        />
+                                     ) : (
+                                        <KPITable 
+                                            data={aggregatedData} 
+                                            comparisonLabel={comparisonLabel} 
+                                            onLocationSelect={openLocationInsights}
+                                            onReviewClick={openReviewAnalysis}
+                                        />
+                                     )}
+                                     <PerformanceMatrix 
+                                        periodLabel={currentPeriod.label}
+                                        currentView={currentView}
+                                        allStoresData={allStoresBreakdownData}
+                                        directorAggregates={Object.fromEntries(
+                                            Object.entries(aggregatedData).map(([name, data]) => [name, data as any])
+                                        )}
+                                     />
+                                </div>
+                                <div className="space-y-6">
+                                    {currentView !== 'Total Company' && (
+                                        <div className="p-4 bg-slate-800 rounded-lg border border-slate-700 flex items-center gap-4">
+                                            <img src={DIRECTORS.find(d => d.id === currentView)?.photo} alt={currentView} className="w-20 h-20 rounded-full object-cover"/>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-white">{DIRECTORS.find(d => d.id === currentView)?.name} {DIRECTORS.find(d => d.id === currentView)?.lastName}</h3>
+                                                <p className="text-sm text-cyan-400">{DIRECTORS.find(d => d.id === currentView)?.title}</p>
+                                                <button onClick={() => openProfileModal(DIRECTORS.find(d => d.id === currentView)!)} className="text-sm text-slate-300 hover:text-cyan-400 mt-1">
+                                                    View Profile &rarr;
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <AIAssistant data={aggregatedData} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
+                                    <AIAlerts anomalies={anomalies} onSelectAnomaly={openAnomalyDetail} />
+                                    <NotesPanel 
+                                        allNotes={notes} 
+                                        addNote={addNote}
+                                        updateNote={updateNote}
+                                        deleteNote={deleteNote}
+                                        currentView={currentView}
+                                        mainDashboardPeriod={currentPeriod}
+                                        heightClass="max-h-[600px]"
+                                        dbStatus={dbStatus}
+                                    />
+                                    <NewsFeed />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                     {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={() => {}} />}
+                    {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={() => {}} />}
+                </motion.main>
+            </AnimatePresence>
+
+            {/* Modals */}
+            <DataEntryModal isOpen={isDataEntryOpen} onClose={() => setDataEntryOpen(false)} onSave={() => {}} />
+            <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={summaryData} />
+            <DirectorProfileModal 
+                isOpen={isProfileOpen} 
+                onClose={() => setProfileOpen(false)} 
+                director={selectedDirector} 
+                directorAggregateData={directorModalData?.aggregate}
+                directorStoreData={directorModalData?.stores}
+                selectedKpi={Kpi.Sales} // Example KPI
+                period={currentPeriod}
+            />
+            <LocationInsightsModal 
+                isOpen={isLocationInsightsOpen}
+                onClose={() => setLocationInsightsOpen(false)}
+                location={selectedLocation}
+                performanceData={selectedLocation ? allStoresBreakdownData[selectedLocation]?.actual : undefined}
+                userLocation={userLocation}
+            />
+             <AnomalyDetailModal 
+                isOpen={isAnomalyDetailOpen}
+                onClose={() => setAnomalyDetailOpen(false)}
+                anomaly={selectedAnomaly}
+             />
+             <ReviewAnalysisModal
+                isOpen={isReviewAnalysisOpen}
+                onClose={() => setReviewAnalysisOpen(false)}
+                location={selectedLocationForReview}
+             />
+
+        </div>
     );
 };
 

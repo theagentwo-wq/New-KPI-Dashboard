@@ -1,73 +1,96 @@
-// Fix: Manually define the type for `import.meta.env` to resolve TypeScript errors
-// when the `vite/client` type definitions are not being picked up correctly.
-declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_FIREBASE_CLIENT_CONFIG: string;
-    };
-  }
-}
+// Fix: Add a triple-slash directive to include Vite client types. This makes TypeScript aware of `import.meta.env`.
+/// <reference types="vite/client" />
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
 import { Note, NoteCategory, View } from '../types';
 
+let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let notesCollection: CollectionReference<DocumentData> | null = null;
+let isInitialized = false;
 
 /**
- * This function attempts to initialize Firebase and Firestore.
- * It is designed to fail gracefully without crashing the app if the config is invalid.
+ * Parses the Firebase config from environment variables.
+ * This is a common failure point, so we make it robust.
+ * @returns A parsed Firebase config object or null.
  */
-const initializeFirebase = () => {
+const getFirebaseConfig = () => {
+    const configStr = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+
+    if (!configStr) {
+        console.error(
+            "Firebase Error: VITE_FIREBASE_CLIENT_CONFIG is not defined.",
+            "Please check your .env file or environment variables."
+        );
+        return null;
+    }
+
     try {
-        // Correctly access Vite environment variables using import.meta.env
-        let firebaseConfigString = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+        // Attempt to clean up common copy-paste errors, like outer single quotes
+        const cleanedConfigStr = configStr.trim().replace(/^'|'$/g, '');
+        const config = JSON.parse(cleanedConfigStr);
 
-        if (!firebaseConfigString) {
-            console.error("Firebase config not found. VITE_FIREBASE_CLIENT_CONFIG is missing. Notes feature will be disabled.");
-            return;
-        }
-        
-        // Defensive programming: Clean the string to handle common copy-paste errors.
-        // This removes whitespace and any accidental surrounding single quotes.
-        firebaseConfigString = firebaseConfigString.trim();
-        if (firebaseConfigString.startsWith("'") && firebaseConfigString.endsWith("'")) {
-            firebaseConfigString = firebaseConfigString.substring(1, firebaseConfigString.length - 1);
+        // Basic validation
+        if (!config.apiKey || !config.projectId) {
+            console.error(
+                "Firebase Error: The parsed VITE_FIREBASE_CLIENT_CONFIG is missing required keys like 'apiKey' or 'projectId'."
+            );
+            return null;
         }
 
-        const firebaseConfig = JSON.parse(firebaseConfigString);
+        return config;
+    } catch (error) {
+        console.error(
+            "Firebase Error: Failed to parse VITE_FIREBASE_CLIENT_CONFIG.",
+            "Please ensure it's a valid, single-line JSON string.",
+            "Received:", configStr,
+            "Error:", error
+        );
+        return null;
+    }
+};
 
-        if (Object.keys(firebaseConfig).length === 0) {
-            console.error("Firebase config is empty. Please check VITE_FIREBASE_CLIENT_CONFIG. Notes feature will be disabled.");
-            return;
-        }
+/**
+ * Initializes the Firebase app and Firestore services.
+ * This function must be called once when the application starts.
+ * @returns {Promise<boolean>} A promise that resolves to true if initialization is successful, false otherwise.
+ */
+export const initializeFirebaseService = async (): Promise<boolean> => {
+    if (isInitialized) {
+        return true;
+    }
 
-        let app: FirebaseApp;
+    const firebaseConfig = getFirebaseConfig();
+
+    if (!firebaseConfig) {
+        return false;
+    }
+
+    try {
         if (!getApps().length) {
             app = initializeApp(firebaseConfig);
         } else {
             app = getApps()[0];
         }
+        
         db = getFirestore(app);
         notesCollection = collection(db, 'notes');
+        
+        isInitialized = true;
         console.log("Firebase service initialized successfully.");
+        return true;
 
     } catch (error) {
-        console.error("Failed to initialize Firebase. Please check your VITE_FIREBASE_CLIENT_CONFIG. Notes feature will be disabled.", error);
-        db = null; // Ensure db is null on failure
+        console.error("Firebase Error: Failed to initialize Firebase app.", error);
+        isInitialized = false;
+        return false;
     }
 };
 
-// Initialize Firebase when the module is first loaded.
-initializeFirebase();
-
-export const isFirebaseInitialized = () => !!db;
-
 export const getNotes = async (): Promise<Note[]> => {
-    // Gracefully handle the case where Firebase initialization failed.
-    if (!db || !notesCollection) {
-        console.warn("Firebase not initialized, returning empty notes array.");
+    if (!isInitialized || !db || !notesCollection) {
+        console.error("Firebase not initialized. Cannot fetch notes.");
         return [];
     }
     
@@ -90,46 +113,39 @@ export const getNotes = async (): Promise<Note[]> => {
         });
     } catch (error) {
         console.error("Error fetching notes from Firestore:", error);
-        // In case of a query error (e.g., permissions), return empty array
-        return [];
+        throw error;
     }
 };
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string): Promise<Note> => {
-    if (!db || !notesCollection) {
+    if (!isInitialized || !notesCollection) {
         throw new Error("Cannot add note, Firebase is not initialized.");
     }
 
     const createdAtTimestamp = Timestamp.now();
     
-    const newNoteDataForDb = {
+    // Create a clean object, omitting undefined properties
+    const newNoteDataForDb: any = {
         monthlyPeriodLabel,
         category,
         content,
         view: scope.view,
-        storeId: scope.storeId,
-        imageUrl: imageUrl,
         createdAt: createdAtTimestamp,
     };
+    if (scope.storeId) newNoteDataForDb.storeId = scope.storeId;
+    if (imageUrl) newNoteDataForDb.imageUrl = imageUrl;
     
     const docRef = await addDoc(notesCollection, newNoteDataForDb);
     
-    const newNote: Note = {
+    return {
         id: docRef.id,
-        monthlyPeriodLabel,
-        category,
-        content,
-        view: scope.view,
-        storeId: scope.storeId,
-        imageUrl: imageUrl,
+        ...newNoteDataForDb,
         createdAt: createdAtTimestamp.toDate().toISOString(),
     };
-
-    return newNote;
 };
 
 export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
-    if (!db) {
+     if (!isInitialized || !db) {
         throw new Error("Cannot update note, Firebase is not initialized.");
     }
     const noteRef = doc(db, 'notes', noteId);
@@ -140,7 +156,7 @@ export const updateNoteContent = async (noteId: string, newContent: string, newC
 };
 
 export const deleteNoteById = async (noteId: string): Promise<void> => {
-    if (!db) {
+    if (!isInitialized || !db) {
         throw new Error("Cannot delete note, Firebase is not initialized.");
     }
     const noteRef = doc(db, 'notes', noteId);

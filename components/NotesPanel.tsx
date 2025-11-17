@@ -15,10 +15,10 @@ interface NotesPanelProps {
   currentView: View;
   mainDashboardPeriod: Period;
   heightClass?: string;
-  isDbConnected: boolean;
+  dbStatus: 'initializing' | 'connected' | 'error';
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]', isDbConnected }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]', dbStatus }) => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>('General');
   const [stagedImage, setStagedImage] = useState<string | null>(null);
@@ -153,6 +153,74 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setPreviewModalOpen(true);
   }
 
+  const renderStatusOrContent = () => {
+    if (dbStatus === 'initializing') {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-slate-400">Connecting to Notes Database...</p>
+        </div>
+      );
+    }
+    
+    if (dbStatus === 'error') {
+       return (
+        <div className="flex items-center justify-center h-full p-4 text-center">
+          <p className="text-slate-400">Could not connect to the notes database.</p>
+        </div>
+      );
+    }
+
+    if (filteredNotes.length === 0) {
+      return <p className="text-slate-400 text-center mt-4">No notes for this selection.</p>;
+    }
+    
+    return filteredNotes.map(note => (
+      <div key={note.id} className={`group bg-slate-700 p-3 rounded-md border-l-4 ${NOTE_CATEGORY_COLORS[note.category]}`}>
+        {editingNoteId === note.id ? (
+          <div className="space-y-2">
+              <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
+              <div className="flex justify-between items-center">
+                  <select value={editCategory} onChange={e => setEditCategory(e.target.value as NoteCategory)} className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs focus:ring-cyan-500 focus:border-cyan-500">
+                      {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <div className="flex gap-2">
+                      <button onClick={handleCancelEdit} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
+                      <button onClick={handleSaveEdit} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
+                  </div>
+              </div>
+          </div>
+        ) : (
+          <>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className={`text-xs font-bold ${NOTE_CATEGORY_COLORS[note.category].replace('border-', 'text-')}`}>{note.category}</p>
+                  <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleStartEdit(note)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
+                    <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                </div>
+              </div>
+              <p className="text-sm text-slate-200 whitespace-pre-wrap my-2">{note.content}</p>
+              {note.imageUrl && (
+                <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2">
+                  <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
+                </button>
+              )}
+          </>
+        )}
+      </div>
+    ));
+  };
+  
+  const getPlaceholderText = () => {
+      switch (dbStatus) {
+          case 'initializing': return 'Connecting...';
+          case 'error': return 'Database not connected.';
+          case 'connected': return 'Add new note...';
+      }
+  }
+
   return (
     <>
       <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
@@ -165,7 +233,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 </div>
                 <button 
                   onClick={handleAnalyzeTrends}
-                  disabled={filteredNotes.length < 2 || !isDbConnected}
+                  disabled={filteredNotes.length < 2 || dbStatus !== 'connected'}
                   className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title={filteredNotes.length < 2 ? "Need at least 2 notes to analyze trends" : "Analyze Note Trends with AI"}
                 >
@@ -180,63 +248,24 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 >
                 {noteScopeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
-             {!isDbConnected && (
+             {dbStatus === 'error' && (
                 <div className="p-2 bg-yellow-900/50 border border-yellow-700 rounded-md text-center">
-                    <p className="text-xs text-yellow-300">Notes feature disabled: Could not connect to the database. Please check configuration.</p>
+                    <p className="text-xs text-yellow-300 font-semibold">Notes feature disabled: Could not connect to the database.</p>
+                     <p className="text-xs text-yellow-400 mt-1">Please ensure the `VITE_FIREBASE_CLIENT_CONFIG` environment variable is correctly set up as a single-line JSON string.</p>
                 </div>
             )}
         </div>
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
-          {filteredNotes.length === 0 ? (
-            <p className="text-slate-400 text-center mt-4">No notes for this selection.</p>
-          ) : (
-            filteredNotes.map(note => (
-              <div key={note.id} className={`group bg-slate-700 p-3 rounded-md border-l-4 ${NOTE_CATEGORY_COLORS[note.category]}`}>
-                {editingNoteId === note.id ? (
-                  <div className="space-y-2">
-                      <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
-                      <div className="flex justify-between items-center">
-                          <select value={editCategory} onChange={e => setEditCategory(e.target.value as NoteCategory)} className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs focus:ring-cyan-500 focus:border-cyan-500">
-                              {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                          <div className="flex gap-2">
-                              <button onClick={handleCancelEdit} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
-                              <button onClick={handleSaveEdit} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
-                          </div>
-                      </div>
-                  </div>
-                ) : (
-                  <>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className={`text-xs font-bold ${NOTE_CATEGORY_COLORS[note.category].replace('border-', 'text-')}`}>{note.category}</p>
-                          <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleStartEdit(note)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
-                            <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                      <p className="text-sm text-slate-200 whitespace-pre-wrap my-2">{note.content}</p>
-                      {note.imageUrl && (
-                        <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2">
-                          <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
-                        </button>
-                      )}
-                  </>
-                )}
-              </div>
-            ))
-          )}
+          {renderStatusOrContent()}
         </div>
         <div className="p-4 border-t border-slate-700 space-y-2">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={isDbConnected ? 'Add new note...' : 'Database not connected.'}
+            placeholder={getPlaceholderText()}
             rows={2}
             className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
-            disabled={!isDbConnected}
+            disabled={dbStatus !== 'connected'}
           />
           {stagedImage && (
             <div className="relative w-fit">
@@ -248,15 +277,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           )}
           <div className="flex flex-wrap justify-between items-center gap-2">
             <div className="flex items-center gap-2">
-                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={!isDbConnected}>
+                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={dbStatus !== 'connected'}>
                   {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={!isDbConnected}>
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus !== 'connected'}>
                    <Icon name="photo" className="w-4 h-4" /> Attach Photo
                 </button>
             </div>
-            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={!isDbConnected}>
+            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus !== 'connected'}>
               Add Note
             </button>
           </div>
