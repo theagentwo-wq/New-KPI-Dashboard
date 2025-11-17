@@ -1,3 +1,6 @@
+// Fix: Add a triple-slash directive to include Vite's client types, which resolves the TypeScript error for `import.meta.env`.
+/// <reference types="vite/client" />
+
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
 import { Note, NoteCategory, View } from '../types';
@@ -11,7 +14,8 @@ let notesCollection: CollectionReference<DocumentData> | null = null;
  */
 const initializeFirebase = () => {
     try {
-        const firebaseConfigString = process.env.VITE_FIREBASE_CLIENT_CONFIG;
+        // Correctly access Vite environment variables using import.meta.env
+        const firebaseConfigString = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
 
         if (!firebaseConfigString) {
             console.error("Firebase config not found. VITE_FIREBASE_CLIENT_CONFIG is missing. Notes feature will be disabled.");

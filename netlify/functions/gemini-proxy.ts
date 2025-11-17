@@ -2,14 +2,6 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast, Note } from '../../types';
 import { KPI_CONFIG } from '../../constants';
 
-// This function runs on Netlify's backend.
-// The API key is securely accessed from environment variables and never exposed to the client.
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable not set.");
-}
-const ai = new GoogleGenAI({ apiKey });
-
 // --- Helper Functions (moved from original service) ---
 
 const AI_CONTEXT = "You are an expert restaurant operations analyst for Tupelo Honey Cafe, a southern restaurant chain (website: https://tupelohoneycafe.com). Your analysis should be sharp, insightful, and tailored to a restaurant executive audience.";
@@ -109,6 +101,18 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, headers, body: 'Method Not Allowed' };
     }
+    
+    // This function runs on Netlify's backend.
+    // The API key is securely accessed from environment variables and never exposed to the client.
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+         return { 
+            statusCode: 500, 
+            headers, 
+            body: JSON.stringify({ error: "GEMINI_API_KEY environment variable not set on the server." }) 
+        };
+    }
+    const ai = new GoogleGenAI({ apiKey });
 
     try {
         const { action, payload } = JSON.parse(event.body || '{}');
