@@ -103,8 +103,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     // State for data fetching
     const [weather, setWeather] = useState<WeatherInfo | null>(null);
-    const [storeImages, setStoreImages] = useState<string[]>([]);
-    const [isImagesLoading, setIsImagesLoading] = useState(true);
+    const [storeImage, setStoreImage] = useState<string | null>(null);
+    const [isImageLoading, setIsImageLoading] = useState(true);
 
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -137,15 +137,15 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             // Reset all content when a new location is opened
             setAnalysisContent({});
             setIsLoading({});
-            setStoreImages([]);
-            setIsImagesLoading(true);
+            setStoreImage(null);
+            setIsImageLoading(true);
             setWeather(null);
             
             const fetchVisuals = async () => {
-                setIsImagesLoading(true);
-                const urls = await getStoreVisuals(location, storeDetails.address);
-                setStoreImages(urls.length > 0 ? [...urls, ...urls] : []);
-                setIsImagesLoading(false);
+                setIsImageLoading(true);
+                const dataUrl = await getStoreVisuals(location, storeDetails.address);
+                setStoreImage(dataUrl);
+                setIsImageLoading(false);
             };
 
             const fetchWeather = async () => {
@@ -346,7 +346,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                                     className="w-full h-full border-0"
                                     loading="lazy"
                                     allowFullScreen
-                                    src={`https://www.google.com/maps?q=${encodeURIComponent(storeDetails.address)}&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&output=svembed`}>
+                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(storeDetails.address)}&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,0,0,0,0&output=svembed`}>
                                 </iframe>
                             </div>
                              <div className="p-3 text-sm">
@@ -364,28 +364,25 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     )}
                     
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                        <h4 className="font-bold text-slate-300 mb-3">Store Photos</h4>
-                        {isImagesLoading ? (
-                            <div className="flex items-center justify-center h-32">
-                                <svg className="animate-spin h-6 w-6 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </div>
-                        ) : storeImages.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center text-center text-slate-500 py-4 h-32">
-                                <Icon name="photo" className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">No images found.</p>
-                            </div>
-                        ) : (
-                            <div className="h-32 w-full overflow-hidden rounded-md group">
-                                <div className="flex h-full animate-scroll-gallery group-hover:[animation-play-state:paused]">
-                                    {storeImages.map((url, index) => (
-                                        <img key={index} src={url} alt={`Store visual ${index + 1}`} className="h-full w-auto object-cover flex-shrink-0 mr-2 rounded-md shadow-lg" loading="lazy" />
-                                    ))}
+                        <h4 className="font-bold text-slate-300 mb-3">AI-Generated Storefront</h4>
+                        <div className="h-40 w-full rounded-md flex items-center justify-center bg-slate-800">
+                            {isImageLoading ? (
+                                <div className="flex flex-col items-center justify-center text-center text-slate-500">
+                                    <svg className="animate-spin h-6 w-6 text-cyan-400 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <p className="text-xs">Generating image...</p>
                                 </div>
-                            </div>
-                        )}
+                            ) : storeImage ? (
+                                <img src={storeImage} alt={`AI generated storefront for ${location}`} className="h-full w-full object-cover rounded-md shadow-lg" />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center text-slate-500">
+                                    <Icon name="photo" className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">Image could not be generated.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-between">

@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration, Modality } from "@google/genai";
 import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast, Note } from '../../types';
 import { KPI_CONFIG } from '../../constants';
 
@@ -403,37 +403,22 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { location, address } = payload;
-                const prompt = `You are an expert image search assistant. Your task is to find up to 5 high-quality, relevant image URLs for the restaurant "Tupelo Honey Cafe" located at "${address}".
-
-**This is a difficult task, so you must be thorough and creative. It is critical that you return image URLs. Do not give up easily.**
-
-**Your Strategy:**
-1.  **Perform MULTIPLE search queries.** If one query fails, try a different one.
-2.  **Use diverse search terms.** Try combinations like:
-    *   "Tupelo Honey Cafe ${location} exterior photo"
-    *   "Tupelo Honey Cafe ${location} interior dining room"
-    *   "Best dishes at Tupelo Honey Cafe ${location}"
-    *   "Tupelo Honey Cafe at ${address} Google Maps photos"
-    *   "Tupelo Honey Cafe ${location} Yelp reviews photos"
-3.  **Search multiple sources.** Look for photos on Google Maps, Yelp, TripAdvisor, food blogs, and local news articles.
-4.  **Extract DIRECT image URLs.** Find URLs that end in .jpg, .png, .webp, or .gif. Do not return links to web pages.
-
-Your entire response MUST be a valid JSON array of strings representing the direct image URLs. If after trying at least three different search strategies you still find nothing, you may return an empty array [].`;
+                const prompt = `Generate a single, photorealistic, daytime, street-level image of the exterior of the Tupelo Honey Southern Kitchen & Bar located at "${address}". The restaurant has a modern but rustic feel, with large windows and often a patio area. The sign prominently features the name "Tupelo Honey". Ensure the image is clear, well-lit, and accurately represents a vibrant restaurant storefront.`;
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: {
-                        tools: [{ googleSearch: {} }],
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING }
-                        }
-                    }
+                    model: 'gemini-2.5-flash-image',
+                    contents: { parts: [{ text: prompt }] },
+                    config: { responseModalities: [Modality.IMAGE] },
                 });
-                const jsonString = response.text?.trim();
-                const data = jsonString ? JSON.parse(jsonString) : [];
-                return { statusCode: 200, headers, body: JSON.stringify({ data }) };
+
+                let base64ImageBytes = '';
+                for (const part of response.candidates?.[0]?.content?.parts || []) {
+                    if (part.inlineData) {
+                        base64ImageBytes = part.inlineData.data;
+                        break;
+                    }
+                }
+                const dataUrl = base64ImageBytes ? `data:image/png;base64,${base64ImageBytes}` : null;
+                return { statusCode: 200, headers, body: JSON.stringify({ data: dataUrl }) };
             }
 
             default:
