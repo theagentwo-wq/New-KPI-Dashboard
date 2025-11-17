@@ -69,10 +69,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
     <motion.aside 
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="bg-slate-800 border-r border-slate-700 flex flex-col p-4 space-y-6 flex-shrink-0 relative"
+      className="bg-slate-800 border-r border-slate-700 flex flex-col p-4 space-y-6"
     >
-      <div className={`flex items-center gap-3 h-10 ${isCollapsed ? 'justify-center' : ''}`}>
+      <div className={`flex items-center gap-3 h-10 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         {!isCollapsed && <h1 className="text-xl font-bold text-white">Ops KPI Dashboard</h1>}
+        <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+            <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-5 h-5" />
+        </button>
       </div>
 
       <nav className="flex-1 space-y-2">
@@ -129,16 +136,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
         </motion.button>
       </div>
 
-      {/* Collapse Toggle */}
-       <div className={`absolute top-1/2 -right-3 transform -translate-y-1/2`}>
-            <button 
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="w-6 h-12 bg-slate-700 hover:bg-cyan-600 text-white rounded-r-md flex items-center justify-center"
-                aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-                <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-4 h-4" />
-            </button>
-        </div>
     </motion.aside>
   );
 };

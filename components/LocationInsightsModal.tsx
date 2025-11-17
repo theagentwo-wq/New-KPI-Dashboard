@@ -119,12 +119,16 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
   };
   
   const handleDownload = () => {
-    if (!briefResult || !location) return;
-    const blob = new Blob([briefResult], { type: 'text/markdown;charset=utf-8' });
+    const content = briefResult || marketResult || marketingResult;
+    const type = currentAnalysis;
+    if (!content || !location || type === 'none' || type === 'forecast') return;
+
+    const fileType = type === 'brief' ? 'hot-topics' : type;
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `hot-topics-${location.replace(/, /g, '-')}-${new Date().toISOString().split('T')[0]}.md`;
+    link.download = `${fileType}-${location.replace(/, /g, '-')}-${new Date().toISOString().split('T')[0]}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -137,6 +141,14 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     market: 'Analyzing local market conditions...',
     marketing: 'Generating hyper-local marketing ideas...',
     none: ''
+  };
+  
+  const titleMap: { [key in AnalysisType]: string } = {
+      brief: 'HOT TOPICS Brief',
+      market: 'Local Market Analysis',
+      marketing: 'Hyper-Local Marketing Ideas',
+      forecast: '7-Day Weather-Aware Sales Forecast',
+      none: ''
   };
 
   const renderContent = () => {
@@ -151,29 +163,27 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         );
     }
     
-    if (currentAnalysis === 'brief' && sanitizedHtml) {
+    const shouldShowDownload = (currentAnalysis === 'brief' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml;
+
+    if (shouldShowDownload) {
       return (
-          <div>
-              <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-lg font-bold text-cyan-400">HOT TOPICS Brief</h4>
+          <div className="flex flex-col h-full">
+              <div className="flex justify-between items-center mb-2 flex-shrink-0">
+                  <h4 className="text-lg font-bold text-cyan-400">{titleMap[currentAnalysis]}</h4>
                   <button onClick={handleDownload} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md transition-colors">
                       <Icon name="download" className="w-4 h-4" /> 
                       Save
                   </button>
               </div>
-              <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+              <div className="prose prose-sm prose-invert max-w-none text-slate-200 flex-1 overflow-y-auto custom-scrollbar pr-2" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
           </div>
       )
-    }
-
-    if ((currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml) {
-         return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
     }
 
     if (currentAnalysis === 'forecast' && forecastResult.length > 0) {
         return (
             <div>
-                 <h4 className="text-lg font-bold text-cyan-400 mb-4">7-Day Weather-Aware Sales Forecast</h4>
+                 <h4 className="text-lg font-bold text-cyan-400 mb-4">{titleMap.forecast}</h4>
                  <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={forecastResult} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -237,7 +247,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-hidden min-h-0">
             {renderContent()}
         </div>
       </div>

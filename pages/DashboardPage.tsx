@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, SavedView, Anomaly, Note, NoteCategory } from '../types';
+import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS, KPI_ICON_MAP } from '../constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
 import { generateDataForPeriod } from '../data/mockData';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 import { Icon } from '../components/Icon';
-import { TimeSelector } from '../components/TimeSelector';
 import { ExecutiveSummary } from '../components/ExecutiveSummary';
 import { AIAssistant } from '../components/AIAssistant';
 import { NotesPanel } from '../components/NotesPanel';
@@ -57,11 +56,11 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
         <motion.div 
             whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-start"
+            className="bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 transition-colors duration-200 flex justify-between items-start"
         >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
-                <div className="text-3xl font-bold text-slate-100 mt-1">
+                <div className="text-4xl font-bold text-slate-100 mt-1">
                     <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
                 </div>
                 <div className={`text-sm font-semibold mt-1 ${getVarianceColor(variance)}`}>
@@ -91,7 +90,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
-    const [savedViews, setSavedViews] = useState<SavedView[]>([]);
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
 
@@ -269,23 +267,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         if (currentIndex < periods.length - 1) setCurrentPeriod(periods[currentIndex + 1]);
     };
 
-    const saveCurrentView = (name: string) => {
-        const newView: SavedView = { name, period: currentPeriod, view: currentView, comparisonMode };
-        setSavedViews(prev => [...prev, newView]);
-    };
-
-    const loadView = (viewToLoad: SavedView) => {
-        setCurrentPeriod(viewToLoad.period);
-        setComparisonMode(viewToLoad.comparisonMode);
-    };
-
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            <TimeSelector 
-                savedViews={savedViews}
-                saveCurrentView={saveCurrentView}
-                loadView={loadView}
-            />
+            <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
 
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-6">
                 {mainKpis.map(kpi => (
@@ -325,7 +309,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                     />
                 </div>
                 <div className="xl:col-span-1 space-y-6">
-                    <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
                     <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
                     <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                     <PerformanceMatrix 

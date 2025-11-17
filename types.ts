@@ -58,13 +58,6 @@ export interface Goal {
   target: number;
 }
 
-export interface SavedView {
-  name: string;
-  period: Period;
-  view: View;
-  comparisonMode: ComparisonMode;
-}
-
 export type NoteCategory = 'Marketing' | 'Staffing' | 'Reviews' | 'Facilities' | 'General';
 
 export interface Note {
@@ -109,4 +102,13 @@ export interface DailyForecast {
     condition: WeatherCondition;
     temperature: number;
     shortForecast: string;
+}
+
+// FIX: Add SavedView type to be used by TimeSelector component.
+export interface SavedView {
+  name: string;
+  period: Period;
+  view: View;
+  comparisonMode: ComparisonMode;
+  periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
 }
