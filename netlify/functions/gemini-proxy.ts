@@ -188,57 +188,32 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             case 'generateHuddleBrief': {
                 const { location, storeData, audience } = payload;
                 const formattedData = Object.entries(storeData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
-                
                 let audienceFocus = '';
                 switch (audience) {
-                    case 'FOH':
-                        audienceFocus = "Focus on guest experience, upselling opportunities (especially company promotions), managing service flow, and sales contests. The audience is servers, hosts, and bartenders.";
-                        break;
-                    case 'BOH':
-                        audienceFocus = "Focus on ticket times, food quality, prep list priorities, and kitchen efficiency. The audience is line cooks, prep cooks, and dishwashers.";
-                        break;
-                    case 'Managers':
-                        audienceFocus = "Provide a holistic overview for both FOH and BOH. Include strategic focus points, team motivation, and coordination between departments. The audience is the entire management team.";
-                        break;
-                    default:
-                        audienceFocus = "Focus on general operational excellence for the entire team.";
+                    case 'FOH': audienceFocus = "Focus on guest experience, upselling, service flow. Audience: servers, hosts, bartenders."; break;
+                    case 'BOH': audienceFocus = "Focus on ticket times, food quality, prep lists. Audience: cooks, dishwashers."; break;
+                    case 'Managers': audienceFocus = "Holistic overview, strategic focus, team motivation. Audience: management team."; break;
                 }
-
                 const prompt = `${AI_CONTEXT}
-You are an expert restaurant operations coach. Your task is to generate a concise, motivational, and actionable pre-shift 'HOT TOPICS' brief for the ${audience} team at our ${location} store.
-
-**Instructions:**
-1.  **Audience Focus:** ${audienceFocus}
-2.  **Incorporate Real-Time Intel (Use Your Tools):**
-    *   **Local Events & Weather:** Search for major concerts, sporting events, festivals, or large conventions happening today/tonight near ${location}. Get the current weather forecast and describe its direct impact on operations (e.g., 'Big concert at the arena tonight means we'll be slammed post-show', 'Heavy rain all evening, so patio is a no-go and we might see slower delivery times').
-    *   **Company Promotions:** Search tupelohoneycafe.com and official social media channels for current company-wide marketing campaigns, specials, or featured menu items. Weave these into the brief as upselling opportunities or focus items.
-3.  **Use Performance Data:** The store's most recent performance data is below. Find the single biggest opportunity for this audience and make it the primary focus.
-4.  **Format:** The brief MUST be in a simple, easy-to-read bullet-point format using markdown. Keep it under 200 words. Make it visually appealing and something a manager can quickly read to their team.
-
-**Recent Performance Data:**
-${formattedData}
-
-Begin the brief now.`;
-
+Generate a concise 'HOT TOPICS' huddle brief for the ${audience} team at our ${location} store.
+Requirements:
+1.  Audience: ${audienceFocus}
+2.  Data Focus: From data below, find and focus on the single biggest performance opportunity.
+3.  Local Intel (Use Tools): Find today's weather and one major local event near ${location}. State their operational impact.
+4.  Promotions (Use Tools): Find one current promotion on tupelohoneycafe.com to mention.
+5.  Format: Markdown bullets, under 200 words.
+Performance Data:
+${formattedData}`;
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: {
-                        tools: [{ googleSearch: {} }],
-                    },
+                    model: 'gemini-2.5-flash', contents: prompt, config: { tools: [{ googleSearch: {} }] }
                 });
-                
                 let content = response.text || "Could not generate huddle brief at this time.";
-
                 const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
                 if (groundingChunks?.length) {
                     const sources = new Set<string>();
-                    groundingChunks.forEach((chunk: any) => {
-                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`);
-                    });
-                    if (sources.size > 0) content += "\n\n---\n*Sources used for this brief: " + Array.from(sources).join(', ') + "*";
+                    groundingChunks.forEach((chunk: any) => { if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`); });
+                    if (sources.size > 0) content += "\n\n---\n*Sources: " + Array.from(sources).join(', ') + "*";
                 }
-
                 return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
 
@@ -296,27 +271,18 @@ Begin the brief now.`;
 
             case 'getReviewSummary': {
                 const { location } = payload;
-                const prompt = `${AI_CONTEXT}\nA user wants to understand customer sentiment for the restaurant location in "${location}". Use Google Search to find recent Google Reviews for this specific restaurant. Analyze the reviews to identify the top 3 positive themes and the top 3 areas for improvement. For each theme, provide 1-2 anonymous, representative customer quotes from the reviews you found. Format the entire response as clean markdown with the headers "### 👍 Top 3 Positives", "### 📉 Areas for Improvement", and "### 💬 Representative Quotes".`;
+                const prompt = `${AI_CONTEXT}\nUser wants customer sentiment for our restaurant in "${location}". Use Google Search for recent Google Reviews. Analyze and identify top 3 positive themes and top 3 areas for improvement. For each theme, provide 1-2 anonymous, representative customer quotes. Format response as markdown with headers "### 👍 Top 3 Positives", "### 📉 Areas for Improvement", and "### 💬 Representative Quotes".`;
                 
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: {
-                        tools: [{ googleSearch: {} }],
-                    },
+                    model: 'gemini-2.5-flash', contents: prompt, config: { tools: [{ googleSearch: {} }] }
                 });
-
                 let content = response.text || "Review analysis could not be generated at this time.";
-
                 const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
                 if (groundingChunks?.length) {
                     const sources = new Set<string>();
-                    groundingChunks.forEach((chunk: any) => {
-                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Review Source'}](${chunk.web.uri})`);
-                    });
+                    groundingChunks.forEach((chunk: any) => { if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Review Source'}](${chunk.web.uri})`); });
                     if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
-
                 return { statusCode: 200, headers, body: JSON.stringify({ content }) };
             }
             
@@ -372,23 +338,22 @@ ${JSON.stringify(data, null, 2)}`;
             
             case 'getLocationMarketAnalysis': {
                 const { location } = payload;
-                const prompt = `${AI_CONTEXT} You are a hyper-local market intelligence expert. A manager for our restaurant in ${location} needs a comprehensive, real-time snapshot of their local market to understand all factors that could impact foot traffic and sales. Use your tools to research and provide a detailed, well-organized summary. The response MUST be formatted using markdown with the following specific headers: ### 🗓️ Major Upcoming Events (Next 30-60 days), ### 🏟️ Sports Scene, ### 🎭 Arts & Culture, ### ✨ Notable Happenings, ### 🏗️ Major Construction & Traffic, and ### 📈 Economic Pulse. Under each header, provide 2-3 bullet points of the most relevant, recent information, such as major festivals, conventions, home games, concerts, theater productions, street fairs, celebrity visits, or significant road work.`;
+                const prompt = `${AI_CONTEXT} You are a market intelligence expert. For our restaurant in ${location}, generate a hyper-local market snapshot. Use your tools to find relevant, recent information.
+Format the response using markdown with these exact headers:
+- ### 🗓️ Upcoming Events (Next 30 days)
+- ### 🏟️ Sports & Concerts
+- ### 🏗️ Traffic & Construction
+- ### ✨ Other Local Buzz
+For each header, provide 2-3 bullet points of the most significant items that could impact restaurant foot traffic.`;
                 
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: {
-                        tools: [{ googleSearch: {} }],
-                    },
+                    model: 'gemini-2.5-flash', contents: prompt, config: { tools: [{ googleSearch: {} }] }
                 });
-
                 let content = response.text || "Market analysis could not be generated at this time.";
                 const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
                 if (groundingChunks?.length) {
                     const sources = new Set<string>();
-                    groundingChunks.forEach((chunk: any) => {
-                        if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`);
-                    });
+                    groundingChunks.forEach((chunk: any) => { if (chunk.web?.uri) sources.add(`[${chunk.web.title || 'Source'}](${chunk.web.uri})`); });
                     if (sources.size > 0) content += "\n\n**Sources:**\n" + Array.from(sources).map(s => `- ${s}`).join('\n');
                 }
                 return { statusCode: 200, headers, body: JSON.stringify({ content }) };
@@ -396,21 +361,14 @@ ${JSON.stringify(data, null, 2)}`;
 
             case 'getMarketingIdeas': {
                 const { location, userLocation } = payload;
-                const prompt = `${AI_CONTEXT} You are a creative, data-driven marketing strategist. For our restaurant in ${location}, generate 3 distinct, hyper-local marketing ideas that are easy for the local team to execute and likely to have a positive ROI. Use your tools to identify nearby points of interest (schools, businesses, event venues, charities) that could be marketing partners or targets. For each idea, provide a clear "Concept", a "Rationale" explaining why it would work in this specific area, and simple "Execution Steps". Reference our historically successful campaign types: community engagement (e.g., school fundraisers), local partnerships (e.g., catering for a nearby office), and direct outreach (e.g., handing out coupons at a local event). Format as a markdown list.`;
+                const prompt = `${AI_CONTEXT} You are a creative marketing strategist. For our restaurant in ${location}, generate 3 distinct, hyper-local marketing ideas. Use tools to identify nearby points of interest (schools, businesses, venues) as partners. For each idea, provide a "Concept", a "Rationale" for this specific area, and simple "Execution Steps". Focus on community engagement, local partnerships, and direct outreach. Format as a markdown list.`;
 
-                const modelConfig: any = {
-                    tools: [{ googleSearch: {} }, { googleMaps: {} }]
-                };
+                const modelConfig: any = { tools: [{ googleSearch: {} }, { googleMaps: {} }] };
                 if (userLocation) {
                     modelConfig.toolConfig = { retrievalConfig: { latLng: { latitude: userLocation.latitude, longitude: userLocation.longitude }}};
                 }
                 
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: modelConfig,
-                });
-
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: modelConfig });
                 let content = response.text || "Marketing ideas could not be generated at this time.";
                 const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
                 if (groundingChunks?.length) {

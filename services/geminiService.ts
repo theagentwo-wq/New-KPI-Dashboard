@@ -1,36 +1,67 @@
 import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note } from '../types';
 
 const PROXY_URL = '/.netlify/functions/gemini-proxy';
+const PROXY_TIMEOUT_MS = 9500; // 9.5 seconds, under the 10s serverless limit
+
+class TimeoutError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'TimeoutError';
+    }
+}
 
 async function callProxy(action: string, payload: any) {
-    const response = await fetch(PROXY_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action, payload }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Proxy call failed for action "${action}":`, errorText);
-        throw new Error(`The AI service failed to respond. Status: ${response.status}`);
+    try {
+        const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, payload }),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Proxy call failed for action "${action}":`, errorText);
+            throw new Error(`The AI service failed to respond. Status: ${response.status}`);
+        }
+        
+        return response.json();
+
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new TimeoutError(`The AI analysis took too long to respond. This can happen with complex queries. Please try simplifying your request or try again later.`);
+        }
+        throw error; // Re-throw other errors
     }
-    
-    return response.json();
 }
+
+
+const handleTextResponse = async (apiCall: Promise<any>): Promise<string> => {
+    try {
+        const result = await apiCall;
+        return result.content || "AI service returned an unexpected response.";
+    } catch (error: any) {
+        console.error("Error in AI service call:", error);
+        if (error instanceof TimeoutError) {
+            return error.message;
+        }
+        return "AI features disabled. Could not connect to the AI service.";
+    }
+};
 
 // --- Proxied Functions (for text-based AI) ---
 
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
-    try {
-        const result = await callProxy('getExecutiveSummary', { data, view, periodLabel });
-        return result.content || "AI features disabled. Could not connect to the AI service.";
-    } catch (error) {
-        console.error("Error fetching executive summary:", error);
-        return "AI features disabled. Could not connect to the AI service.";
-    }
+    return handleTextResponse(getExecutiveSummary.apiCall(data, view, periodLabel));
 };
+getExecutiveSummary.apiCall = (data: any, view: View, periodLabel: string) => callProxy('getExecutiveSummary', { data, view, periodLabel });
+
 
 export const getInsights = async (
     data: any,
@@ -39,34 +70,22 @@ export const getInsights = async (
     query: string,
     userLocation?: { latitude: number; longitude: number } | null
 ): Promise<string> => {
-    try {
-        const result = await callProxy('getInsights', { data, view, periodLabel, query, userLocation });
-        return result.content || "I'm sorry, I couldn't process that request.";
-    } catch (error) {
-        console.error("Error fetching insights:", error);
-        return "I'm sorry, I couldn't process that request.";
-    }
+    return handleTextResponse(getInsights.apiCall(data, view, periodLabel, query, userLocation));
 };
+getInsights.apiCall = (data: any, view: View, periodLabel: string, query: string, userLocation?: { latitude: number; longitude: number } | null) => callProxy('getInsights', { data, view, periodLabel, query, userLocation });
+
 
 export const getTrendAnalysis = async (historicalData: any, view: View): Promise<string> => {
-    try {
-        const result = await callProxy('getTrendAnalysis', { historicalData, view });
-        return result.content || "Could not generate trend analysis at this time.";
-    } catch (error) {
-        console.error("Error fetching trend analysis:", error);
-        return "Could not generate trend analysis at this time.";
-    }
+    return handleTextResponse(getTrendAnalysis.apiCall(historicalData, view));
 };
+getTrendAnalysis.apiCall = (historicalData: any, view: View) => callProxy('getTrendAnalysis', { historicalData, view });
+
 
 export const getDirectorPerformanceSnapshot = async (directorName: string, periodLabel: string, directorData: any): Promise<string> => {
-    try {
-        const result = await callProxy('getDirectorPerformanceSnapshot', { directorName, periodLabel, directorData });
-        return result.content || "Could not generate performance snapshot at this time.";
-    } catch (error) {
-        console.error("Error fetching director snapshot:", error);
-        return "Could not generate performance snapshot at this time.";
-    }
+     return handleTextResponse(getDirectorPerformanceSnapshot.apiCall(directorName, periodLabel, directorData));
 };
+getDirectorPerformanceSnapshot.apiCall = (directorName: string, periodLabel: string, directorData: any) => callProxy('getDirectorPerformanceSnapshot', { directorName, periodLabel, directorData });
+
 
 export const getAnomalyDetections = async (allStoresData: any, periodLabel: string): Promise<Anomaly[]> => {
     try {
@@ -79,21 +98,20 @@ export const getAnomalyDetections = async (allStoresData: any, periodLabel: stri
 };
 
 export const generateHuddleBrief = async (location: string, storeData: any, audience: string): Promise<string> => {
-    try {
-        const result = await callProxy('generateHuddleBrief', { location, storeData, audience });
-        return result.content || "Could not generate huddle brief at this time.";
-    } catch (error) {
-        console.error("Error generating huddle brief:", error);
-        return "Could not generate huddle brief at this time.";
-    }
+    return handleTextResponse(generateHuddleBrief.apiCall(location, storeData, audience));
 };
+generateHuddleBrief.apiCall = (location: string, storeData: any, audience: string) => callProxy('generateHuddleBrief', { location, storeData, audience });
+
 
 export const runWhatIfScenario = async (data: any, userPrompt: string): Promise<{ analysis: string, args?: any }> => {
     try {
         const result = await callProxy('runWhatIfScenario', { data, userPrompt });
         return result.data || { analysis: "Could not model the scenario at this time.", args: null };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error running what-if scenario:", error);
+        if (error instanceof TimeoutError) {
+             return { analysis: error.message, args: null };
+        }
         return { analysis: "Could not model the scenario at this time.", args: null };
     }
 };
@@ -104,71 +122,40 @@ export const getSalesForecast = async (location: string, weatherForecast: DailyF
         return result.data || [];
     } catch (error) {
         console.error("Error fetching sales forecast:", error);
-        // Fallback to mock data on error
-        const today = new Date();
-        return Array.from({ length: 7 }).map((_, i) => ({
-            date: new Date(new Date().setDate(today.getDate() + i)).toISOString().split('T')[0],
-            predictedSales: 50000 + Math.random() * 10000
-        }));
+        return [];
     }
 };
 
 export const getReviewSummary = async (location: string): Promise<string> => {
-    try {
-        const result = await callProxy('getReviewSummary', { location });
-        return result.content || "Could not generate a review summary at this time.";
-    } catch (error) {
-        console.error("Error fetching review summary:", error);
-        return "Could not generate a review summary at this time.";
-    }
+    return handleTextResponse(getReviewSummary.apiCall(location));
 };
+getReviewSummary.apiCall = (location: string) => callProxy('getReviewSummary', { location });
+
 
 export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
-    try {
-        const result = await callProxy('getVarianceAnalysis', { location, kpi, variance, allKpis });
-        return result.content || "Could not provide analysis.";
-    } catch (error) {
-        console.error("Error fetching variance analysis:", error);
-        return "Could not provide analysis.";
-    }
+    return handleTextResponse(getVarianceAnalysis.apiCall(location, kpi, variance, allKpis));
 };
+getVarianceAnalysis.apiCall = (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData) => callProxy('getVarianceAnalysis', { location, kpi, variance, allKpis });
+
 
 export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
-    try {
-        const result = await callProxy('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
-        return result.content || "Could not generate quadrant analysis at this time.";
-    } catch (error) {
-        console.error("Error fetching quadrant analysis:", error);
-        return "Could not generate quadrant analysis at this time.";
-    }
+     return handleTextResponse(getQuadrantAnalysis.apiCall(data, periodLabel, kpiAxes));
 };
+getQuadrantAnalysis.apiCall = (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }) => callProxy('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
+
 
 export const getLocationMarketAnalysis = async (location: string): Promise<string> => {
-    try {
-        const result = await callProxy('getLocationMarketAnalysis', { location });
-        return result.content || "Could not generate a market analysis at this time.";
-    } catch (error) {
-        console.error("Error fetching market analysis:", error);
-        return "Could not generate a market analysis at this time.";
-    }
+    return handleTextResponse(getLocationMarketAnalysis.apiCall(location));
 };
+getLocationMarketAnalysis.apiCall = (location: string) => callProxy('getLocationMarketAnalysis', { location });
+
 
 export const getMarketingIdeas = async (location: string, userLocation?: { latitude: number; longitude: number } | null): Promise<string> => {
-    try {
-        const result = await callProxy('getMarketingIdeas', { location, userLocation });
-        return result.content || "Could not generate marketing ideas at this time.";
-    } catch (error) {
-        console.error("Error fetching marketing ideas:", error);
-        return "Could not generate marketing ideas at this time.";
-    }
+    return handleTextResponse(getMarketingIdeas.apiCall(location, userLocation));
 };
+getMarketingIdeas.apiCall = (location: string, userLocation?: { latitude: number; longitude: number } | null) => callProxy('getMarketingIdeas', { location, userLocation });
 
 export const getNoteTrends = async (notes: Note[]): Promise<string> => {
-    try {
-        const result = await callProxy('getNoteTrends', { notes });
-        return result.content || "Could not analyze note trends at this time.";
-    } catch (error) {
-        console.error("Error fetching note trends:", error);
-        return "Could not analyze note trends at this time.";
-    }
+    return handleTextResponse(getNoteTrends.apiCall(notes));
 };
+getNoteTrends.apiCall = (notes: Note[]) => callProxy('getNoteTrends', { notes });
