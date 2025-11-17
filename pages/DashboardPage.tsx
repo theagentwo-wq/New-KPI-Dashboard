@@ -60,9 +60,9 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     return (
         <motion.div 
             variants={itemVariants}
-            whileHover={{ scale: 1.05, y: -5, zIndex: 10 }}
+            whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="relative bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start"
+            className="relative bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start group hover:z-10"
         >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
@@ -244,7 +244,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         setAnomalyModalOpen(true);
     }, []);
 
-    const mainKpis: Kpi[] = [Kpi.Sales, Kpi.VariableLabor, Kpi.FoodCost, Kpi.PrimeCost, Kpi.SOP, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
+    const mainKpis: Kpi[] = [Kpi.Sales, Kpi.PrimeCost, Kpi.SOP, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
     
     const historicalDataForAI: { periodLabel: string; data: PerformanceData }[] = useMemo(() => {
         const periods: Period[] = [];
@@ -293,7 +293,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4"
+                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
                     >
                         {mainKpis.map(kpi => (
                             <KPICard 
