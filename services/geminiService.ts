@@ -34,9 +34,31 @@ async function callAIApi(action: string, payload: any): Promise<any> {
 }
 
 const getDetailedErrorMessage = (error: unknown): string => {
-    const message = error instanceof Error ? error.message : String(error);
-    // Add a clear prefix to identify the source of the error in the UI.
-    return `[AI Service Error] ${message}`;
+    const rawMessage = error instanceof Error ? error.message : String(error);
+
+    try {
+        // The error message from the proxy can be a stringified JSON object containing details.
+        const errorData = JSON.parse(rawMessage);
+        
+        // The actual error details might be nested under an 'error' key.
+        const details = errorData.error || errorData;
+
+        // Check for the specific quota error code.
+        if (details.code === 429) {
+            return `AI Quota Exceeded: The daily limit for the Gemini API's free tier has been reached. Please check your plan and billing details to continue using AI features. More info: https://ai.google.dev/gemini-api/docs/billing`;
+        }
+
+        // If it's a structured error but not a quota error, return its message.
+        if (details.message) {
+            return `[AI Service Error] ${details.message}`;
+        }
+    } catch (e) {
+        // If it's not a JSON string, it's a plain error message.
+        // Fall through to return the raw message with a prefix.
+    }
+
+    // Fallback for plain text errors or unexpected structures.
+    return `[AI Service Error] ${rawMessage}`;
 };
 
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
