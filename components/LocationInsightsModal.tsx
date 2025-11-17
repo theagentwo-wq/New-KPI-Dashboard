@@ -333,7 +333,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         )}
                     </div>
 
-                     {storeDetails && (
+                     {storeDetails ? (
                         <div className="bg-slate-900/50 rounded-lg border border-slate-700">
                             <div className="h-40 w-full overflow-hidden rounded-t-lg">
                                 <iframe
@@ -342,7 +342,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                                     className="w-full h-full border-0"
                                     loading="lazy"
                                     allowFullScreen
-                                    src={`https://maps.google.com/maps?layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&output=svembed`}>
+                                    src={`https://www.google.com/maps?q&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,0,0,0,0&output=svembed`}>
                                 </iframe>
                             </div>
                              <div className="p-3 text-sm">
@@ -356,6 +356,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                                     Get Directions &rarr;
                                 </a>
                             </div>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-900/50 rounded-lg border border-slate-700 p-3 text-sm text-slate-400">
+                            Location details not found.
                         </div>
                     )}
                     

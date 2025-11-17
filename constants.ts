@@ -55,7 +55,7 @@ export const STORE_DETAILS: Record<string, StoreDetails> = {
     'Denver, CO': { address: '1650 Wewatta St, Denver, CO 80202', lat: 39.7537, lon: -105.0001 },
     'Des Moines, IA': { address: '665 Grand Ave, Des Moines, IA 50309', lat: 41.5861, lon: -93.6288 },
     'Downtown Asheville, NC': { address: '12 College St, Asheville, NC 28801', lat: 35.5954, lon: -82.5513 },
-    'Farragut, TN': { address: '11138 Kingston Pike, Knoxville, TN 37934', lat: 35.8751, lon: -84.1755 },
+    'Farragut, TN': { address: '11138 Kingston Pike, Farragut, TN 37934', lat: 35.8751, lon: -84.1755 },
     'Franklin, TN': { address: '201 E Main St, Franklin, TN 37064', lat: 35.9221, lon: -86.8683 },
     'Frisco, TX': { address: '6765 Winning Dr, Frisco, TX 75034', lat: 33.0950, lon: -96.8373 },
     'Gainesville, GA': { address: '1900 Jesse Jewell Pkwy SE, Gainesville, GA 30501', lat: 34.2790, lon: -83.8055 }, // Note: This location is permanently closed
