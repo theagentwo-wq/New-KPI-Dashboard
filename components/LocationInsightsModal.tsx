@@ -342,10 +342,11 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         <div className="bg-slate-900/50 rounded-lg border border-slate-700">
                             <div className="h-40 w-full overflow-hidden rounded-t-lg">
                                 <iframe
+                                    title="Google Maps Street View"
                                     className="w-full h-full border-0"
                                     loading="lazy"
                                     allowFullScreen
-                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(storeDetails.address)}&output=embed&z=15`}>
+                                    src={`https://maps.google.com/maps?layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,90,0,0,0&output=svembed`}>
                                 </iframe>
                             </div>
                              <div className="p-3 text-sm">

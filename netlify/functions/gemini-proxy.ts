@@ -403,17 +403,20 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { address } = payload;
-                const prompt = `Act as an expert image searcher. Find 5 high-quality, publicly available image URLs for the restaurant 'Tupelo Honey Cafe' at the specific address: '${address}'.
+                const prompt = `You are a visual asset retrieval specialist for the restaurant chain 'Tupelo Honey Cafe'. Your task is to find up to 5 high-quality, publicly available image URLs for the specific location at: '${address}'.
 
-**Instructions:**
-1.  Construct a precise Google Search query like "Tupelo Honey Cafe ${address} photos".
-2.  Execute the search using the Google Search tool.
-3.  From the results, identify direct links to image files (.jpg, .png, .webp).
-4.  Prioritize a mix of photos: restaurant exterior, interior dining area, and specific food dishes.
-5.  Return up to 5 of the best, most relevant direct image URLs.
-6.  Format the response as a JSON array of strings.
+**Strategy:**
+1.  **Multi-Query Search:** Use the Google Search tool with several targeted queries to maximize results. Try variations like:
+    *   "Tupelo Honey Cafe ${address} exterior photo"
+    *   "Tupelo Honey Cafe ${address} interior dining photo"
+    *   "food photos from Tupelo Honey Cafe ${address}"
+    *   Search on Google Maps for the address and look for user-submitted photos.
+2.  **Source Prioritization:** Prioritize images from reputable sources like Google Maps listings, official social media pages, high-quality review sites (e.g., Yelp, TripAdvisor), and food blogs.
+3.  **Image URL Extraction:** Diligently inspect search results to find direct image URLs (ending in .jpg, .png, .webp, or similar, or URLs that are clearly image links from services like Google User Content). Do not return links to web pages, only to the images themselves.
+4.  **Content Diversity:** Aim for a mix of images: at least one exterior shot, one interior shot, and a couple of food photos if possible.
+5.  **Final Output:** Return a JSON array of up to 5 unique, valid image URL strings. If you cannot find any suitable images after trying multiple queries, return an empty array [].
 
-**Output ONLY the JSON array.** If no suitable images are found, return an empty array [].`;
+**Output ONLY the JSON array.**`;
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,
