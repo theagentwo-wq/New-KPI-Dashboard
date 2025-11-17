@@ -127,7 +127,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     const kpiLabels = { x: xAxisKpi, y: yAxisKpi, z: zAxisKpi };
 
     const containerClass = isFullScreen
-        ? "fixed inset-0 z-50 bg-slate-800 p-8 flex flex-col"
+        ? "fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md p-8 flex flex-col"
         : "bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col";
 
     const matrixContent = (

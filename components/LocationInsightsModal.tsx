@@ -175,7 +175,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                       Save
                   </button>
               </div>
-              <div className="prose prose-sm prose-invert max-w-none text-slate-200 flex-1 overflow-y-auto custom-scrollbar pr-2" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+              <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
           </div>
       )
     }
