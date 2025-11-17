@@ -205,7 +205,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
                      </div>
                  </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
                 <table className="w-full text-sm text-left text-slate-400">
                     <thead className="text-xs text-cyan-400 uppercase bg-slate-900 sticky top-0 z-10">
                         <tr>
