@@ -55,9 +55,8 @@ const DirectorLink: React.FC<{
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenDataEntry, onOpenScenarioModeler, onOpenImageUploader }) => {
   return (
     <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col p-4 space-y-6 flex-shrink-0">
-      <div className="flex items-center gap-3">
-        <img src="https://i.postimg.cc/k43r5bZ0/tupelo-honey-logo.png" alt="Tupelo Honey Logo" className="h-10" />
-        <h1 className="text-lg font-bold text-white">Ops Dashboard</h1>
+      <div className="flex items-center gap-3 h-10">
+        <h1 className="text-xl font-bold text-white">Ops Dashboard</h1>
       </div>
 
       <nav className="flex-1 space-y-2">
