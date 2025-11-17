@@ -4,6 +4,12 @@ import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, 
 // This service now securely calls the proxy endpoint. This change resolves the client-side API key usage
 // and the associated TypeScript error regarding the environment variable.
 
+export interface PlaceDetails {
+    name: string;
+    rating: number;
+    photoUrls: string[];
+}
+
 /**
  * Centralized function to call the Netlify proxy for all AI-related tasks.
  * @param action The specific AI function to execute on the backend.
@@ -59,6 +65,16 @@ const getDetailedErrorMessage = (error: unknown): string => {
 
     // Fallback for plain text errors or unexpected structures.
     return `[AI Service Error] ${rawMessage}`;
+};
+
+export const getPlaceDetails = async (location: string, address: string): Promise<PlaceDetails | null> => {
+    try {
+        const result = await callAIApi('getPlaceDetails', { location, address });
+        return result;
+    } catch (error) {
+        console.error("Error fetching Place Details:", error);
+        return null;
+    }
 };
 
 export const getStreetViewMetadata = async (address: string, lat: number, lon: number): Promise<{ status: 'OK' | 'ZERO_RESULTS' | 'ERROR', lat?: number, lon?: number }> => {

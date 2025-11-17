@@ -118,6 +118,48 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
         const { action, payload } = JSON.parse(event.body || '{}');
 
         switch (action) {
+            case 'getPlaceDetails': {
+                const { address, location } = payload;
+                if (!address || !location) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing address or location' }) };
+                }
+
+                // Step 1: Find Place ID
+                const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar ${location}`)}&inputtype=textquery&fields=place_id&key=${apiKey}`;
+                const findPlaceResponse = await fetch(findPlaceUrl);
+                if (!findPlaceResponse.ok) throw new Error('Find Place API request failed');
+                
+                const findPlaceData = await findPlaceResponse.json();
+                if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
+                     return { statusCode: 404, headers, body: JSON.stringify({ error: `Place not found for location: ${location}` }) };
+                }
+
+                const placeId = findPlaceData.candidates[0].place_id;
+
+                // Step 2: Get Place Details
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${apiKey}`;
+                const detailsResponse = await fetch(detailsUrl);
+                if (!detailsResponse.ok) throw new Error('Place Details API request failed');
+                
+                const detailsData = await detailsResponse.json();
+                if (detailsData.status !== 'OK' || !detailsData.result) {
+                    return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not get details for place_id: ${placeId}` }) };
+                }
+
+                const { name, rating, photos } = detailsData.result;
+
+                // Step 3: Construct Photo URLs
+                const photoUrls = (photos || []).slice(0, 10).map((photo: any) => {
+                    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${apiKey}`;
+                });
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({ name, rating, photoUrls }),
+                };
+            }
+            
             case 'getStreetViewMetadata': {
                 const { address, lat: fallbackLat, lon: fallbackLon } = payload;
                 if (!address) {

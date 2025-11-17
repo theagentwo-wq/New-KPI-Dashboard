@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getStreetViewMetadata } from '../services/geminiService';
-import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getStreetViewMetadata, getPlaceDetails, PlaceDetails } from '../services/geminiService';
+import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi, StoreDetails } from '../types';
+import { PerformanceData, ForecastDataPoint, WeatherCondition, Kpi, StoreDetails } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
@@ -101,6 +101,27 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
+const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    const starIcon = (
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+    );
+
+    return (
+        <div className="flex items-center">
+            {[...Array(fullStars)].map((_, i) => <span key={`full-${i}`} className="text-yellow-400">{starIcon}</span>)}
+            {/* Note: Half-star rendering is complex, so we'll represent it as a full star for simplicity here but acknowledge the fractional rating */}
+            {halfStar && <span className="text-yellow-400">{starIcon}</span>}
+            {[...Array(emptyStars)].map((_, i) => <span key={`empty-${i}`} className="text-slate-600">{starIcon}</span>)}
+        </div>
+    );
+};
+
 // --- Main Modal Component ---
 
 export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData, userLocation }) => {
@@ -109,8 +130,9 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     const [activeTab, setActiveTab] = useState<AnalysisTab>('reviews');
     
     // State for data fetching
-    const [weather, setWeather] = useState<WeatherInfo | null>(null);
     const [streetViewData, setStreetViewData] = useState<StreetViewData>({ status: 'loading' });
+    const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
+    const [isPlaceDetailsLoading, setIsPlaceDetailsLoading] = useState(true);
 
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -140,23 +162,27 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             setIsFullScreen(false);
             setActiveTab('reviews');
         } else if (location && storeDetails) {
-            // Reset all content when a new location is opened
             setAnalysisContent({});
             setIsLoading({});
-            setWeather(null);
             setStreetViewData({ status: 'loading' });
+            setPlaceDetails(null);
+            setIsPlaceDetailsLoading(true);
             
             const fetchInitialVisuals = async () => {
-                const weatherData = await getWeatherForLocation(location);
-                setWeather(weatherData);
+                // Fetch StreetView and PlaceDetails in parallel
+                const svPromise = getStreetViewMetadata(storeDetails.address, storeDetails.lat, storeDetails.lon);
+                const pdPromise = getPlaceDetails(location, storeDetails.address);
 
-                // New redundant, address-first approach
-                const svMeta = await getStreetViewMetadata(storeDetails.address, storeDetails.lat, storeDetails.lon);
+                const [svMeta, details] = await Promise.all([svPromise, pdPromise]);
+
                 if (svMeta.status === 'OK') {
                     setStreetViewData({ status: 'OK', lat: svMeta.lat, lon: svMeta.lon });
                 } else {
                     setStreetViewData({ status: svMeta.status as StreetViewStatus, lat: svMeta.lat, lon: svMeta.lon });
                 }
+                
+                setPlaceDetails(details);
+                setIsPlaceDetailsLoading(false);
             };
 
             fetchInitialVisuals();
@@ -224,13 +250,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     };
     
-    const handleViewPhotos = () => {
-        if (!location || !storeDetails) return;
-        const query = encodeURIComponent(`Tupelo Honey Cafe ${location} ${storeDetails.address}`);
-        const url = `https://www.google.com/search?tbm=isch&q=${query}`;
-        window.open(url, '_blank');
-    };
-
     const tabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
         { id: 'market', label: 'Local Market', icon: 'sop' },
@@ -254,7 +273,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     </div>
                 );
             case 'OK':
-                if (!lat || !lon) return null; // Should not happen if status is OK
+                if (!lat || !lon) return null;
                 return (
                     <div className={containerClasses}>
                         <iframe
@@ -269,7 +288,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 );
             case 'ZERO_RESULTS':
             case 'ERROR':
-                if (!lat || !lon) { // Fallback if geocoding also failed
+                if (!lat || !lon) {
                      return (
                         <div className={containerClasses}>
                             Street View and map are unavailable.
@@ -294,6 +313,51 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     }
 
+    const renderLocationDetails = () => {
+        if (isPlaceDetailsLoading) {
+            return (
+                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 min-h-[170px] flex items-center justify-center">
+                    <LoadingSpinner message="Fetching location details..." />
+                </div>
+            );
+        }
+
+        if (!placeDetails) {
+            return (
+                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 min-h-[170px] flex items-center justify-center text-center">
+                    <p className="text-sm text-slate-400">Could not load location details from Google Maps.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
+                <h4 className="font-bold text-slate-300">Location Details</h4>
+                <div className="flex items-center justify-between">
+                    <p className="font-semibold text-white truncate pr-2">{placeDetails.name}</p>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="font-bold text-yellow-400">{placeDetails.rating.toFixed(1)}</span>
+                        <StarRating rating={placeDetails.rating} />
+                    </div>
+                </div>
+
+                {placeDetails.photoUrls && placeDetails.photoUrls.length > 0 ? (
+                     <div className="flex overflow-x-auto gap-2 pb-2 custom-scrollbar -mx-4 px-4">
+                         {placeDetails.photoUrls.map((url, index) => (
+                             <img 
+                                 key={index}
+                                 src={url}
+                                 alt={`Store photo ${index + 1}`}
+                                 className="w-40 h-28 object-cover rounded-md flex-shrink-0 border-2 border-slate-700"
+                             />
+                         ))}
+                     </div>
+                ) : (
+                    <p className="text-sm text-slate-500 text-center py-4">No photos available on Google Maps.</p>
+                )}
+            </div>
+        );
+    };
 
     const renderTabContent = () => {
         const content = analysisContent[activeTab];
@@ -427,27 +491,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         </div>
                     )}
                     
-                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                        <h4 className="font-bold text-slate-300 mb-3">Store Photos</h4>
-                        <button 
-                            onClick={handleViewPhotos}
-                            className="w-full flex items-center justify-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-200 font-semibold rounded-md transition-colors"
-                        >
-                            <Icon name="photo" className="w-5 h-5" />
-                            View Photos on Google
-                        </button>
-                    </div>
-
-                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-between">
-                         <div className="text-sm">
-                            <p className="text-slate-400">Current Weather</p>
-                            <p className="font-semibold text-white">{weather?.shortForecast || 'Loading...'}</p>
-                         </div>
-                         <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold text-white">{weather?.temperature}°F</span>
-                            <WeatherIcon condition={weather?.condition || 'loading'} className="w-10 h-10"/>
-                         </div>
-                    </div>
+                    {renderLocationDetails()}
 
                     {performanceData && (
                         <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-2">
