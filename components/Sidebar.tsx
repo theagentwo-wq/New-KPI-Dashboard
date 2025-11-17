@@ -15,6 +15,7 @@ interface SidebarProps {
   onOpenAlerts: () => void;
   onOpenDataEntry: () => void;
   onOpenScenarioModeler: () => void;
+  onOpenExecutiveSummary: () => void;
 }
 
 const NavLink: React.FC<{
@@ -64,7 +65,7 @@ const DirectorLink: React.FC<{
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenAlerts, onOpenDataEntry, onOpenScenarioModeler }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenAlerts, onOpenDataEntry, onOpenScenarioModeler, onOpenExecutiveSummary }) => {
   return (
     <motion.aside 
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
@@ -92,6 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
 
             <div className="pt-2 mt-2 border-t border-slate-700" />
             
+            <NavLink icon="sparkles" label="Executive Summary" isActive={false} isCollapsed={isCollapsed} onClick={onOpenExecutiveSummary} />
             <NavLink icon="bell" label="AI Alerts" isActive={false} isCollapsed={isCollapsed} onClick={onOpenAlerts} />
             <NavLink icon="plus" label="Data Entry" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
             <NavLink icon="sparkles" label="Scenario Modeler" isActive={false} isCollapsed={isCollapsed} onClick={onOpenScenarioModeler} />

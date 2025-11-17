@@ -5,7 +5,6 @@ import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from '
 import { generateDataForPeriod } from '../data/mockData';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 import { Icon } from '../components/Icon';
-import { ExecutiveSummary } from '../components/ExecutiveSummary';
 import { AIAssistant } from '../components/AIAssistant';
 import { NotesPanel } from '../components/NotesPanel';
 import { LocationInsightsModal } from '../components/LocationInsightsModal';
@@ -19,6 +18,7 @@ import { PerformanceMatrix } from '../components/PerformanceMatrix';
 import { FirebaseStatus } from '../services/firebaseService';
 import { motion } from 'framer-motion';
 import { Modal } from '../components/Modal';
+import { ExecutiveSummaryModal } from '../components/ExecutiveSummaryModal';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -93,9 +93,15 @@ interface DashboardPageProps {
     budgets: Budget[];
     isAlertsModalOpen: boolean;
     setIsAlertsModalOpen: (isOpen: boolean) => void;
+    isExecutiveSummaryOpen: boolean;
+    setIsExecutiveSummaryOpen: (isOpen: boolean) => void;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, setLoadedData, budgets, isAlertsModalOpen, setIsAlertsModalOpen }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ 
+    currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, 
+    setLoadedData, budgets, isAlertsModalOpen, setIsAlertsModalOpen,
+    isExecutiveSummaryOpen, setIsExecutiveSummaryOpen 
+}) => {
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
@@ -293,7 +299,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
                 {/* Main Content Area (75%) */}
                 <div className="xl:col-span-3 space-y-6">
-                    <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
                     <motion.div 
                         variants={containerVariants}
                         initial="hidden"
@@ -355,6 +360,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                     <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
                 </div>
             </Modal>
+            
+            <ExecutiveSummaryModal 
+                isOpen={isExecutiveSummaryOpen}
+                onClose={() => setIsExecutiveSummaryOpen(false)}
+                data={directorAggregates}
+                view={currentView}
+                period={currentPeriod}
+            />
             
             <LocationInsightsModal 
                 isOpen={isLocationInsightsOpen} 

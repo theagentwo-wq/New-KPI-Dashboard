@@ -34,6 +34,7 @@ const App: React.FC = () => {
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
+    const [isExecutiveSummaryOpen, setExecutiveSummaryOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
 
     useEffect(() => {
@@ -160,6 +161,7 @@ const App: React.FC = () => {
                 onOpenAlerts={() => setIsAlertsModalOpen(true)}
                 onOpenDataEntry={() => setDataEntryOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
+                onOpenExecutiveSummary={() => setExecutiveSummaryOpen(true)}
             />
             
             <div className="flex-1 overflow-y-auto transition-all duration-300">
@@ -185,6 +187,8 @@ const App: React.FC = () => {
                                 budgets={budgets}
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
+                                isExecutiveSummaryOpen={isExecutiveSummaryOpen}
+                                setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
