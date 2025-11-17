@@ -60,13 +60,13 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
     return (
         <motion.div 
             variants={itemVariants}
-            whileHover={{ scale: 1.05, y: -5 }}
+            whileHover={{ scale: 1.05, y: -5, zIndex: 10 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start"
+            className="relative bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start"
         >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
-                <div className="text-5xl font-bold text-slate-100 mt-1">
+                <div className="text-4xl font-bold text-slate-100 mt-1">
                     <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
                 </div>
                 <div className={`text-sm font-semibold mt-1 ${getVarianceColor(variance)}`}>
