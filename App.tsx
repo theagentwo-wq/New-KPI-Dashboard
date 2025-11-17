@@ -53,12 +53,16 @@ const App: React.FC = () => {
                     setNotes(fetchedNotes);
                 } catch (error) {
                     console.error("Error fetching notes from Firebase:", error);
-                    setDbStatus({ status: 'error', message: 'Successfully connected, but failed to fetch notes.' });
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    setDbStatus({ 
+                        status: 'error', 
+                        message: `Successfully connected, but failed to fetch notes.\n\nError: ${errorMessage}` 
+                    });
                 }
             }
         };
         fetchNotes();
-    }, [dbStatus]);
+    }, [dbStatus.status]);
     
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
         if (dbStatus.status !== 'connected') return;

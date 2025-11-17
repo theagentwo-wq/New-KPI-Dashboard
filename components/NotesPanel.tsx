@@ -150,10 +150,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
+    
+    // Determine the title based on the message content
+    const isConnectionError = dbStatus.message?.includes('config');
+    const title = isConnectionError ? "Database Connection Failed" : "Database Error";
+
     return (
       <div className="p-3 bg-yellow-900/50 border border-yellow-700 rounded-md space-y-2">
         <div className="text-center">
-          <p className="text-sm text-yellow-300 font-semibold">Notes Feature Disabled: Database Connection Failed</p>
+          <p className="text-sm text-yellow-300 font-semibold">Notes Feature Disabled: {title}</p>
           <p className="text-xs text-yellow-400 mt-1 whitespace-pre-wrap">{dbStatus.message}</p>
         </div>
         {dbStatus.rawValue && (
@@ -180,7 +185,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     if (dbStatus.status === 'error') {
        return (
         <div className="flex items-center justify-center h-full p-4 text-center">
-          <p className="text-slate-400">Database connection failed. Please check the configuration error above.</p>
+          <p className="text-slate-400">Database operation failed. Please check the error details above.</p>
         </div>
       );
     }

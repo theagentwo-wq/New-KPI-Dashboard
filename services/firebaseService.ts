@@ -85,13 +85,17 @@ export const getNotes = async (): Promise<Note[]> => {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
             const data: any = doc.data();
+            const createdAt = data.createdAt instanceof Timestamp 
+                ? data.createdAt.toDate().toISOString()
+                : new Date().toISOString(); // Fallback to current time if invalid
+
             const note: Note = {
                 id: doc.id,
                 monthlyPeriodLabel: data.monthlyPeriodLabel,
                 view: data.view,
                 category: data.category,
                 content: data.content,
-                createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+                createdAt: createdAt,
                 storeId: data.storeId ?? undefined,
                 imageUrl: data.imageUrl ?? undefined,
             };
@@ -99,6 +103,16 @@ export const getNotes = async (): Promise<Note[]> => {
         });
     } catch (error) {
         console.error("Error fetching notes from Firestore:", error);
+        if (error instanceof Error) {
+            if (error.message.includes("permission-denied") || error.message.includes("PERMISSION_DENIED")) {
+                throw new Error("Permission denied. Please check your Firestore Security Rules to allow reads on the 'notes' collection. See the README for instructions.");
+            }
+            if (error.message.includes("failed-precondition") || error.message.includes("requires an index")) {
+                const urlMatch = error.message.match(/https?:\/\/[^\s)]*/);
+                const indexLink = urlMatch ? urlMatch[0] : "Please check the developer console for an index creation link.";
+                throw new Error(`A Firestore index is required for this query. Please see the README for instructions, or create the index here: ${indexLink}`);
+            }
+        }
         throw error;
     }
 };

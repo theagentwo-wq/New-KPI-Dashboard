@@ -134,19 +134,54 @@ The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CO
 
 ---
 
-##  Troubleshooting
+## Troubleshooting
 
-### "Database Connection Failed" Error in the Notes Panel
+### "Database Connection Failed" Error
 
-If you see an error in the Notes panel saying `The config value from your Netlify settings is invalid...`, it means the value for `FIREBASE_CLIENT_CONFIG` in your Netlify environment variables is not a valid JSON string.
-
-The error panel will show you the **exact problematic string** it received from Netlify.
+If you see an error in the Notes panel saying `The config value from your Netlify settings is invalid...`, it means the value for `FIREBASE_CLIENT_CONFIG` in your Netlify environment variables is not a valid JSON string. The error panel will show you the **exact problematic string** it received.
 
 **To fix this:**
+1.  Go to an online JSON validator, like [jsonlint.com](https://jsonlint.com).
+2.  Paste the string from the error panel into the validator. It will highlight the exact syntax error.
+3.  Correct the error, copy the valid single-line JSON, paste it into your Netlify `FIREBASE_CLIENT_CONFIG` variable, and redeploy.
 
-1.  **Go to an online JSON validator**, like [jsonlint.com](https://jsonlint.com).
-2.  **Paste the string from the error panel** into the validator. It will highlight the exact syntax error (e.g., a trailing comma, a missing quote).
-3.  **Correct the error in the validator.**
-4.  Once it's valid, **copy the corrected, single-line JSON string**.
-5.  Go back to your **Netlify Environment Variables** and **paste the corrected string** into the `FIREBASE_CLIENT_CONFIG` value field.
-6.  **Trigger a new deploy.** This will solve the issue.
+### "Successfully connected, but failed to fetch notes" Error
+
+If you see this error, your Firebase config is correct, but there's an issue reading from the database. The specific error message will tell you which of the two common problems below is the cause.
+
+#### 1. Error Message: "Permission denied..."
+
+This means your Firestore Security Rules are blocking the app. This is the **default, secure behavior** for a new database.
+
+**To Fix (for this demo project):**
+
+1.  Go to the **Firebase Console**.
+2.  Navigate to **Firestore Database > Rules**.
+3.  You will see rules that look like `allow read, write: if request.auth != null;`. This means only logged-in users can access the database.
+4.  For this project, which has no login system, you can open up access by replacing the existing rules with the following:
+    ```
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        // Allow public read access to the 'notes' collection
+        match /notes/{noteId} {
+          allow read: if true;
+          // Keep writes secure or open them for the demo
+          allow write: if true; // Allows anyone to write, use for demo purposes only
+        }
+      }
+    }
+    ```
+5.  Click **"Publish"**. Changes can take a minute to take effect. Refresh your app.
+
+#### 2. Error Message: "A Firestore index is required..."
+
+This means Firestore needs you to create an index to handle the app's query for notes (which are sorted by date). The error message from the app will often include a **direct link to create the index**.
+
+**To Fix:**
+
+1.  **Click the link** provided in the error message in the app's UI.
+2.  The link will take you directly to the "Create Index" page in your Firebase console with all the fields pre-filled.
+3.  Click the **"Create"** button.
+4.  Index creation can take a few minutes. You can monitor its status in the "Indexes" tab.
+5.  Once the index is enabled, refresh your app. The notes will now load correctly.
