@@ -165,7 +165,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
         <div className="bg-slate-800 rounded-lg border border-slate-700">
             <div className="p-4 space-y-4">
                 <div className="flex flex-wrap justify-between items-center gap-4">
-                    <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-blue-400">{title}</h3>
+                    <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">{title}</h3>
                      <div className="flex items-center bg-slate-900 rounded-md p-1">
                         {periodTypes.map(type => (
                             <button key={type} onClick={() => setPeriodType(type)} className={`px-3 py-1 text-sm font-semibold rounded ${periodType === type ? 'bg-cyan-500 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>

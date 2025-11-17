@@ -27,7 +27,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ data, view, 
 
   return (
     <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-      <h2 className="text-lg font-bold text-cyan-400 mb-2">Executive Summary</h2>
+      <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">Executive Summary</h2>
       {isLoading ? (
         <div className="flex items-center justify-center space-x-2">
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>

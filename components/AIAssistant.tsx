@@ -81,7 +81,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, 
   return (
     <div className="flex flex-col h-[500px] bg-slate-800 rounded-lg border border-slate-700">
       <div className="p-4 border-b border-slate-700">
-        <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-blue-400">AI Assistant</h3>
+        <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">AI Assistant</h3>
       </div>
       
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
