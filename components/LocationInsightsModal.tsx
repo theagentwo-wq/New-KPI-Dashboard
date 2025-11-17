@@ -56,9 +56,21 @@ const QuickStat: React.FC<{ kpi: Kpi; value?: number }> = ({ kpi, value }) => {
     if (value === undefined || isNaN(value)) return null;
 
     const config = KPI_CONFIG[kpi];
-    const formattedValue = kpi.includes('Cost') || kpi.includes('SOP') || kpi.includes('Score')
-        ? `${(value * 100).toFixed(1)}%`
-        : value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    let formattedValue: string;
+
+    switch (config.format) {
+        case 'currency':
+            formattedValue = value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            break;
+        case 'percent':
+            formattedValue = `${(value * 100).toFixed(1)}%`;
+            break;
+        case 'number':
+            formattedValue = value.toFixed(2);
+            break;
+        default:
+            formattedValue = value.toString();
+    }
 
     return (
         <div className="flex items-center justify-between text-sm">
