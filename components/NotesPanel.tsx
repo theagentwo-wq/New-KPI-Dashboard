@@ -309,7 +309,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 <button
                     key={cat}
                     onClick={() => setFilterCategory(cat)}
-                    className={`flex items-center justify-center gap-2 px-3 py-1 text-xs rounded-full transition-colors ${
+                    className={`flex items-center justify-center text-center gap-2 px-3 py-1 text-xs rounded-full transition-colors ${
                     filterCategory === cat ? 'bg-cyan-600 text-white font-semibold' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                 >
@@ -343,24 +343,28 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               </button>
             </div>
           )}
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
-                <Icon name="photo" className="w-4 h-4" />
-                <span className="hidden sm:inline">Attach Photo</span>
-              </button>
-              <div className="flex items-center gap-2">
-                {NOTE_CATEGORIES.map(c => (
-                    <button
-                        key={c}
-                        onClick={() => setCategory(c)}
-                        title={c}
-                        className={`w-5 h-5 rounded-full transition-transform duration-150 ease-in-out ${NOTE_CATEGORY_COLORS[c].replace('border-', 'bg-')} ${category === c ? 'ring-2 ring-offset-2 ring-offset-slate-800 ring-white scale-110' : 'hover:scale-110'}`}
-                    />
-                ))}
-              </div>
-            </div>
-             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
+          <div className="flex items-center gap-2 flex-wrap pb-3">
+            {NOTE_CATEGORIES.map(c => (
+                <button
+                    key={c}
+                    onClick={() => setCategory(c)}
+                    className={`px-3 py-1 text-xs rounded-full flex items-center gap-2 transition-colors font-medium ${
+                        category === c
+                            ? 'bg-cyan-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                >
+                    <span className={`w-2 h-2 rounded-full ${NOTE_CATEGORY_COLORS[c].replace('border-', 'bg-')}`}></span>
+                    {c}
+                </button>
+            ))}
+        </div>
+          <div className="flex justify-between items-center pt-3 border-t border-slate-700/50">
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
+              <Icon name="photo" className="w-4 h-4" />
+              <span className="hidden sm:inline">Attach Photo</span>
+            </button>
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
             <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>
               Add Note
             </button>
