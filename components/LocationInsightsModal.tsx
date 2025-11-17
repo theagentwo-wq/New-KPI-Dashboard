@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getStoreVisuals, getReviewSummary } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary } from '../services/geminiService';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi, StoreDetails } from '../types';
@@ -103,8 +103,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     // State for data fetching
     const [weather, setWeather] = useState<WeatherInfo | null>(null);
-    const [storeImage, setStoreImage] = useState<string | null>(null);
-    const [isImageLoading, setIsImageLoading] = useState(true);
 
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -133,30 +131,20 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (!isOpen) {
             setIsFullScreen(false);
             setActiveTab('reviews');
-        } else if (location && storeDetails) {
+        } else if (location) {
             // Reset all content when a new location is opened
             setAnalysisContent({});
             setIsLoading({});
-            setStoreImage(null);
-            setIsImageLoading(true);
             setWeather(null);
             
-            const fetchVisuals = async () => {
-                setIsImageLoading(true);
-                const dataUrl = await getStoreVisuals(location, storeDetails.address);
-                setStoreImage(dataUrl);
-                setIsImageLoading(false);
-            };
-
             const fetchWeather = async () => {
                 const weatherData = await getWeatherForLocation(location);
                 setWeather(weatherData);
             };
 
-            fetchVisuals();
             fetchWeather();
         }
-    }, [isOpen, location, storeDetails]);
+    }, [isOpen, location]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
@@ -219,6 +207,13 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     };
     
+    const handleViewPhotos = () => {
+        if (!location || !storeDetails) return;
+        const query = encodeURIComponent(`Tupelo Honey Cafe ${location} ${storeDetails.address}`);
+        const url = `https://www.google.com/search?tbm=isch&q=${query}`;
+        window.open(url, '_blank');
+    };
+
     const tabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
         { id: 'market', label: 'Local Market', icon: 'sop' },
@@ -364,25 +359,14 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     )}
                     
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                        <h4 className="font-bold text-slate-300 mb-3">AI-Generated Storefront</h4>
-                        <div className="h-40 w-full rounded-md flex items-center justify-center bg-slate-800">
-                            {isImageLoading ? (
-                                <div className="flex flex-col items-center justify-center text-center text-slate-500">
-                                    <svg className="animate-spin h-6 w-6 text-cyan-400 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <p className="text-xs">Generating image...</p>
-                                </div>
-                            ) : storeImage ? (
-                                <img src={storeImage} alt={`AI generated storefront for ${location}`} className="h-full w-full object-cover rounded-md shadow-lg" />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-center text-slate-500">
-                                    <Icon name="photo" className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">Image could not be generated.</p>
-                                </div>
-                            )}
-                        </div>
+                        <h4 className="font-bold text-slate-300 mb-3">Store Photos</h4>
+                        <button 
+                            onClick={handleViewPhotos}
+                            className="w-full flex items-center justify-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-200 font-semibold rounded-md transition-colors"
+                        >
+                            <Icon name="photo" className="w-5 h-5" />
+                            View Photos on Google
+                        </button>
                     </div>
 
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-between">

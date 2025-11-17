@@ -401,26 +401,6 @@ ${formattedNotes}`;
                 return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
             }
 
-            case 'getStoreVisuals': {
-                const { location, address } = payload;
-                const prompt = `Generate a single, photorealistic, daytime, street-level image of the exterior of the Tupelo Honey Southern Kitchen & Bar in ${location}, located at "${address}". The restaurant has a modern but rustic feel, with large windows and often a patio area. The sign prominently features the name "Tupelo Honey". Ensure the image is clear, well-lit, and accurately represents a vibrant restaurant storefront.`;
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-image',
-                    contents: { parts: [{ text: prompt }] },
-                    config: { responseModalities: [Modality.IMAGE] },
-                });
-
-                let base64ImageBytes = '';
-                for (const part of response.candidates?.[0]?.content?.parts || []) {
-                    if (part.inlineData?.data) {
-                        base64ImageBytes = part.inlineData.data;
-                        break;
-                    }
-                }
-                const dataUrl = base64ImageBytes ? `data:image/png;base64,${base64ImageBytes}` : null;
-                return { statusCode: 200, headers, body: JSON.stringify({ data: dataUrl }) };
-            }
-
             default:
                 return { statusCode: 400, headers, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
         }

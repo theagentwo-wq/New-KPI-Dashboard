@@ -201,13 +201,3 @@ export const getNoteTrends = async (notes: Note[]): Promise<string> => {
         return getDetailedErrorMessage(error);
     }
 };
-
-export const getStoreVisuals = async (location: string, address: string): Promise<string | null> => {
-    try {
-        const result = await callAIApi('getStoreVisuals', { location, address });
-        return result.data || null;
-    } catch (error) {
-        console.error("Error fetching store visuals:", error);
-        return null;
-    }
-};
