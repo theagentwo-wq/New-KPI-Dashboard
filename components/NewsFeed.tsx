@@ -164,6 +164,17 @@ export const NewsFeed: React.FC = () => {
                     Published: {new Date(selectedArticle.pubDate).toLocaleString()}
                 </p>
                 <div dangerouslySetInnerHTML={{ __html: selectedArticle.content }} />
+                <div className="pt-4 mt-4 border-t border-slate-700 not-prose">
+                    <a
+                        href={selectedArticle.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors no-underline"
+                    >
+                        <Icon name="externalLink" className="w-5 h-5" />
+                        Read Full Article on {selectedArticle.sourceName}
+                    </a>
+                </div>
             </div>
           </Modal>
       )}
