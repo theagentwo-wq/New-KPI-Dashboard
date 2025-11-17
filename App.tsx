@@ -25,7 +25,7 @@ import { getAnomalyDetections } from './services/geminiService';
 import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
 import { PerformanceMatrix } from './components/PerformanceMatrix';
 import { NewsFeed } from './components/NewsFeed';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, isFirebaseInitialized } from './services/firebaseService';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -91,6 +91,7 @@ const App: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+    const [isDbConnected, setIsDbConnected] = useState(false);
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -113,6 +114,8 @@ const App: React.FC = () => {
     const [selectedLocationForReview, setSelectedLocationForReview] = useState<string | undefined>(undefined);
 
     useEffect(() => {
+        setIsDbConnected(isFirebaseInitialized());
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -128,11 +131,13 @@ const App: React.FC = () => {
         }
 
         const fetchNotes = async () => {
-            try {
-                const fetchedNotes = await getNotes();
-                setNotes(fetchedNotes);
-            } catch (error) {
-                console.error("Error fetching notes from Firebase:", error);
+            if (isFirebaseInitialized()) {
+                try {
+                    const fetchedNotes = await getNotes();
+                    setNotes(fetchedNotes);
+                } catch (error) {
+                    console.error("Error fetching notes from Firebase:", error);
+                }
             }
         };
         fetchNotes();
@@ -488,13 +493,13 @@ const App: React.FC = () => {
                         ? (
                             <>
                                 <KPITable data={aggregatedData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
-                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} heightClass="h-[500px]" />
+                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} heightClass="h-[500px]" isDbConnected={isDbConnected} />
                             </>
                         )
                         : (
                             <>
                                 <CompanyStoreRankings data={allStoresBreakdownData} comparisonLabel={comparisonMode} onLocationSelect={handleLocationSelect} onReviewClick={handleOpenReviewAnalysis} />
-                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} />
+                                <NotesPanel allNotes={notes} addNote={addNote} updateNote={updateNote} deleteNote={deleteNote} currentView={currentView} mainDashboardPeriod={currentPeriod} isDbConnected={isDbConnected} />
                             </>
                         )
                     }

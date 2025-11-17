@@ -1,5 +1,12 @@
-// Fix: Add a triple-slash directive to include Vite's client types, which resolves the TypeScript error for `import.meta.env`.
-/// <reference types="vite/client" />
+// Fix: Manually define the type for `import.meta.env` to resolve TypeScript errors
+// when the `vite/client` type definitions are not being picked up correctly.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_FIREBASE_CLIENT_CONFIG: string;
+    };
+  }
+}
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
@@ -47,6 +54,8 @@ const initializeFirebase = () => {
 
 // Initialize Firebase when the module is first loaded.
 initializeFirebase();
+
+export const isFirebaseInitialized = () => !!db;
 
 export const getNotes = async (): Promise<Note[]> => {
     // Gracefully handle the case where Firebase initialization failed.

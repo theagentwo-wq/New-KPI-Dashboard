@@ -15,9 +15,10 @@ interface NotesPanelProps {
   currentView: View;
   mainDashboardPeriod: Period;
   heightClass?: string;
+  isDbConnected: boolean;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]' }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[500px]', isDbConnected }) => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>('General');
   const [stagedImage, setStagedImage] = useState<string | null>(null);
@@ -164,7 +165,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 </div>
                 <button 
                   onClick={handleAnalyzeTrends}
-                  disabled={filteredNotes.length < 2}
+                  disabled={filteredNotes.length < 2 || !isDbConnected}
                   className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title={filteredNotes.length < 2 ? "Need at least 2 notes to analyze trends" : "Analyze Note Trends with AI"}
                 >
@@ -179,6 +180,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 >
                 {noteScopeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
+             {!isDbConnected && (
+                <div className="p-2 bg-yellow-900/50 border border-yellow-700 rounded-md text-center">
+                    <p className="text-xs text-yellow-300">Notes feature disabled: Could not connect to the database. Please check configuration.</p>
+                </div>
+            )}
         </div>
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {filteredNotes.length === 0 ? (
@@ -227,9 +233,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`Add new note...`}
+            placeholder={isDbConnected ? 'Add new note...' : 'Database not connected.'}
             rows={2}
             className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
+            disabled={!isDbConnected}
           />
           {stagedImage && (
             <div className="relative w-fit">
@@ -241,15 +248,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           )}
           <div className="flex flex-wrap justify-between items-center gap-2">
             <div className="flex items-center gap-2">
-                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500">
+                <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500" disabled={!isDbConnected}>
                   {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors">
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-3 rounded-md transition-colors" disabled={!isDbConnected}>
                    <Icon name="photo" className="w-4 h-4" /> Attach Photo
                 </button>
             </div>
-            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md">
+            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={!isDbConnected}>
               Add Note
             </button>
           </div>
