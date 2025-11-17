@@ -9,19 +9,17 @@ interface Article {
   pubDate: string;
 }
 
-// Top 10 RSS Feeds from https://www.restaurantnewsresource.com/rss-feeds
+// A more diverse and reliable list of RSS feeds for the restaurant industry.
 const RSS_FEEDS = [
-    { name: 'Restaurant Industry News', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_INDUSTRY_NEWS.xml' },
-    { name: 'Franchise & Chain News', url: 'https://www.restaurantnewsresource.com/rss_FRANCHISE_AND_CHAIN_RESTAURANT_NEWS.xml' },
-    { name: 'Marketing & Promotions', url: 'https://www.restaurantnewsresource.com/rss_MARKETING_AND_PROMOTIONS.xml' },
-    { name: 'Restaurant Technology', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_TECHNOLOGY.xml' },
-    { name: 'Operations & Management', url: 'https://www.restaurantnewsresource.com/rss_OPERATIONS_AND_MANAGEMENT.xml' },
+    { name: 'Restaurant Business', url: 'https://www.restaurantbusinessonline.com/rss/headlines' },
+    { name: 'Nation\'s Restaurant News', url: 'https://www.nrn.com/rss.xml' },
+    { name: 'Restaurant Hospitality', url: 'https://www.restaurant-hospitality.com/rss.xml' },
+    { name: 'QSR Magazine', url: 'https://www.qsrmagazine.com/rss.xml' },
+    { name: 'Modern Restaurant Mgmt', url: 'https://modernrestaurantmanagement.com/feed/' },
     { name: 'Menu & Food Trends', url: 'https://www.restaurantnewsresource.com/rss_MENU_AND_FOOD_TRENDS.xml' },
-    { name: 'Economic & Financial', url: 'https://www.restaurantnewsresource.com/rss_ECONOMIC_AND_FINANCIAL_REPORTS.xml' },
-    { name: 'Restaurant Real Estate', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_REAL_ESTATE.xml' },
-    { name: 'Health & Nutrition', url: 'https://www.restaurantnewsresource.com/rss_HEALTH_AND_NUTRITION.xml' },
-    { name: 'Green Restaurants', url: 'https://www.restaurantnewsresource.com/rss_GREEN_RESTAURANTS.xml' },
+    { name: 'Restaurant Technology', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_TECHNOLOGY.xml' },
 ];
+
 
 /**
  * A more robust, dependency-free RSS parser. It handles common XML variations like tag attributes,

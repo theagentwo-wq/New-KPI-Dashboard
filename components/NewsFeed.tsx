@@ -11,10 +11,40 @@ interface Article {
   pubDate: string;
 }
 
+const stripHtml = (html: string) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || "";
+};
+
+const ArticleCard: React.FC<{ article: Article, onSelect: () => void }> = ({ article, onSelect }) => {
+    const snippet = stripHtml(article.content).substring(0, 100) + '...';
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            onClick={onSelect}
+            className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 hover:border-cyan-500 cursor-pointer flex flex-col justify-between h-full group"
+        >
+            <div>
+                <p className="text-xs font-semibold text-cyan-400 mb-1">{article.sourceName}</p>
+                <h3 className="text-md font-bold text-slate-200 group-hover:text-white transition-colors">{article.title}</h3>
+                <p className="text-xs text-slate-400 mt-2">{snippet}</p>
+            </div>
+            <p className="text-xs text-slate-500 mt-3">{new Date(article.pubDate).toLocaleDateString()}</p>
+        </motion.div>
+    );
+};
+
 export const NewsFeed: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState('All');
   const [error, setError] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -26,10 +56,13 @@ export const NewsFeed: React.FC = () => {
       try {
         const response = await fetch('/.netlify/functions/rss-proxy');
         if (!response.ok) {
-          throw new Error('Failed to fetch news feeds.');
+          throw new Error('Failed to fetch news feeds. The sources may be temporarily unavailable.');
         }
         const data: Article[] = await response.json();
         setArticles(data);
+        setFilteredArticles(data);
+        const uniqueCategories = ['All', ...Array.from(new Set(data.map(a => a.sourceName)))];
+        setCategories(uniqueCategories);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
         setArticles([]);
@@ -40,6 +73,14 @@ export const NewsFeed: React.FC = () => {
 
     fetchNews();
   }, []);
+  
+  useEffect(() => {
+    if (activeCategory === 'All') {
+        setFilteredArticles(articles);
+    } else {
+        setFilteredArticles(articles.filter(a => a.sourceName === activeCategory));
+    }
+  }, [activeCategory, articles]);
 
   const handleSelectArticle = (article: Article) => {
     setSelectedArticle(article);
@@ -64,49 +105,50 @@ export const NewsFeed: React.FC = () => {
   );
 
   return (
-    <div className="mt-4 p-4 border border-slate-700 rounded-lg">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between text-sm font-semibold text-slate-400 uppercase"
-      >
-        <div className="flex items-center gap-2">
-             <Icon name="news" className="w-5 h-5" />
-             <span>Industry News</span>
+    <div className="mt-4">
+        <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-slate-700">
+            {categories.map(category => (
+                <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors ${
+                        activeCategory === category
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                >
+                    {category}
+                </button>
+            ))}
         </div>
-        <Icon name={isOpen ? 'chevronLeft' : 'chevronRight'} className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-90' : '-rotate-90'}`} />
-      </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-4 space-x-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.1s]"></div>
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
-                </div>
-              ) : error ? (
-                <p className="text-xs text-red-400 p-2">{error}</p>
-              ) : articles.length > 0 ? (
-                articles.map((article, index) => (
-                  <button key={index} onClick={() => handleSelectArticle(article)} className="block w-full text-left p-2 rounded-md hover:bg-slate-700 transition-colors">
-                    <p className="text-sm font-semibold text-slate-200 truncate">{article.title}</p>
-                    <p className="text-xs text-cyan-400">{article.sourceName}</p>
-                  </button>
-                ))
-              ) : (
-                <p className="text-xs text-slate-500 p-2 text-center">No news articles available at this time.</p>
-              )}
+        {isLoading ? (
+            <div className="flex items-center justify-center py-10 space-x-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
+                <p className="text-slate-400">Fetching latest news...</p>
             </div>
-          </motion.div>
+        ) : error ? (
+            <div className="text-center py-10">
+                <p className="text-red-400">{error}</p>
+            </div>
+        ) : (
+            <motion.div
+                layout
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+            >
+                <AnimatePresence>
+                    {filteredArticles.length > 0 ? (
+                        filteredArticles.map((article, index) => (
+                            <ArticleCard key={`${article.link}-${index}`} article={article} onSelect={() => handleSelectArticle(article)} />
+                        ))
+                    ) : (
+                        <p className="text-slate-500 col-span-full text-center py-10">No articles found for this category.</p>
+                    )}
+                </AnimatePresence>
+            </motion.div>
         )}
-      </AnimatePresence>
       
       {selectedArticle && (
           <Modal 
@@ -116,7 +158,7 @@ export const NewsFeed: React.FC = () => {
             size={isFullScreen ? 'fullscreen' : 'large'}
             headerControls={headerControls}
           >
-             <div className="prose prose-sm prose-invert max-w-none text-slate-200 h-full overflow-y-auto custom-scrollbar">
+             <div className="prose prose-sm prose-invert max-w-none text-slate-200 h-full overflow-y-auto custom-scrollbar pr-2">
                 <h3 className="text-cyan-400 !mb-2">{selectedArticle.title}</h3>
                 <p className="text-xs text-slate-400 !mt-0">
                     Published: {new Date(selectedArticle.pubDate).toLocaleString()}
