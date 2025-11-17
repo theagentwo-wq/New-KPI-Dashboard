@@ -402,19 +402,22 @@ ${formattedNotes}`;
             }
 
             case 'getStoreVisuals': {
-                const { address } = payload;
-                const prompt = `You are a visual asset retrieval specialist for the restaurant chain 'Tupelo Honey Cafe'. Your task is to find up to 5 high-quality, publicly available image URLs for the specific location at: '${address}'.
+                const { location, address } = payload;
+                const prompt = `You are an expert visual asset retrieval specialist for the restaurant chain 'Tupelo Honey Cafe'. Your primary task is to find up to 5 high-quality, publicly available image URLs for the specific restaurant location: "${location}" at the address: "${address}".
 
-**Strategy:**
-1.  **Multi-Query Search:** Use the Google Search tool with several targeted queries to maximize results. Try variations like:
-    *   "Tupelo Honey Cafe ${address} exterior photo"
-    *   "Tupelo Honey Cafe ${address} interior dining photo"
-    *   "food photos from Tupelo Honey Cafe ${address}"
-    *   Search on Google Maps for the address and look for user-submitted photos.
-2.  **Source Prioritization:** Prioritize images from reputable sources like Google Maps listings, official social media pages, high-quality review sites (e.g., Yelp, TripAdvisor), and food blogs.
-3.  **Image URL Extraction:** Diligently inspect search results to find direct image URLs (ending in .jpg, .png, .webp, or similar, or URLs that are clearly image links from services like Google User Content). Do not return links to web pages, only to the images themselves.
-4.  **Content Diversity:** Aim for a mix of images: at least one exterior shot, one interior shot, and a couple of food photos if possible.
-5.  **Final Output:** Return a JSON array of up to 5 unique, valid image URL strings. If you cannot find any suitable images after trying multiple queries, return an empty array [].
+**Critical Instructions:**
+1.  **Mandatory Multi-Query Strategy:** You MUST execute several distinct Google Search queries to find the best images. Do not stop after one search.
+2.  **Utilize Full Address:** Your searches MUST incorporate the specific address: "${address}". This is non-negotiable for accuracy.
+3.  **Prioritize Google Maps:** A primary source for high-quality, relevant photos is the Google Maps listing for the address. Actively search for user-submitted photos there.
+4.  **Query Variations (Examples - you MUST try several):**
+    *   "photos of Tupelo Honey Cafe ${address}"
+    *   "Tupelo Honey Cafe ${location} exterior"
+    *   "Tupelo Honey Cafe ${location} interior dining room"
+    *   "Tupelo Honey Cafe ${location} food photos"
+    *   "Google Maps photos for ${address}"
+5.  **Content Diversity:** Strive for a variety of images: an exterior shot showing the entrance, an interior shot of the dining area, and photos of their popular food dishes.
+6.  **Direct Image URLs ONLY:** Your final output must be direct links to image files (e.g., ending in .jpg, .png, .webp) or from known image content hosts (like lh3.googleusercontent.com). Do NOT return links to web pages (like Yelp pages or news articles).
+7.  **Final Output:** Return a JSON array of up to 5 unique, valid image URL strings. If, after exhaustive searching with multiple queries, you cannot find any suitable images, return an empty array [].
 
 **Output ONLY the JSON array.**`;
                 const response = await ai.models.generateContent({

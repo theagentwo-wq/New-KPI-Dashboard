@@ -346,7 +346,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                                     className="w-full h-full border-0"
                                     loading="lazy"
                                     allowFullScreen
-                                    src={`https://maps.google.com/maps?layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,90,0,0,0&output=svembed`}>
+                                    src={`https://maps.google.com/maps?layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&output=svembed`}>
                                 </iframe>
                             </div>
                              <div className="p-3 text-sm">
