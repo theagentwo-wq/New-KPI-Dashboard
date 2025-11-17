@@ -66,10 +66,10 @@ const App: React.FC = () => {
         fetchInitialData();
     }, [dbStatus.status]);
     
-    const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
+    const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => {
         if (dbStatus.status !== 'connected') return;
         try {
-            const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageUrl);
+            const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageDataUrl);
             setNotes(prev => [newNote, ...prev]);
         } catch (error) {
             console.error("Failed to add note:", error);

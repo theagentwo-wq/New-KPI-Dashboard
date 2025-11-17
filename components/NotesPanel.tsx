@@ -11,7 +11,7 @@ import { FirebaseStatus } from '../services/firebaseService';
 
 interface NotesPanelProps {
   allNotes: Note[];
-  addNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => void;
+  addNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
   updateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
   deleteNote: (noteId: string) => void;
   currentView: View;

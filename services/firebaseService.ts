@@ -124,8 +124,21 @@ export const getNotes = async (): Promise<Note[]> => {
     }
 };
 
-export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string): Promise<Note> => {
-    if (!isInitialized || !notesCollection) {
+export const uploadNoteAttachment = async (noteId: string, imageDataUrl: string): Promise<string> => {
+    if (!storage) {
+        throw new Error("Cannot upload attachment, Firebase Storage is not initialized.");
+    }
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const fileExtension = blob.type.split('/')[1] || 'jpg';
+    const storageRef = ref(storage, `note_attachments/${noteId}/attachment-${Date.now()}.${fileExtension}`);
+    await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+};
+
+export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
+    if (!isInitialized || !notesCollection || !db) {
         throw new Error("Cannot add note, Firebase is not initialized.");
     }
 
@@ -139,14 +152,28 @@ export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory
         createdAt: createdAtTimestamp,
     };
     if (scope.storeId) newNoteDataForDb.storeId = scope.storeId;
-    if (imageUrl) newNoteDataForDb.imageUrl = imageUrl;
     
+    // Add the note document first to get an ID
     const docRef = await addDoc(notesCollection, newNoteDataForDb);
+    
+    let finalImageUrl: string | undefined = undefined;
+
+    // If an image was provided, upload it and update the note document
+    if (imageDataUrl) {
+        try {
+            finalImageUrl = await uploadNoteAttachment(docRef.id, imageDataUrl);
+            const noteRef = doc(db, 'notes', docRef.id);
+            await updateDoc(noteRef, { imageUrl: finalImageUrl });
+        } catch (uploadError) {
+            console.error("Failed to upload note attachment, but note was saved without image.", uploadError);
+        }
+    }
     
     return {
         id: docRef.id,
         ...newNoteDataForDb,
         createdAt: createdAtTimestamp.toDate().toISOString(),
+        imageUrl: finalImageUrl,
     };
 };
 

@@ -83,7 +83,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
 interface DashboardPageProps {
     currentView: View;
     notes: Note[];
-    onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => void;
+    onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
     onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
     onDeleteNote: (noteId: string) => void;
     dbStatus: FirebaseStatus;
