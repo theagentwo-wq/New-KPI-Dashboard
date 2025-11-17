@@ -33,31 +33,50 @@ export const getNotes = async (): Promise<Note[]> => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => {
         const data = doc.data();
-        return {
+        const note: Note = {
             id: doc.id,
-            ...data,
-            // Firestore timestamps need to be converted to ISO strings for consistency
+            monthlyPeriodLabel: data.monthlyPeriodLabel,
+            view: data.view,
+            category: data.category,
+            content: data.content,
             createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-        } as Note;
+            // This handles both `null` from old data and `undefined` (missing field) from new data
+            storeId: data.storeId ?? undefined,
+            imageUrl: data.imageUrl ?? undefined,
+        };
+        return note;
     });
 };
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string): Promise<Note> => {
-    const newNoteData = {
+    const createdAtTimestamp = Timestamp.now();
+    
+    // Data to be saved in Firestore. `undefined` fields will be omitted.
+    const newNoteDataForDb = {
         monthlyPeriodLabel,
         category,
         content,
         view: scope.view,
-        storeId: scope.storeId || null,
-        imageUrl: imageUrl || null,
-        createdAt: Timestamp.now(), // Use Firestore Timestamp for proper ordering
+        storeId: scope.storeId,
+        imageUrl: imageUrl,
+        createdAt: createdAtTimestamp,
     };
-    const docRef = await addDoc(notesCollection, newNoteData);
-    return {
+    
+    const docRef = await addDoc(notesCollection, newNoteDataForDb);
+    
+    // Construct the Note object for the return value, which matches the TS interface
+    const newNote: Note = {
         id: docRef.id,
-        ...newNoteData,
-        createdAt: (newNoteData.createdAt).toDate().toISOString(),
+        monthlyPeriodLabel,
+        category,
+        content,
+        view: scope.view,
+        storeId: scope.storeId,
+        imageUrl: imageUrl,
+        createdAt: createdAtTimestamp.toDate().toISOString(),
     };
+
+    return newNote;
 };
 
 export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
