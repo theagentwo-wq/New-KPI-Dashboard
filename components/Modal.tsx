@@ -38,10 +38,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className={`bg-slate-800 rounded-lg shadow-xl text-slate-200 border border-slate-700 flex flex-col ${getSizeClass()}`}
+            className={`bg-slate-800/80 backdrop-blur-lg rounded-lg shadow-xl text-slate-200 border border-slate-600/90 flex flex-col ${getSizeClass()}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-slate-700">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/80">
               <h2 className="text-xl font-bold text-cyan-400">{title}</h2>
               <div className="flex items-center gap-2">
                 {headerControls}

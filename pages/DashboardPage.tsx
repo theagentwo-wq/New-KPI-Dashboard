@@ -52,15 +52,21 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, variance }) => {
         return formatDisplayValue(v, title)
     }, [title]);
 
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: { y: 0, opacity: 1 }
+    };
+
     return (
         <motion.div 
+            variants={itemVariants}
             whileHover={{ scale: 1.05, y: -5 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 transition-colors duration-200 flex justify-between items-start"
+            className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex justify-between items-start backdrop-blur-sm"
         >
             <div>
                 <p className="text-sm font-medium text-slate-400">{title}</p>
-                <div className="text-4xl font-bold text-slate-100 mt-1">
+                <div className="text-5xl font-bold text-slate-100 mt-1">
                     <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
                 </div>
                 <div className={`text-sm font-semibold mt-1 ${getVarianceColor(variance)}`}>
@@ -266,24 +272,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         const currentIndex = periods.findIndex(p => p.label === currentPeriod.label);
         if (currentIndex < periods.length - 1) setCurrentPeriod(periods[currentIndex + 1]);
     };
+    
+    const containerVariants = {
+        hidden: { opacity: 1 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.05
+            }
+        }
+    };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
-
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-6">
-                {mainKpis.map(kpi => (
-                    <KPICard 
-                        key={kpi} 
-                        title={kpi} 
-                        value={aggregatedData[kpi]} 
-                        variance={(aggregatedData[kpi] || 0) - (aggregatedComparisonData[kpi] || 0)}
-                    />
-                ))}
-            </div>
-            
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+                {/* Main Content Area (75%) */}
+                <div className="xl:col-span-3 space-y-6">
+                    <ExecutiveSummary data={directorAggregates} view={currentView} period={currentPeriod} />
+                    <motion.div 
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-6"
+                    >
+                        {mainKpis.map(kpi => (
+                            <KPICard 
+                                key={kpi} 
+                                title={kpi} 
+                                value={aggregatedData[kpi]} 
+                                variance={(aggregatedData[kpi] || 0) - (aggregatedComparisonData[kpi] || 0)}
+                            />
+                        ))}
+                    </motion.div>
+                    
                     <CompanyStoreRankings 
                         data={processedDataForTable} 
                         currentView={currentView}
@@ -308,8 +329,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                         heightClass="max-h-[600px]"
                     />
                 </div>
-                <div className="xl:col-span-1 space-y-6">
-                    <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
+                {/* AI Hub (25%) */}
+                <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
+                     <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
                     <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                     <PerformanceMatrix 
                         periodLabel={currentPeriod.label}
@@ -319,6 +341,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                     />
                 </div>
             </div>
+
 
             <LocationInsightsModal 
                 isOpen={isLocationInsightsOpen} 
