@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory } from './types';
-import { DIRECTORS } from './constants';
 import { getInitialPeriod } from './utils/dateUtils';
 import { generateMockBudgets, generateMockGoals } from './data/mockData';
 import { DataEntryModal } from './components/DataEntryModal';
@@ -9,11 +8,10 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
-import { ImageUploaderModal } from './components/ImageUploaderModal';
 
 
 // Main App Component
@@ -24,7 +22,7 @@ const App: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>(generateMockGoals());
     const [notes, setNotes] = useState<Note[]>([]);
     const [dbStatus, setDbStatus] = useState<FirebaseStatus>({ status: 'initializing' });
-    const [directors, setDirectors] = useState<DirectorProfile[]>(DIRECTORS);
+    const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -35,7 +33,6 @@ const App: React.FC = () => {
     const [isDataEntryOpen, setDataEntryOpen] = useState(false);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
-    const [isImageUploaderOpen, setImageUploaderOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
 
     useEffect(() => {
@@ -47,22 +44,26 @@ const App: React.FC = () => {
     }, []);
     
     useEffect(() => {
-        const fetchNotes = async () => {
+        const fetchInitialData = async () => {
             if (dbStatus.status === 'connected') {
                 try {
-                    const fetchedNotes = await getNotes();
+                    const [fetchedNotes, fetchedDirectors] = await Promise.all([
+                        getNotes(),
+                        getDirectorProfiles()
+                    ]);
                     setNotes(fetchedNotes);
+                    setDirectors(fetchedDirectors);
                 } catch (error) {
-                    console.error("Error fetching notes from Firebase:", error);
+                    console.error("Error fetching initial data from Firebase:", error);
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     setDbStatus({ 
                         status: 'error', 
-                        message: `Successfully connected, but failed to fetch notes.\n\nError: ${errorMessage}` 
+                        message: `Successfully connected, but failed to fetch data.\n\nError: ${errorMessage}` 
                     });
                 }
             }
         };
-        fetchNotes();
+        fetchInitialData();
     }, [dbStatus.status]);
     
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageUrl?: string) => {
@@ -92,6 +93,21 @@ const App: React.FC = () => {
             setNotes(prev => prev.filter(n => n.id !== noteId));
         } catch (error) {
             console.error("Failed to delete note:", error);
+        }
+    };
+
+    const handleUpdateDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
+        if (dbStatus.status !== 'connected') {
+            throw new Error("Database not connected.");
+        }
+        try {
+            const photoUrl = await uploadDirectorPhoto(directorId, file);
+            await updateDirectorPhotoUrl(directorId, photoUrl);
+            setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, photo: photoUrl } : d));
+            return photoUrl;
+        } catch (error) {
+            console.error("Failed to update director photo:", error);
+            throw error; // Re-throw to be caught in the component
         }
     };
     
@@ -129,19 +145,6 @@ const App: React.FC = () => {
         setProfileOpen(true);
     };
 
-    const handleUpdateDirectorPhotos = (photoData: { directorId: string; base64Image: string }[]) => {
-        setDirectors(prevDirectors => {
-            const newDirectors = [...prevDirectors];
-            photoData.forEach(update => {
-                const directorIndex = newDirectors.findIndex(d => d.id === update.directorId);
-                if (directorIndex > -1) {
-                    newDirectors[directorIndex] = { ...newDirectors[directorIndex], photo: update.base64Image };
-                }
-            });
-            return newDirectors;
-        });
-    };
-
     return (
         <div className="bg-slate-900 min-h-screen text-slate-200 flex">
             <Sidebar 
@@ -155,7 +158,6 @@ const App: React.FC = () => {
                 onOpenProfile={openProfileModal}
                 onOpenDataEntry={() => setDataEntryOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
-                onOpenImageUploader={() => setImageUploaderOpen(true)}
             />
             
             <div className="flex-1 overflow-y-auto transition-all duration-300">
@@ -198,12 +200,7 @@ const App: React.FC = () => {
                 director={selectedDirector} 
                 selectedKpi={Kpi.Sales} 
                 period={currentPeriod}
-            />
-             <ImageUploaderModal
-                isOpen={isImageUploaderOpen}
-                onClose={() => setImageUploaderOpen(false)}
-                onUpdate={handleUpdateDirectorPhotos}
-                directors={directors}
+                onUpdatePhoto={handleUpdateDirectorPhoto}
             />
 
         </div>

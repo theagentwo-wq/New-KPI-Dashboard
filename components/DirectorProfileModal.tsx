@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { DirectorProfile, Kpi, Period, PerformanceData } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
@@ -14,17 +14,22 @@ interface DirectorProfileModalProps {
   directorStoreData?: { [storeId: string]: { actual: PerformanceData }};
   selectedKpi: Kpi;
   period: Period;
+  onUpdatePhoto: (directorId: string, file: File) => Promise<string>;
 }
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onUpdatePhoto }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
       setSnapshot('');
       setSanitizedHtml('');
+      setUploadError(null);
     }
   }, [isOpen]);
 
@@ -47,6 +52,21 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     const result = await getDirectorPerformanceSnapshot(director.name, period.label, directorAggregateData);
     setSnapshot(result);
     setIsLoading(false);
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !director) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+        await onUpdatePhoto(director.id, file);
+    } catch (error) {
+        setUploadError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+        setIsUploading(false);
+    }
   };
 
   if (!director) return null;
@@ -76,8 +96,25 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
               alt={`${director.name} ${director.lastName}`} 
               className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover"
             />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+            <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity"
+            >
+                <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm">
+                    <Icon name="edit" className="w-4 h-4" /> Change
+                </span>
+            </button>
+            {isUploading && (
+                <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center rounded-full">
+                     <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            )}
           </div>
-
+          {uploadError && <p className="text-xs text-red-400 mt-2">{uploadError}</p>}
           <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
           <p className="text-cyan-400">{director.title}</p>
         </div>

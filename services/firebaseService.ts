@@ -1,6 +1,9 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
-import { Note, NoteCategory, View } from '../types';
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
+import { Note, NoteCategory, View, DirectorProfile } from '../types';
+import { DIRECTORS as fallbackDirectors } from '../constants';
+
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
@@ -9,7 +12,9 @@ export type FirebaseStatus =
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
 let notesCollection: CollectionReference<DocumentData> | null = null;
+let directorsCollection: CollectionReference<DocumentData> | null = null;
 let isInitialized = false;
 
 /**
@@ -55,7 +60,9 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         }
         
         db = getFirestore(app);
+        storage = getStorage(app);
         notesCollection = collection(db, 'notes');
+        directorsCollection = collection(db, 'directors');
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
         return { status: 'connected' };
@@ -160,4 +167,46 @@ export const deleteNoteById = async (noteId: string): Promise<void> => {
     }
     const noteRef = doc(db, 'notes', noteId);
     await deleteDoc(noteRef);
+};
+
+export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
+    if (!isInitialized || !db || !directorsCollection) {
+        console.error("Firebase not initialized. Cannot fetch director profiles. Returning fallback data.");
+        return fallbackDirectors;
+    }
+    try {
+        const snapshot = await getDocs(directorsCollection);
+        if (snapshot.empty) {
+            console.log("No director profiles found in Firestore, seeding with initial data...");
+            const batch = writeBatch(db);
+            fallbackDirectors.forEach(director => {
+                const docRef = doc(directorsCollection!, director.id);
+                batch.set(docRef, director);
+            });
+            await batch.commit();
+            return fallbackDirectors;
+        }
+        return snapshot.docs.map(doc => doc.data() as DirectorProfile);
+    } catch (error) {
+        console.error("Error fetching director profiles:", error);
+        return fallbackDirectors; // Return fallback data on error
+    }
+};
+
+export const uploadDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
+    if (!isInitialized || !storage) {
+        throw new Error("Cannot upload photo, Firebase Storage is not initialized.");
+    }
+    const storageRef = ref(storage, `director_photos/${directorId}/${file.name}`);
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+};
+
+export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: string): Promise<void> => {
+    if (!isInitialized || !db) {
+        throw new Error("Cannot update photo URL, Firebase is not initialized.");
+    }
+    const directorRef = doc(db, 'directors', directorId);
+    await updateDoc(directorRef, { photo: photoUrl });
 };

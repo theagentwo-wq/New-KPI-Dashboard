@@ -14,7 +14,6 @@ interface SidebarProps {
   onOpenProfile: (director: DirectorProfile) => void;
   onOpenDataEntry: () => void;
   onOpenScenarioModeler: () => void;
-  onOpenImageUploader: () => void;
 }
 
 const NavLink: React.FC<{
@@ -64,7 +63,7 @@ const DirectorLink: React.FC<{
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenDataEntry, onOpenScenarioModeler, onOpenImageUploader }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenDataEntry, onOpenScenarioModeler }) => {
   return (
     <motion.aside 
       animate={{ width: isCollapsed ? '5rem' : '16rem' }}
@@ -94,7 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
             
             <NavLink icon="plus" label="Data Entry" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
             <NavLink icon="sparkles" label="Scenario Modeler" isActive={false} isCollapsed={isCollapsed} onClick={onOpenScenarioModeler} />
-            <NavLink icon="photo" label="Manage Photos" isActive={false} isCollapsed={isCollapsed} onClick={onOpenImageUploader} />
         </div>
         
         {/* Director Navigation */}
