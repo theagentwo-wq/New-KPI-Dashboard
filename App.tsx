@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Goal, SavedView, DirectorProfile, Note, NoteCategory, Anomaly } from './types';
+import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory } from './types';
 import { DIRECTORS } from './constants';
-import { getInitialPeriod, ALL_PERIODS } from './utils/dateUtils';
-import { generateDataForPeriod, generateMockBudgets, generateMockGoals } from './data/mockData';
+import { getInitialPeriod } from './utils/dateUtils';
+import { generateMockBudgets, generateMockGoals } from './data/mockData';
 import { DataEntryModal } from './components/DataEntryModal';
 import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
@@ -28,8 +28,7 @@ const App: React.FC = () => {
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
-    const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
-    const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
+    const [currentPeriod] = useState<Period>(getInitialPeriod());
     
     // Modal States
     const [isDataEntryOpen, setDataEntryOpen] = useState(false);

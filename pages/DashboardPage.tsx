@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-// FIX: Add NoteCategory to the import to resolve type errors.
 import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, SavedView, Anomaly, Note, NoteCategory } from '../types';
-// FIX: Add ALL_STORES to the import to resolve a missing variable error.
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS, KPI_ICON_MAP } from '../constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
 import { generateDataForPeriod } from '../data/mockData';
@@ -238,7 +236,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
 
     const mainKpis: Kpi[] = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
     
-    const historicalDataForAI = useMemo(() => {
+    const historicalDataForAI: { periodLabel: string; data: PerformanceData }[] = useMemo(() => {
         const periods: Period[] = [];
         let current: Period | undefined = currentPeriod;
         for (let i = 0; i < 6 && current; i++) {
@@ -249,7 +247,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
         return periods.map(p => ({
             periodLabel: p.label,
             data: aggregatePerformance(generateDataForPeriod(p))
-        }));
+        })).reverse();
     }, [currentPeriod]);
 
 
