@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, SavedView, Anomaly, Note } from '../types';
-import { KPI_CONFIG, DIRECTORS, ALL_KPIS, KPI_ICON_MAP } from '../constants';
+// FIX: Add NoteCategory to the import to resolve type errors.
+import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, SavedView, Anomaly, Note, NoteCategory } from '../types';
+// FIX: Add ALL_STORES to the import to resolve a missing variable error.
+import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS, KPI_ICON_MAP } from '../constants';
 import { getInitialPeriod, ALL_PERIODS, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
 import { generateDataForPeriod } from '../data/mockData';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
