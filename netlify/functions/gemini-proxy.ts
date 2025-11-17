@@ -403,14 +403,22 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { location, address } = payload;
-                const prompt = `Use Google Search to find up to 5 image URLs for the restaurant "Tupelo Honey Cafe" in ${location} at "${address}".
+                const prompt = `You are an expert image search assistant. Your task is to find up to 5 high-quality, relevant image URLs for the restaurant "Tupelo Honey Cafe" located at "${address}".
 
-**Priorities:**
-1.  **Primary Source:** Google Maps. Search for the address on Google Maps and find user-submitted photos. These are the best source.
-2.  **Image Types:** Find a mix of exterior, interior, and food photos.
-3.  **URL Format:** Extract direct image URLs. URLs from Google (e.g., containing "lh3.googleusercontent.com") are strongly preferred.
+**This is a difficult task, so you must be thorough and creative. It is critical that you return image URLs. Do not give up easily.**
 
-Your entire response must be ONLY a valid JSON array of strings. Do not add any other text. If no images are found, return an empty array [].`;
+**Your Strategy:**
+1.  **Perform MULTIPLE search queries.** If one query fails, try a different one.
+2.  **Use diverse search terms.** Try combinations like:
+    *   "Tupelo Honey Cafe ${location} exterior photo"
+    *   "Tupelo Honey Cafe ${location} interior dining room"
+    *   "Best dishes at Tupelo Honey Cafe ${location}"
+    *   "Tupelo Honey Cafe at ${address} Google Maps photos"
+    *   "Tupelo Honey Cafe ${location} Yelp reviews photos"
+3.  **Search multiple sources.** Look for photos on Google Maps, Yelp, TripAdvisor, food blogs, and local news articles.
+4.  **Extract DIRECT image URLs.** Find URLs that end in .jpg, .png, .webp, or .gif. Do not return links to web pages.
+
+Your entire response MUST be a valid JSON array of strings representing the direct image URLs. If after trying at least three different search strategies you still find nothing, you may return an empty array [].`;
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,
