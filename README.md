@@ -89,7 +89,7 @@ This step is critical for the deployed application to work.
     -   **Value**: Paste your Google Gemini API key.
 3.  Add your **Firebase Client Config**:
     -   **Key**: `FIREBASE_CLIENT_CONFIG`
-    -   **Value**: Paste the same single-line JSON string for your Firebase client config that you used in your `.env.local` file.
+    -   **Value**: Paste the single-line JSON string for your Firebase client config. See the guide below for the exact format.
 
 ### 5. Deploy
 
@@ -101,38 +101,33 @@ Trigger a new deploy from the "Deploys" tab.
 
 The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CONFIG` variable. Follow these steps exactly.
 
-### Step 1: Register Your Web App (The Missing Step)
+### Step 1: Get Your Config Object
 
 1.  In the Firebase Console, go to **Project Settings > General**.
 2.  Scroll down to the **"Your apps"** card.
-3.  If it says "There are no apps in your project", click the **Web icon (`</>`)**.
-4.  Give your app a nickname (e.g., "Operations Dashboard").
-5.  Click **"Register app"**. Do **not** set up Hosting at this time.
-6.  On the next screen ("Add Firebase SDK"), Firebase will display the `firebaseConfig` object. This is what you need. Proceed to Step 2.
-
-### Step 2: How to Get and Format Your Config
-
-1.  On the "Add Firebase SDK" screen, find the `firebaseConfig` object. It looks like this:
+3.  If you don't have an app, click the Web icon (`</>`) to create one.
+4.  In the app settings, find the **"SDK setup and configuration"** section and select **"Config"**.
+5.  You will see the `firebaseConfig` object. This is what you need.
     ```javascript
     const firebaseConfig = {
       apiKey: "AIzaSy...",
       authDomain: "your-project.firebaseapp.com",
       projectId: "your-project",
-      storageBucket: "your-project.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:12345..."
+      // ... and so on
     };
     ```
-2.  Copy the entire object, from the opening `{` to the closing `}`.
-3.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a single line.
-4.  Wrap this single line in single quotes (`'`) and use this as the value in your `.env.local` or Netlify environment variable settings.
+
+### Step 2: Format the Config for Use
+
+1.  Copy the entire object, from the opening `{` to the closing `}`.
+2.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a **single, continuous line of text**.
+3.  This single line is the value you will paste into your `.env.local` file and your Netlify settings.
 
 #### ✅ Correct Final Format:
-`'{"apiKey":"AIzaSy...","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}'`
+`{"apiKey":"AIzaSy...","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}`
 
 #### ❌ Common Mistakes to Avoid:
--   Using multi-line strings.
--   Using double quotes around the whole string (this can interfere with the quotes inside the JSON).
--   Missing quotes around keys or values inside the JSON.
--   Having a trailing comma after the last property.
--   Copying the `const firebaseConfig = ` part.
+-   **Do not** wrap the final string in any quotes (`'` or `"`). Paste the raw `{"key":...}` object.
+-   **Do not** include `const firebaseConfig =` or the final semicolon `;`.
+-   Ensure there are no newlines or line breaks. It must be a single line.
+-   Ensure there is no trailing comma after the last property inside the `{...}`.

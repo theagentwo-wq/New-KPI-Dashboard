@@ -28,9 +28,10 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
                 const errorBody = await response.json();
                 errorText = errorBody.error || errorText;
             } catch (e) {
-                errorText += ` Could not parse error response from proxy.`;
+                // The response was not JSON, which can happen with some server errors.
+                 const rawResponse = await response.text();
+                 errorText += ` Raw response: "${rawResponse}"`;
             }
-            // This new, unique message proves the new code is running.
             throw new Error(`[Proxy Error] ${errorText}`);
         }
 
@@ -59,13 +60,14 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
         
-        const newErrorMessage = `[New Logic] Failed to initialize Firebase via proxy.
+        const newErrorMessage = `The FIREBASE_CLIENT_CONFIG value from your Netlify settings appears to be invalid. 
 Error: ${error.message || 'Unknown error'}. 
 
-Troubleshooting steps:
-1. Verify the Netlify environment variable is named FIREBASE_CLIENT_CONFIG (no 'VITE_').
-2. Check the Netlify function logs for 'firebase-config-proxy' for server-side errors.
-3. Trigger a new deploy and clear your browser cache.`;
+Please follow these steps:
+1. Go to your Firebase project settings and re-copy the config object.
+2. Go to your Netlify site settings and edit the FIREBASE_CLIENT_CONFIG variable.
+3. Paste the new value, ensuring it is a single line with no surrounding quotes.
+4. Trigger a new deploy on Netlify.`;
 
         return { 
             status: 'error', 

@@ -8,7 +8,6 @@ export const handler = async () => {
     };
     
     // Reads the config from the server-side environment variable.
-    // Note: The variable name must NOT start with VITE_
     const configStr = process.env.FIREBASE_CLIENT_CONFIG;
 
     if (!configStr) {
@@ -20,9 +19,14 @@ export const handler = async () => {
     }
 
     try {
-        // The config is stored as a single-quoted JSON string, e.g., '{"key":"value"}'
-        // We need to clean it up, parse it, and then re-stringify it as a valid JSON response.
-        const cleanedConfigStr = configStr.trim().replace(/^'|'$/g, '');
+        // More robust parsing:
+        // 1. Trim whitespace.
+        // 2. Check for and remove surrounding quotes (either ' or ").
+        let cleanedConfigStr = configStr.trim();
+        if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
+            cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
+        }
+        
         const configObject = JSON.parse(cleanedConfigStr);
 
         return {
@@ -35,7 +39,7 @@ export const handler = async () => {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Failed to parse Firebase config on the server. Ensure it is a valid single-line JSON string." }),
+            body: JSON.stringify({ error: "Failed to parse Firebase config on the server. The value provided in the FIREBASE_CLIENT_CONFIG environment variable is not a valid JSON string. Please re-copy it from your Firebase project settings." }),
         };
     }
 };
