@@ -81,7 +81,7 @@ Netlify should automatically detect these settings:
 
 ### 4. Add Environment Variables
 
-This step is critical for the deployed application to work.
+This step is **critical** for the deployed application to work. You must add **both** of the following variables from your `.env.local` file to your Netlify settings.
 
 1.  In your Netlify site's dashboard, go to **Site configuration > Environment variables**.
 2.  Add your **Gemini API Key**:

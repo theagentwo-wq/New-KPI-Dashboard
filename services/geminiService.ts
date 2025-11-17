@@ -26,13 +26,18 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     } catch (error) {
         console.error(`Error calling AI API proxy for action "${action}":`, error);
         if (error instanceof Error) {
-            throw new Error(`AI Service Error: ${error.message}`);
+            // The service name is already in the error from the proxy, so we just re-throw.
+            throw new Error(error.message);
         }
         throw new Error('An unknown error occurred while contacting the AI service.');
     }
 }
 
-const AI_ERROR_MESSAGE = "An error occurred while connecting to the AI service.";
+const getDetailedErrorMessage = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    // Add a clear prefix to identify the source of the error in the UI.
+    return `[AI Service Error] ${message}`;
+};
 
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
     try {
@@ -40,7 +45,7 @@ export const getExecutiveSummary = async (data: any, view: View, periodLabel: st
         return result.content || "Could not generate summary.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -50,7 +55,7 @@ export const getInsights = async (data: any, view: View, periodLabel: string, qu
         return result.content || "Could not get insights.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -60,7 +65,7 @@ export const getTrendAnalysis = async (historicalData: any, view: View): Promise
         return result.content || "Could not generate trend analysis.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -70,7 +75,7 @@ export const getDirectorPerformanceSnapshot = async (directorName: string, perio
         return result.content || "Could not generate performance snapshot.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -90,7 +95,7 @@ export const generateHuddleBrief = async (location: string, storeData: any, audi
         return result.content || "Could not generate huddle brief.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -100,7 +105,7 @@ export const runWhatIfScenario = async (data: any, userPrompt: string): Promise<
         return result.data || { analysis: "Could not model the scenario at this time.", args: null };
     } catch (error) {
         console.error("Error in what-if scenario:", error);
-        return { analysis: "Could not model the scenario at this time.", args: null };
+        return { analysis: getDetailedErrorMessage(error), args: null };
     }
 };
 
@@ -110,6 +115,7 @@ export const getSalesForecast = async (location: string, weatherForecast: DailyF
         return result.data || [];
     } catch (error) {
         console.error("Error fetching sales forecast:", error);
+        // We can't return a string here, so we return an empty array. The console log will show the error.
         return [];
     }
 };
@@ -120,7 +126,7 @@ export const getReviewSummary = async (location: string): Promise<string> => {
         return result.content || "Could not generate review summary.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -130,7 +136,7 @@ export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: 
         return result.content || "Could not analyze variance.";
     } catch (error) {
         console.error(error);
-        return "Could not analyze variance.";
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -140,7 +146,7 @@ export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiA
         return result.content || "Could not generate quadrant analysis.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -150,7 +156,7 @@ export const getLocationMarketAnalysis = async (location: string): Promise<strin
         return result.content || "Could not generate market analysis.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -160,7 +166,7 @@ export const getMarketingIdeas = async (location: string, userLocation?: { latit
         return result.content || "Could not generate marketing ideas.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
 
@@ -170,6 +176,6 @@ export const getNoteTrends = async (notes: Note[]): Promise<string> => {
         return result.content || "Could not analyze note trends.";
     } catch (error) {
         console.error(error);
-        return AI_ERROR_MESSAGE;
+        return getDetailedErrorMessage(error);
     }
 };
