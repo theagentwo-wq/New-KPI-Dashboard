@@ -1,5 +1,5 @@
 import React from 'react';
-import { ComparisonMode, SavedView } from '../types';
+import { SavedView } from '../types';
 import { Icon } from './Icon';
 
 interface TimeSelectorProps {
