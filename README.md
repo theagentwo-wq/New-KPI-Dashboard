@@ -37,8 +37,8 @@ This project requires environment variables for both Google Gemini and Google Fi
 2.  Add your configuration to this file.
 
 ```
-# Your Google AI Gemini API Key (used by a backend function)
-GEMINI_API_KEY=your_gemini_api_key_here
+# Your Google AI Gemini API Key (must start with VITE_ to be exposed to the client)
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 
 # Your Firebase Web App's configuration object, as a JSON string.
 # In the Firebase Console, go to Project Settings > General > Your apps > Web app.
@@ -83,8 +83,8 @@ This is the most important step for the deployed application to work.
 
 1.  In your site's dashboard on Netlify, go to "Site configuration" -> "Environment variables".
 2.  Click "Add a variable".
-3.  Add the `GEMINI_API_KEY`:
-    -   **Key**: `GEMINI_API_KEY`
+3.  Add the `VITE_GEMINI_API_KEY`:
+    -   **Key**: `VITE_GEMINI_API_KEY`
     -   **Value**: Your Google Gemini API key.
     -   Click "Create variable".
 4.  Add the `VITE_FIREBASE_CLIENT_CONFIG`:
