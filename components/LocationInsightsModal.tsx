@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getStreetViewMetadata, getPlaceDetails, PlaceDetails } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary } from '../services/geminiService';
 import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition, Kpi, StoreDetails } from '../types';
@@ -19,13 +19,6 @@ interface LocationInsightsModalProps {
 
 type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
-type StreetViewStatus = 'loading' | 'OK' | 'ZERO_RESULTS' | 'ERROR';
-
-type StreetViewData = {
-    status: StreetViewStatus;
-    lat?: number;
-    lon?: number;
-};
 
 // --- Reusable Components for the Modal ---
 
@@ -101,27 +94,6 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
-const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
-    const fullStars = Math.floor(rating);
-    const halfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-
-    const starIcon = (
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-    );
-
-    return (
-        <div className="flex items-center">
-            {[...Array(fullStars)].map((_, i) => <span key={`full-${i}`} className="text-yellow-400">{starIcon}</span>)}
-            {/* Note: Half-star rendering is complex, so we'll represent it as a full star for simplicity here but acknowledge the fractional rating */}
-            {halfStar && <span className="text-yellow-400">{starIcon}</span>}
-            {[...Array(emptyStars)].map((_, i) => <span key={`empty-${i}`} className="text-slate-600">{starIcon}</span>)}
-        </div>
-    );
-};
-
 // --- Main Modal Component ---
 
 export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData, userLocation }) => {
@@ -129,11 +101,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [activeTab, setActiveTab] = useState<AnalysisTab>('reviews');
     
-    // State for data fetching
-    const [streetViewData, setStreetViewData] = useState<StreetViewData>({ status: 'loading' });
-    const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
-    const [isPlaceDetailsLoading, setIsPlaceDetailsLoading] = useState(true);
-
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
         reviews?: any;
@@ -156,38 +123,15 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     }, [location]);
 
 
-    // Reset all state when the modal is closed or the location changes
+    // Reset all state when the modal is closed
     useEffect(() => {
         if (!isOpen) {
             setIsFullScreen(false);
             setActiveTab('reviews');
-        } else if (location && storeDetails) {
             setAnalysisContent({});
             setIsLoading({});
-            setStreetViewData({ status: 'loading' });
-            setPlaceDetails(null);
-            setIsPlaceDetailsLoading(true);
-            
-            const fetchInitialVisuals = async () => {
-                // Fetch StreetView and PlaceDetails in parallel
-                const svPromise = getStreetViewMetadata(storeDetails.address, storeDetails.lat, storeDetails.lon);
-                const pdPromise = getPlaceDetails(location, storeDetails.address);
-
-                const [svMeta, details] = await Promise.all([svPromise, pdPromise]);
-
-                if (svMeta.status === 'OK') {
-                    setStreetViewData({ status: 'OK', lat: svMeta.lat, lon: svMeta.lon });
-                } else {
-                    setStreetViewData({ status: svMeta.status as StreetViewStatus, lat: svMeta.lat, lon: svMeta.lon });
-                }
-                
-                setPlaceDetails(details);
-                setIsPlaceDetailsLoading(false);
-            };
-
-            fetchInitialVisuals();
         }
-    }, [isOpen, location, storeDetails]);
+    }, [isOpen]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
@@ -257,105 +201,29 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         { id: 'forecast', label: 'Forecast', icon: 'sales' },
         { id: 'marketing', label: 'Marketing', icon: 'sparkles' },
     ];
-    
-    const renderStreetView = () => {
-        const { status, lat, lon } = streetViewData;
-        const containerClasses = "h-40 w-full overflow-hidden rounded-t-lg bg-slate-800 flex items-center justify-center text-slate-400 text-sm";
-        
-        switch (status) {
-            case 'loading':
-                return (
-                    <div className={containerClasses}>
-                        <svg className="animate-spin h-6 w-6 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                );
-            case 'OK':
-                if (!lat || !lon) return null;
-                return (
-                    <div className={containerClasses}>
-                        <iframe
-                            key={`sv-${lat}-${lon}`}
-                            title="Google Maps Street View"
-                            className="w-full h-full border-0"
-                            loading="lazy"
-                            allowFullScreen
-                            src={`https://www.google.com/maps?q&layer=c&cbll=${lat},${lon}&cbp=12,0,0,0,0&output=svembed`}>
-                        </iframe>
-                    </div>
-                );
-            case 'ZERO_RESULTS':
-            case 'ERROR':
-                if (!lat || !lon) {
-                     return (
-                        <div className={containerClasses}>
-                            Street View and map are unavailable.
-                        </div>
-                    );
-                }
-                return (
-                    <div className={`${containerClasses} relative`}>
-                         <iframe
-                            key={`map-${lat}-${lon}`}
-                            title="Google Maps Satellite View"
-                            className="w-full h-full border-0"
-                            loading="lazy"
-                            allowFullScreen
-                            src={`https://www.google.com/maps?q=${lat},${lon}&z=18&t=k&output=embed`}>
-                        </iframe>
-                        <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs p-1 rounded">
-                           Interactive Street View not available. Showing satellite map.
-                        </div>
-                    </div>
-                );
-        }
-    }
 
-    const renderLocationDetails = () => {
-        if (isPlaceDetailsLoading) {
+    const renderMapEmbed = () => {
+        if (!storeDetails) {
             return (
-                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 min-h-[170px] flex items-center justify-center">
-                    <LoadingSpinner message="Fetching location details..." />
+                <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
+                    Location address not found.
                 </div>
             );
         }
 
-        if (!placeDetails) {
-            return (
-                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 min-h-[170px] flex items-center justify-center text-center">
-                    <p className="text-sm text-slate-400">Could not load location details from Google Maps.</p>
-                </div>
-            );
-        }
+        // Use the full address for the query to leverage Google's powerful place matching.
+        // This is more reliable than using coordinates for finding a specific business.
+        const searchQuery = encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${storeDetails.address}`);
+        const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.API_KEY}&q=${searchQuery}`;
 
         return (
-            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
-                <h4 className="font-bold text-slate-300">Location Details</h4>
-                <div className="flex items-center justify-between">
-                    <p className="font-semibold text-white truncate pr-2">{placeDetails.name}</p>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                        <span className="font-bold text-yellow-400">{placeDetails.rating.toFixed(1)}</span>
-                        <StarRating rating={placeDetails.rating} />
-                    </div>
-                </div>
-
-                {placeDetails.photoUrls && placeDetails.photoUrls.length > 0 ? (
-                     <div className="flex overflow-x-auto gap-2 pb-2 custom-scrollbar -mx-4 px-4">
-                         {placeDetails.photoUrls.map((url, index) => (
-                             <img 
-                                 key={index}
-                                 src={url}
-                                 alt={`Store photo ${index + 1}`}
-                                 className="w-40 h-28 object-cover rounded-md flex-shrink-0 border-2 border-slate-700"
-                             />
-                         ))}
-                     </div>
-                ) : (
-                    <p className="text-sm text-slate-500 text-center py-4">No photos available on Google Maps.</p>
-                )}
-            </div>
+            <iframe
+                title="Google Maps Embed"
+                className="w-full h-full border-0"
+                loading="lazy"
+                allowFullScreen
+                src={embedUrl}>
+            </iframe>
         );
     };
 
@@ -469,29 +337,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                             </div>
                         )}
                     </div>
-
-                     {storeDetails ? (
-                        <div className="bg-slate-900/50 rounded-lg border border-slate-700">
-                            {renderStreetView()}
-                             <div className="p-3 text-sm">
-                                <p className="font-semibold text-slate-300">{storeDetails.address}</p>
-                                <a
-                                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(storeDetails.address)}${userLocation ? `&origin=${userLocation.latitude},${userLocation.longitude}` : ''}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block mt-2 text-cyan-400 hover:text-cyan-300 font-semibold"
-                                >
-                                    Get Directions &rarr;
-                                </a>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-slate-900/50 rounded-lg border border-slate-700 p-3 text-sm text-slate-400">
-                            Location details not found.
-                        </div>
-                    )}
                     
-                    {renderLocationDetails()}
+                    <div className="h-64 bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden">
+                        {renderMapEmbed()}
+                    </div>
 
                     {performanceData && (
                         <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-2">
