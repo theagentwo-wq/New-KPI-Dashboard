@@ -18,6 +18,7 @@ import { ReviewAnalysisModal } from '../components/ReviewAnalysisModal';
 import { PerformanceMatrix } from '../components/PerformanceMatrix';
 import { FirebaseStatus } from '../services/firebaseService';
 import { motion } from 'framer-motion';
+import { Modal } from '../components/Modal';
 
 // Helper to format values for display
 const formatDisplayValue = (value: number, kpi: Kpi) => {
@@ -90,9 +91,11 @@ interface DashboardPageProps {
     loadedData: StorePerformanceData[];
     setLoadedData: React.Dispatch<React.SetStateAction<StorePerformanceData[]>>;
     budgets: Budget[];
+    isAlertsModalOpen: boolean;
+    setIsAlertsModalOpen: (isOpen: boolean) => void;
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, setLoadedData, budgets }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, setLoadedData, budgets, isAlertsModalOpen, setIsAlertsModalOpen }) => {
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
@@ -242,7 +245,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
     const handleAnomalySelect = useCallback((anomaly: Anomaly) => {
         setSelectedAnomaly(anomaly);
         setAnomalyModalOpen(true);
-    }, []);
+        // Also close the main alerts modal if it's open, for a cleaner UX
+        setIsAlertsModalOpen(false);
+    }, [setIsAlertsModalOpen]);
 
     const mainKpis: Kpi[] = [Kpi.Sales, Kpi.PrimeCost, Kpi.SOP, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
     
@@ -331,18 +336,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
                 </div>
                 {/* AI Hub (25%) */}
                 <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
-                    <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
-                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                     <PerformanceMatrix 
                         periodLabel={currentPeriod.label}
                         currentView={currentView}
                         allStoresData={allStoresProcessedData}
                         directorAggregates={directorAggregates}
                     />
+                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
             </div>
 
-
+            <Modal
+                isOpen={isAlertsModalOpen}
+                onClose={() => setIsAlertsModalOpen(false)}
+                title="AI Alerts"
+            >
+                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                    <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
+                </div>
+            </Modal>
+            
             <LocationInsightsModal 
                 isOpen={isLocationInsightsOpen} 
                 onClose={() => setLocationInsightsOpen(false)}

@@ -32,6 +32,7 @@ const App: React.FC = () => {
     // Modal States
     const [isDataEntryOpen, setDataEntryOpen] = useState(false);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
+    const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
 
@@ -156,6 +157,7 @@ const App: React.FC = () => {
                 setCurrentView={setCurrentView}
                 directors={directors}
                 onOpenProfile={openProfileModal}
+                onOpenAlerts={() => setIsAlertsModalOpen(true)}
                 onOpenDataEntry={() => setDataEntryOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
             />
@@ -181,6 +183,8 @@ const App: React.FC = () => {
                                 loadedData={loadedData}
                                 setLoadedData={setLoadedData}
                                 budgets={budgets}
+                                isAlertsModalOpen={isAlertsModalOpen}
+                                setIsAlertsModalOpen={setIsAlertsModalOpen}
                             />
                         )}
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
