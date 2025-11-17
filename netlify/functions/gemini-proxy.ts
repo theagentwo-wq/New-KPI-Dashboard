@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, FunctionDeclaration, Modality } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Kpi, PerformanceData, View, ForecastDataPoint, DailyForecast, Note } from '../../types';
 import { KPI_CONFIG } from '../../constants';
 
