@@ -83,12 +83,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
       </div>
 
       <nav className="flex-1 space-y-2">
-        {/* Main Navigation */}
+        {/* Main Navigation & Actions */}
         <div className="space-y-1">
             <NavLink icon="dashboard" label="Dashboard" isActive={currentPage === 'Dashboard'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Dashboard')} />
             <NavLink icon="budget" label="Budget Planner" isActive={currentPage === 'Budget Planner'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Budget Planner')} />
             <NavLink icon="goal" label="Goal Setter" isActive={currentPage === 'Goal Setter'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Goal Setter')} />
             <NavLink icon="news" label="Industry News" isActive={currentPage === 'News'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('News')} />
+
+            <div className="pt-2 mt-2 border-t border-slate-700" />
+            
+            <NavLink icon="plus" label="Data Entry" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
+            <NavLink icon="sparkles" label="Scenario Modeler" isActive={false} isCollapsed={isCollapsed} onClick={onOpenScenarioModeler} />
+            <NavLink icon="photo" label="Manage Photos" isActive={false} isCollapsed={isCollapsed} onClick={onOpenImageUploader} />
         </div>
         
         {/* Director Navigation */}
@@ -119,22 +125,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
             </div>
         </div>
       </nav>
-
-      {/* Action Panel */}
-      <div className="space-y-2 pt-4 border-t border-slate-700">
-         <motion.button whileHover={{ scale: 1.05 }} onClick={onOpenDataEntry} title="Data Entry" className={`w-full flex items-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-300 hover:text-white rounded-md transition-colors text-sm ${isCollapsed ? 'justify-center' : ''}`}>
-            <Icon name="plus" className="w-4 h-4 flex-shrink-0"/>
-            {!isCollapsed && 'Data Entry'}
-        </motion.button>
-         <motion.button whileHover={{ scale: 1.05 }} onClick={onOpenScenarioModeler} title="Scenario Modeler" className={`w-full flex items-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-300 hover:text-white rounded-md transition-colors text-sm ${isCollapsed ? 'justify-center' : ''}`}>
-            <Icon name="sparkles" className="w-4 h-4 flex-shrink-0"/>
-             {!isCollapsed && 'Scenario Modeler'}
-        </motion.button>
-         <motion.button whileHover={{ scale: 1.05 }} onClick={onOpenImageUploader} title="Manage Photos" className={`w-full flex items-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-300 hover:text-white rounded-md transition-colors text-sm ${isCollapsed ? 'justify-center' : ''}`}>
-            <Icon name="photo" className="w-4 h-4 flex-shrink-0"/>
-             {!isCollapsed && 'Manage Photos'}
-        </motion.button>
-      </div>
 
     </motion.aside>
   );
