@@ -22,11 +22,18 @@ let notesCollection: CollectionReference<DocumentData> | null = null;
 const initializeFirebase = () => {
     try {
         // Correctly access Vite environment variables using import.meta.env
-        const firebaseConfigString = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+        let firebaseConfigString = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
 
         if (!firebaseConfigString) {
             console.error("Firebase config not found. VITE_FIREBASE_CLIENT_CONFIG is missing. Notes feature will be disabled.");
             return;
+        }
+        
+        // Defensive programming: Clean the string to handle common copy-paste errors.
+        // This removes whitespace and any accidental surrounding single quotes.
+        firebaseConfigString = firebaseConfigString.trim();
+        if (firebaseConfigString.startsWith("'") && firebaseConfigString.endsWith("'")) {
+            firebaseConfigString = firebaseConfigString.substring(1, firebaseConfigString.length - 1);
         }
 
         const firebaseConfig = JSON.parse(firebaseConfigString);
