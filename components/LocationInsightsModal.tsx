@@ -21,6 +21,12 @@ type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
 type StreetViewStatus = 'loading' | 'OK' | 'ZERO_RESULTS' | 'ERROR';
 
+type StreetViewData = {
+    status: StreetViewStatus;
+    lat?: number;
+    lon?: number;
+};
+
 // --- Reusable Components for the Modal ---
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -104,7 +110,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     // State for data fetching
     const [weather, setWeather] = useState<WeatherInfo | null>(null);
-    const [streetViewStatus, setStreetViewStatus] = useState<StreetViewStatus>('loading');
+    const [streetViewData, setStreetViewData] = useState<StreetViewData>({ status: 'loading' });
 
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -138,14 +144,19 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             setAnalysisContent({});
             setIsLoading({});
             setWeather(null);
-            setStreetViewStatus('loading');
+            setStreetViewData({ status: 'loading' });
             
             const fetchInitialVisuals = async () => {
                 const weatherData = await getWeatherForLocation(location);
                 setWeather(weatherData);
 
-                const svMeta = await getStreetViewMetadata(storeDetails.lat, storeDetails.lon);
-                setStreetViewStatus(svMeta.status);
+                // New address-first approach
+                const svMeta = await getStreetViewMetadata(storeDetails.address);
+                if (svMeta.status === 'OK') {
+                    setStreetViewData({ status: 'OK', lat: svMeta.lat, lon: svMeta.lon });
+                } else {
+                    setStreetViewData({ status: svMeta.status as StreetViewStatus, lat: svMeta.lat, lon: svMeta.lon });
+                }
             };
 
             fetchInitialVisuals();
@@ -229,11 +240,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     ];
     
     const renderStreetView = () => {
-        if (!storeDetails) return null;
-
+        const { status, lat, lon } = streetViewData;
         const containerClasses = "h-40 w-full overflow-hidden rounded-t-lg bg-slate-800 flex items-center justify-center text-slate-400 text-sm";
         
-        switch (streetViewStatus) {
+        switch (status) {
             case 'loading':
                 return (
                     <div className={containerClasses}>
@@ -244,29 +254,37 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     </div>
                 );
             case 'OK':
+                if (!lat || !lon) return null; // Should not happen if status is OK
                 return (
                     <div className={containerClasses}>
                         <iframe
-                            key={`sv-${storeDetails.lat}-${storeDetails.lon}`}
+                            key={`sv-${lat}-${lon}`}
                             title="Google Maps Street View"
                             className="w-full h-full border-0"
                             loading="lazy"
                             allowFullScreen
-                            src={`https://www.google.com/maps?q&layer=c&cbll=${storeDetails.lat},${storeDetails.lon}&cbp=12,0,0,0,0&output=svembed`}>
+                            src={`https://www.google.com/maps?q&layer=c&cbll=${lat},${lon}&cbp=12,0,0,0,0&output=svembed`}>
                         </iframe>
                     </div>
                 );
             case 'ZERO_RESULTS':
             case 'ERROR':
+                if (!lat || !lon) { // Fallback if geocoding also failed
+                     return (
+                        <div className={containerClasses}>
+                            Street View and map are unavailable.
+                        </div>
+                    );
+                }
                 return (
                     <div className={`${containerClasses} relative`}>
                          <iframe
-                            key={`map-${storeDetails.lat}-${storeDetails.lon}`}
+                            key={`map-${lat}-${lon}`}
                             title="Google Maps Satellite View"
                             className="w-full h-full border-0"
                             loading="lazy"
                             allowFullScreen
-                            src={`https://www.google.com/maps?q=${storeDetails.lat},${storeDetails.lon}&z=18&t=k&output=embed`}>
+                            src={`https://www.google.com/maps?q=${lat},${lon}&z=18&t=k&output=embed`}>
                         </iframe>
                         <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs p-1 rounded">
                            Interactive Street View not available. Showing satellite map.

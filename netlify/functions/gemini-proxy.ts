@@ -119,24 +119,39 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
         switch (action) {
             case 'getStreetViewMetadata': {
-                const { lat, lon } = payload;
-                if (!lat || !lon) {
-                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing latitude or longitude' }) };
+                const { address } = payload;
+                if (!address) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing address' }) };
                 }
-                // We use the Gemini key here, assuming it's a general Google Cloud key with Maps APIs enabled.
-                const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&key=${apiKey}`;
-                const response = await fetch(url);
-                const data = await response.json();
+
+                // 1. Geocode the address to get accurate coordinates
+                const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+                const geocodeResponse = await fetch(geocodeUrl);
+                const geocodeData = await geocodeResponse.json();
+
+                if (geocodeData.status !== 'OK' || !geocodeData.results[0]) {
+                    console.error("Geocoding failed for address:", address, geocodeData);
+                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'ERROR', message: 'Geocoding failed.' }) };
+                }
+
+                const location = geocodeData.results[0].geometry.location;
+                const { lat, lng: lon } = location;
+
+                // 2. Use the accurate coordinates to check for Street View metadata
+                const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&key=${apiKey}`;
+                const metadataResponse = await fetch(metadataUrl);
+                const metadata = await metadataResponse.json();
                 
-                if (data.status === 'OK') {
-                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'OK' }) };
-                }
-                if (data.status === 'ZERO_RESULTS') {
-                    return { statusCode: 200, headers, body: JSON.stringify({ status: 'ZERO_RESULTS' }) };
-                }
-                // For any other status (e.g., REQUEST_DENIED), treat it as an error/unavailable.
-                console.warn("Street View Metadata API returned non-OK status:", data.status);
-                return { statusCode: 200, headers, body: JSON.stringify({ status: 'ERROR' }) };
+                // 3. Return the status and the accurate coordinates to the client
+                return { 
+                    statusCode: 200, 
+                    headers, 
+                    body: JSON.stringify({ 
+                        status: metadata.status, 
+                        lat, 
+                        lon 
+                    }) 
+                };
             }
 
             case 'getExecutiveSummary': {
@@ -406,7 +421,7 @@ For each header, provide 2-3 bullet points of the most significant items that co
             case 'getNoteTrends': {
                 const { notes } = payload as { notes: Note[] };
                 const formattedNotes = notes.map(n => `- Note (${n.category}, ${new Date(n.createdAt).toLocaleDateString()}): ${n.content}`).join('\n');
-                const prompt = `${AI_CONTEXT} As an operations analyst, I have a collection of internal notes for a specific restaurant or region. Your task is to analyze these notes and identify recurring themes or critical issues.
+                const prompt = `${AI_CONTEXT} As an operations analyst, I have a collection of notes for a specific restaurant or region. Your task is to analyze these notes and identify recurring themes or critical issues.
 
 **Instructions:**
 1.  Read all the notes provided below.
