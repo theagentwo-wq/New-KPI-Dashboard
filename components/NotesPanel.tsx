@@ -151,14 +151,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
     return (
-      <div className="p-3 bg-yellow-900/50 border border-yellow-700 rounded-md text-center space-y-2">
-        <div>
+      <div className="p-3 bg-yellow-900/50 border border-yellow-700 rounded-md space-y-2">
+        <div className="text-center">
           <p className="text-sm text-yellow-300 font-semibold">Notes Feature Disabled: Database Connection Failed</p>
-          <p className="text-xs text-yellow-400 mt-1">{dbStatus.message}</p>
+          <p className="text-xs text-yellow-400 mt-1 whitespace-pre-wrap">{dbStatus.message}</p>
         </div>
         {dbStatus.rawValue && (
           <div className="text-left">
-            <p className="text-xs text-yellow-300 font-semibold mb-1">Value Received for `VITE_FIREBASE_CLIENT_CONFIG`:</p>
+            <p className="text-xs text-yellow-300 font-semibold mb-1">Problematic value received for `FIREBASE_CLIENT_CONFIG`:</p>
             <code className="block w-full text-xs text-slate-200 bg-slate-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
               {dbStatus.rawValue}
             </code>

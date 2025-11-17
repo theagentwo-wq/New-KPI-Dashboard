@@ -24,15 +24,19 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         
         if (!response.ok) {
             let errorText = `Proxy request failed with status ${response.status}.`;
+            let rawValue;
             try {
                 const errorBody = await response.json();
                 errorText = errorBody.error || errorText;
+                rawValue = errorBody.rawValue; // Capture the raw value from the error response
             } catch (e) {
-                // The response was not JSON, which can happen with some server errors.
                  const rawResponse = await response.text();
                  errorText += ` Raw response: "${rawResponse}"`;
             }
-            throw new Error(`[Proxy Error] ${errorText}`);
+            // Create a custom error object to pass the rawValue
+            const error = new Error(`[Proxy Error] ${errorText}`);
+            (error as any).rawValue = rawValue;
+            throw error;
         }
 
         const firebaseConfig = await response.json();
@@ -60,18 +64,12 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
         
-        const newErrorMessage = `The FIREBASE_CLIENT_CONFIG value from your Netlify settings appears to be invalid. 
-Error: ${error.message || 'Unknown error'}. 
-
-Please follow these steps:
-1. Go to your Firebase project settings and re-copy the config object.
-2. Go to your Netlify site settings and edit the FIREBASE_CLIENT_CONFIG variable.
-3. Paste the new value, ensuring it is a single line with no surrounding quotes.
-4. Trigger a new deploy on Netlify.`;
+        const finalMessage = `The config value from your Netlify settings is invalid and could not be parsed. This is almost always a copy-paste error. Please carefully follow the updated instructions in the README.`;
 
         return { 
             status: 'error', 
-            message: newErrorMessage
+            message: finalMessage,
+            rawValue: error.rawValue || 'Could not retrieve raw value from server.'
         };
     }
 };

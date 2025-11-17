@@ -131,3 +131,22 @@ The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CO
 -   **Do not** include `const firebaseConfig =` or the final semicolon `;`.
 -   Ensure there are no newlines or line breaks. It must be a single line.
 -   Ensure there is no trailing comma after the last property inside the `{...}`.
+
+---
+
+##  Troubleshooting
+
+### "Database Connection Failed" Error in the Notes Panel
+
+If you see an error in the Notes panel saying `The config value from your Netlify settings is invalid...`, it means the value for `FIREBASE_CLIENT_CONFIG` in your Netlify environment variables is not a valid JSON string.
+
+The error panel will show you the **exact problematic string** it received from Netlify.
+
+**To fix this:**
+
+1.  **Go to an online JSON validator**, like [jsonlint.com](https://jsonlint.com).
+2.  **Paste the string from the error panel** into the validator. It will highlight the exact syntax error (e.g., a trailing comma, a missing quote).
+3.  **Correct the error in the validator.**
+4.  Once it's valid, **copy the corrected, single-line JSON string**.
+5.  Go back to your **Netlify Environment Variables** and **paste the corrected string** into the `FIREBASE_CLIENT_CONFIG` value field.
+6.  **Trigger a new deploy.** This will solve the issue.

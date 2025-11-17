@@ -17,12 +17,13 @@ export const handler = async () => {
             body: JSON.stringify({ error: "Firebase config environment variable (FIREBASE_CLIENT_CONFIG) is not set on the server." }),
         };
     }
+    
+    // Define here to be accessible in the catch block
+    let cleanedConfigStr = configStr.trim();
 
     try {
         // More robust parsing:
-        // 1. Trim whitespace.
-        // 2. Check for and remove surrounding quotes (either ' or ").
-        let cleanedConfigStr = configStr.trim();
+        // 1. Check for and remove surrounding quotes (either ' or ").
         if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
             cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
         }
@@ -39,7 +40,11 @@ export const handler = async () => {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Failed to parse Firebase config on the server. The value provided in the FIREBASE_CLIENT_CONFIG environment variable is not a valid JSON string. Please re-copy it from your Firebase project settings." }),
+            body: JSON.stringify({ 
+                error: "Failed to parse Firebase config on the server. The value provided is not valid JSON.",
+                // Send back the original, raw value for better client-side debugging.
+                rawValue: configStr 
+            }),
         };
     }
 };
