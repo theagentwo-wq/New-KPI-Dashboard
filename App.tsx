@@ -432,6 +432,54 @@ const App: React.FC = () => {
             console.error("Failed to delete note:", error);
         }
     };
+    
+    const handleUpdateBudget = (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
+        setBudgets(prevBudgets => {
+            const newBudgets = [...prevBudgets];
+            const budgetIndex = newBudgets.findIndex(b => b.storeId === storeId && b.year === year && b.month === month);
+
+            if (budgetIndex > -1) {
+                // Update existing budget
+                newBudgets[budgetIndex] = { 
+                    ...newBudgets[budgetIndex], 
+                    targets: { 
+                        ...newBudgets[budgetIndex].targets, 
+                        [kpi]: target 
+                    } 
+                };
+            } else {
+                // Create new budget if it doesn't exist
+                 const newBudget: Budget = {
+                    storeId,
+                    year,
+                    month,
+                    targets: {
+                        [Kpi.Sales]: 0, [Kpi.SOP]: 0, [Kpi.PrimeCost]: 0, [Kpi.AvgReviews]: 0,
+                        [Kpi.FoodCost]: 0, [Kpi.LaborCost]: 0, [Kpi.VariableLabor]: 0, [Kpi.CulinaryAuditScore]: 0,
+                        [kpi]: target
+                    }
+                };
+                newBudgets.push(newBudget);
+            }
+            return newBudgets;
+        });
+    };
+
+    const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
+        setGoals(prevGoals => {
+            const newGoals = [...prevGoals];
+            const goalIndex = newGoals.findIndex(g => g.directorId === directorId && g.quarter === quarter && g.year === year && g.kpi === kpi);
+            
+            if (goalIndex > -1) {
+                // Update existing goal
+                newGoals[goalIndex] = { ...newGoals[goalIndex], target };
+            } else {
+                // Add new goal
+                newGoals.push({ directorId, quarter, year, kpi, target });
+            }
+            return newGoals.sort((a,b) => a.year - b.year || a.quarter - b.quarter);
+        });
+    };
 
     const mainKpis = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
     const comparisonLabel = comparisonMode === 'vs. Budget' ? 'Budget' : (comparisonMode === 'vs. Prior Period' ? 'Prior Period' : 'Last Year');
@@ -546,8 +594,8 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     )}
-                     {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={() => {}} />}
-                    {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={() => {}} />}
+                     {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
+                    {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
                 </motion.main>
             </AnimatePresence>
 

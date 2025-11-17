@@ -1,5 +1,13 @@
-// Fix: Add a triple-slash directive to include Vite client types. This makes TypeScript aware of `import.meta.env`.
-/// <reference types="vite/client" />
+// Fix: Manually declare Vite environment variables for TypeScript.
+// This is a workaround for environments where the standard `/// <reference types="vite/client" />`
+// directive is not being resolved correctly, causing build errors.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_FIREBASE_CLIENT_CONFIG: string;
+    }
+  }
+}
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
