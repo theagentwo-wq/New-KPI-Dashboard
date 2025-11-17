@@ -46,7 +46,7 @@ This is the most important step. All API keys are managed in a local environment
 2.  **Rename the file:** Rename this file to **`.env.local`**.
 3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
     *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
-    *   `VITE_FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
+    *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions. **Note:** The `VITE_` prefix has been removed for security.
 
 ### 4. Run the Development Server
 
@@ -88,7 +88,7 @@ This step is critical for the deployed application to work.
     -   **Key**: `GEMINI_API_KEY`
     -   **Value**: Paste your Google Gemini API key.
 3.  Add your **Firebase Client Config**:
-    -   **Key**: `VITE_FIREBASE_CLIENT_CONFIG`
+    -   **Key**: `FIREBASE_CLIENT_CONFIG`
     -   **Value**: Paste the same single-line JSON string for your Firebase client config that you used in your `.env.local` file.
 
 ### 5. Deploy
@@ -99,7 +99,7 @@ Trigger a new deploy from the "Deploys" tab.
 
 ## Firebase Configuration Guide
 
-The most common point of failure is an incorrectly formatted `VITE_FIREBASE_CLIENT_CONFIG` variable. Follow these steps exactly.
+The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CONFIG` variable. Follow these steps exactly.
 
 ### Step 1: Register Your Web App (The Missing Step)
 

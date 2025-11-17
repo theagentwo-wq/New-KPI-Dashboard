@@ -1,14 +1,3 @@
-// Fix: Manually declare Vite environment variables for TypeScript.
-// This is a workaround for environments where the standard `/// <reference types="vite/client" />`
-// directive is not being resolved correctly, causing build errors.
-declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_FIREBASE_CLIENT_CONFIG: string;
-    }
-  }
-}
-
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData } from 'firebase/firestore';
 import { Note, NoteCategory, View } from '../types';
@@ -23,58 +12,30 @@ let db: Firestore | null = null;
 let notesCollection: CollectionReference<DocumentData> | null = null;
 let isInitialized = false;
 
-const getFirebaseConfig = (): { config: any } | { error: string, rawValue?: string } => {
-    const configStr = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
-
-    if (!configStr) {
-        return { 
-            error: "VITE_FIREBASE_CLIENT_CONFIG environment variable is not defined.",
-        };
-    }
-    
-    try {
-        const cleanedConfigStr = configStr.trim().replace(/^'|'$/g, '');
-        if (!cleanedConfigStr) {
-           return { 
-                error: "VITE_FIREBASE_CLIENT_CONFIG is defined but is an empty string.",
-                rawValue: configStr
-            };
-        }
-
-        const config = JSON.parse(cleanedConfigStr);
-        if (!config.apiKey || !config.projectId) {
-            return {
-                error: "The parsed configuration is missing required keys like 'apiKey' or 'projectId'.",
-                rawValue: configStr
-            };
-        }
-        return { config };
-    } catch (e) {
-        return {
-            error: "Failed to parse the configuration string. Please ensure it is a valid, single-line JSON object.",
-            rawValue: configStr
-        };
-    }
-};
-
 /**
- * Initializes the Firebase app and Firestore services.
+ * Fetches the Firebase config from a secure proxy and initializes the Firebase app.
  * @returns {Promise<FirebaseStatus>} A promise that resolves to a detailed status object.
  */
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (isInitialized) return { status: 'connected' };
 
-    const configResult = getFirebaseConfig();
-
-    if ('error' in configResult) {
-        console.error("Firebase Initialization Error:", configResult.error);
-        isInitialized = false;
-        return { status: 'error', message: configResult.error, rawValue: configResult.rawValue };
-    }
-
     try {
+        const response = await fetch('/.netlify/functions/firebase-config-proxy');
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: 'Proxy request failed' }));
+            throw new Error(errorBody.error || `Request failed with status ${response.status}`);
+        }
+        const firebaseConfig = await response.json();
+
+        if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+            return { 
+                status: 'error', 
+                message: "Fetched configuration is invalid or missing required keys like 'apiKey' or 'projectId'."
+            };
+        }
+        
         if (!getApps().length) {
-            app = initializeApp(configResult.config);
+            app = initializeApp(firebaseConfig);
         } else {
             app = getApps()[0];
         }
@@ -86,12 +47,11 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         return { status: 'connected' };
 
     } catch (error: any) {
-        console.error("Firebase Error: Failed to initialize Firebase app.", error);
+        console.error("Firebase Initialization Error:", error);
         isInitialized = false;
         return { 
             status: 'error', 
-            message: `Firebase SDK failed to initialize. Error: ${error.message || 'Unknown error'}. Please double-check your credentials.`, 
-            rawValue: import.meta.env.VITE_FIREBASE_CLIENT_CONFIG 
+            message: `Could not connect to the database. Failed to fetch or initialize Firebase configuration. Error: ${error.message || 'Unknown error'}. Please ensure the FIREBASE_CLIENT_CONFIG variable is set correctly in your Netlify deployment settings and does not have a 'VITE_' prefix.`
         };
     }
 };
@@ -106,7 +66,9 @@ export const getNotes = async (): Promise<Note[]> => {
         const q = query(notesCollection, orderBy('createdAt', 'desc'));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
-            const data = doc.data();
+            // FIX: Cast `doc.data()` to `any` to resolve TypeScript errors about accessing properties on an 'unknown' type.
+            // Firestore's `doc.data()` can return a loosely typed object, and this ensures we can access the expected fields.
+            const data: any = doc.data();
             const note: Note = {
                 id: doc.id,
                 monthlyPeriodLabel: data.monthlyPeriodLabel,
