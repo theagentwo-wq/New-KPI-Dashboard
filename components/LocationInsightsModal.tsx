@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas } from '../services/geminiService';
-import { get7DayForecastForLocation } from '../services/weatherService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getStoreVisuals, getReviewSummary } from '../services/geminiService';
+import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, ForecastDataPoint, WeatherCondition } from '../types';
+import { PerformanceData, ForecastDataPoint, WeatherCondition, WeatherInfo, Kpi } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 
 interface LocationInsightsModalProps {
   isOpen: boolean;
@@ -16,8 +17,10 @@ interface LocationInsightsModalProps {
   userLocation?: { latitude: number; longitude: number } | null;
 }
 
-type AnalysisType = 'brief' | 'forecast' | 'market' | 'marketing' | 'none';
+type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
+
+// --- Reusable Components for the Modal ---
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -49,208 +52,254 @@ const CustomXAxisTick = ({ x, y, payload, weatherData }: any) => {
     );
 };
 
+const QuickStat: React.FC<{ kpi: Kpi; value?: number }> = ({ kpi, value }) => {
+    if (value === undefined || isNaN(value)) return null;
+
+    const config = KPI_CONFIG[kpi];
+    const formattedValue = kpi.includes('Cost') || kpi.includes('SOP') || kpi.includes('Score')
+        ? `${(value * 100).toFixed(1)}%`
+        : value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+    return (
+        <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-slate-400">
+                <Icon name={KPI_ICON_MAP[kpi]} className="w-4 h-4" />
+                <span>{kpi}</span>
+            </div>
+            <span className="font-bold text-slate-200">{formattedValue}</span>
+        </div>
+    );
+};
+
+const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
+    <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+        <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
+        </div>
+        <p className="text-slate-400 mt-3">{message}</p>
+    </div>
+);
+
+// --- Main Modal Component ---
 
 export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData, userLocation }) => {
-  const [briefResult, setBriefResult] = useState<string | null>(null);
-  const [forecastResult, setForecastResult] = useState<ForecastDataPoint[]>([]);
-  const [marketResult, setMarketResult] = useState<string | null>(null);
-  const [marketingResult, setMarketingResult] = useState<string | null>(null);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisType>('none');
-  const [sanitizedHtml, setSanitizedHtml] = useState('');
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isHotTopicsOpen, setIsHotTopicsOpen] = useState(false);
-
-  useEffect(() => {
-    const renderMarkdown = async () => {
-        const contentToRender = briefResult || marketResult || marketingResult;
-        if (contentToRender) {
-            const html = await marked.parse(contentToRender);
-            setSanitizedHtml(html);
-        } else {
-            setSanitizedHtml('');
-        }
-    };
-    renderMarkdown();
-  }, [briefResult, marketResult, marketingResult]);
-
-  useEffect(() => {
-    if(!isOpen) {
-        // Reset state on close
-        setCurrentAnalysis('none');
-        setBriefResult(null);
-        setForecastResult([]);
-        setMarketResult(null);
-        setMarketingResult(null);
-        setIsFullScreen(false);
-        setIsHotTopicsOpen(false);
-    }
-  }, [isOpen]);
-
-  const handleAnalysis = async (type: AnalysisType, audience?: Audience) => {
-    if (!location) return;
-    setIsLoading(true);
-    setBriefResult(null);
-    setForecastResult([]);
-    setMarketResult(null);
-    setMarketingResult(null);
-    setCurrentAnalysis(type);
-
-    if (type === 'brief' && performanceData && audience) {
-      const res = await generateHuddleBrief(location, performanceData, audience);
-      setBriefResult(res);
-    } else if (type === 'forecast') {
-      const weatherForecast = await get7DayForecastForLocation(location);
-      if(weatherForecast) {
-        const res = await getSalesForecast(location, weatherForecast);
-        setForecastResult(res);
-      } else {
-        setForecastResult([]); 
-      }
-    } else if (type === 'market') {
-        const res = await getLocationMarketAnalysis(location);
-        setMarketResult(res);
-    } else if (type === 'marketing') {
-        const res = await getMarketingIdeas(location, userLocation);
-        setMarketingResult(res);
-    }
-    setIsLoading(false);
-  };
-  
-  const handleDownload = () => {
-    const content = briefResult || marketResult || marketingResult;
-    const type = currentAnalysis;
-    if (!content || !location || type === 'none' || type === 'forecast') return;
-
-    const fileType = type === 'brief' ? 'hot-topics' : type;
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${fileType}-${location.replace(/, /g, '-')}-${new Date().toISOString().split('T')[0]}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const loadingMessages: { [key in AnalysisType]: string } = {
-    brief: 'Generating HOT TOPICS...',
-    forecast: 'Generating Weather-Aware Sales Forecast...',
-    market: 'Analyzing local market conditions...',
-    marketing: 'Generating hyper-local marketing ideas...',
-    none: ''
-  };
-  
-  const titleMap: { [key in AnalysisType]: string } = {
-      brief: 'HOT TOPICS Brief',
-      market: 'Local Market Analysis',
-      marketing: 'Hyper-Local Marketing Ideas',
-      forecast: '7-Day Weather-Aware Sales Forecast',
-      none: ''
-  };
-
-  const renderContent = () => {
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center space-x-2 h-full">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
-                <p className="text-slate-400">{loadingMessages[currentAnalysis]}</p>
-            </div>
-        );
-    }
+    // State for UI and data
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [activeTab, setActiveTab] = useState<AnalysisTab>('reviews');
     
-    const shouldShowDownload = (currentAnalysis === 'brief' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && sanitizedHtml;
+    // State for data fetching
+    const [weather, setWeather] = useState<WeatherInfo | null>(null);
+    const [storeImages, setStoreImages] = useState<string[]>([]);
+    const [isImagesLoading, setIsImagesLoading] = useState(true);
 
-    if (shouldShowDownload) {
-      return (
-          <div className="flex flex-col h-full">
-              <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                  <h4 className="text-lg font-bold text-cyan-400">{titleMap[currentAnalysis]}</h4>
-                  <button onClick={handleDownload} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md transition-colors">
-                      <Icon name="download" className="w-4 h-4" /> 
-                      Save
-                  </button>
-              </div>
-              <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
-          </div>
-      )
-    }
+    // State for each analysis tab (lazy-loaded)
+    const [analysisContent, setAnalysisContent] = useState<{ [key in AnalysisTab]?: any }>({});
+    const [isLoading, setIsLoading] = useState<{ [key in AnalysisTab]?: boolean }>({});
+  
+    const director = useMemo(() => {
+        if (!location) return null;
+        return DIRECTORS.find(d => d.stores.includes(location));
+    }, [location]);
 
-    if (currentAnalysis === 'forecast' && forecastResult.length > 0) {
-        return (
-            <div>
-                 <h4 className="text-lg font-bold text-cyan-400 mb-4">{titleMap.forecast}</h4>
-                 <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={forecastResult} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+    // Reset all state when the modal is closed or the location changes
+    useEffect(() => {
+        if (!isOpen) {
+            setIsFullScreen(false);
+            setActiveTab('reviews');
+        } else if (location) {
+            // Reset all content when a new location is opened
+            setAnalysisContent({});
+            setIsLoading({});
+            setStoreImages([]);
+            setIsImagesLoading(true);
+            setWeather(null);
+            
+            const fetchVisuals = async () => {
+                setIsImagesLoading(true);
+                const urls = await getStoreVisuals(location);
+                setStoreImages(urls.length > 0 ? [...urls, ...urls] : []);
+                setIsImagesLoading(false);
+            };
+
+            const fetchWeather = async () => {
+                const weatherData = await getWeatherForLocation(location);
+                setWeather(weatherData);
+            };
+
+            fetchVisuals();
+            fetchWeather();
+        }
+    }, [isOpen, location]);
+
+    // Lazy-load tab content when a tab is activated for the first time
+    useEffect(() => {
+        if (isOpen && location && !analysisContent[activeTab] && !isLoading[activeTab]) {
+            handleAnalysis(activeTab);
+        }
+    }, [isOpen, location, activeTab, analysisContent, isLoading]);
+
+    const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
+        if (!location) return;
+        setIsLoading(prev => ({ ...prev, [type]: true }));
+
+        let result: any = null;
+        try {
+            switch (type) {
+                case 'reviews':
+                    result = await getReviewSummary(location);
+                    break;
+                case 'market':
+                    result = await getLocationMarketAnalysis(location);
+                    break;
+                case 'brief':
+                    if (performanceData && audience) {
+                        result = await generateHuddleBrief(location, performanceData, audience);
+                    }
+                    break;
+                case 'forecast':
+                    const weatherForecast = await get7DayForecastForLocation(location);
+                    if (weatherForecast) {
+                        result = await getSalesForecast(location, weatherForecast);
+                    } else {
+                        result = [];
+                    }
+                    break;
+                case 'marketing':
+                    result = await getMarketingIdeas(location, userLocation);
+                    break;
+            }
+
+            if (typeof result === 'string') {
+                result = await marked.parse(result);
+            }
+            
+        } catch (error) {
+            console.error(`Error fetching analysis for ${type}:`, error);
+            result = `<p class="text-red-400">Could not generate results at this time.</p>`;
+        }
+        
+        setAnalysisContent(prev => ({ ...prev, [type]: result }));
+        setIsLoading(prev => ({ ...prev, [type]: false }));
+    };
+    
+    const tabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
+        { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
+        { id: 'market', label: 'Local Market', icon: 'sop' },
+        { id: 'brief', label: 'Huddle Brief', icon: 'news' },
+        { id: 'forecast', label: 'Forecast', icon: 'sales' },
+        { id: 'marketing', label: 'Marketing', icon: 'sparkles' },
+    ];
+
+    const renderTabContent = () => {
+        const content = analysisContent[activeTab];
+        
+        if (isLoading[activeTab]) {
+            return <LoadingSpinner message={`Generating ${activeTab} analysis...`} />;
+        }
+        if (!content) return null;
+
+        if (activeTab === 'forecast') {
+            return content.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={content} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis dataKey="date" stroke="#9ca3af" tick={<CustomXAxisTick weatherData={forecastResult} />} height={50} />
+                        <XAxis dataKey="date" stroke="#9ca3af" tick={<CustomXAxisTick weatherData={content} />} height={50} />
                         <YAxis stroke="#9ca3af" tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend wrapperStyle={{ bottom: -5 }} />
                         <Line type="monotone" dataKey="predictedSales" stroke="#22d3ee" strokeWidth={2} name="Predicted Sales" dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </LineChart>
                 </ResponsiveContainer>
-            </div>
-        );
-    }
-     if ((currentAnalysis === 'forecast' || currentAnalysis === 'market' || currentAnalysis === 'marketing') && !isLoading) {
-        return <p className="text-slate-400 text-center py-8">Could not generate results at this time.</p>
-    }
-    
-    return <p className="text-slate-300 text-center py-8">Select an AI action to run for {location}.</p>;
-  }
+            ) : <p className="text-center text-slate-400 py-8">Sales forecast data is currently unavailable.</p>;
+        }
 
-  const headerControls = (
-    <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white">
-        <Icon name={isFullScreen ? 'compress' : 'expand'} className="w-5 h-5" />
-    </button>
-  );
+        return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
+    };
 
-  return (
-    <Modal 
-        isOpen={isOpen} 
-        onClose={onClose} 
-        title={`Store Actions for ${location}`} 
-        size={isFullScreen ? 'fullscreen' : 'large'}
-        headerControls={headerControls}
-    >
-      <div className="flex flex-col h-full">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-2 bg-slate-900 rounded-md">
-           <div className="relative">
-              <button 
-                onClick={() => setIsHotTopicsOpen(prev => !prev)} 
-                disabled={isLoading || !performanceData} 
-                className="w-full bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed"
-              >
-                Generate HOT TOPICS
-              </button>
-              {isHotTopicsOpen && (
-                <div className="absolute top-full mt-2 w-full bg-slate-600 rounded-md shadow-lg z-10 border border-slate-500">
-                    <button onClick={() => { handleAnalysis('brief', 'FOH'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600 rounded-t-md">For FOH Team</button>
-                    <button onClick={() => { handleAnalysis('brief', 'BOH'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600">For BOH Team</button>
-                    <button onClick={() => { handleAnalysis('brief', 'Managers'); setIsHotTopicsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-cyan-600 rounded-b-md">For Managers</button>
+    return (
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            title={`Store Hub: ${location}`} 
+            size={isFullScreen ? 'fullscreen' : 'large'}
+            headerControls={
+                <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white">
+                    <Icon name={isFullScreen ? 'compress' : 'expand'} className="w-5 h-5" />
+                </button>
+            }
+        >
+            <div className="flex flex-col md:flex-row gap-6 h-full">
+                {/* Left Column: Visuals & Quick Info */}
+                <div className="md:w-1/3 space-y-4 flex-shrink-0">
+                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <h3 className="font-bold text-lg text-white">{location}</h3>
+                        {director && (
+                            <div className="flex items-center gap-2 mt-2 text-sm">
+                                <img src={director.photo} alt={director.name} className="w-8 h-8 rounded-full object-cover" />
+                                <div>
+                                    <p className="text-slate-400">Area Director</p>
+                                    <p className="font-semibold text-cyan-400">{director.name} {director.lastName}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 flex items-center justify-between">
+                         <div className="text-sm">
+                            <p className="text-slate-400">Current Weather</p>
+                            <p className="font-semibold text-white">{weather?.shortForecast || 'Loading...'}</p>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-white">{weather?.temperature}°F</span>
+                            <WeatherIcon condition={weather?.condition || 'loading'} className="w-10 h-10"/>
+                         </div>
+                    </div>
+                    
+                    <div className="h-40 w-full overflow-hidden bg-slate-900 rounded-lg border border-slate-700 relative group">
+                        {isImagesLoading ? <LoadingSpinner message="Loading images..." /> :
+                         storeImages.length > 0 ? (
+                            <div className="flex h-full animate-scroll-gallery group-hover:[animation-play-state:paused]">
+                                {storeImages.map((url, index) => (
+                                    <div key={index} className="w-64 h-full flex-shrink-0 mx-2">
+                                        <img src={url} alt={`Store image ${index + 1}`} className="w-full h-full object-cover rounded-md"/>
+                                    </div>
+                                ))}
+                            </div>
+                         ) : <p className="text-slate-500 text-center flex items-center justify-center h-full">No images found.</p>}
+                    </div>
+
+                    {performanceData && (
+                        <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-2">
+                            <h4 className="font-bold text-slate-300 mb-2">Quick Stats (This Period)</h4>
+                            <QuickStat kpi={Kpi.Sales} value={performanceData[Kpi.Sales]} />
+                            <QuickStat kpi={Kpi.SOP} value={performanceData[Kpi.SOP]} />
+                            <QuickStat kpi={Kpi.PrimeCost} value={performanceData[Kpi.PrimeCost]} />
+                            <QuickStat kpi={Kpi.AvgReviews} value={performanceData[Kpi.AvgReviews]} />
+                        </div>
+                    )}
                 </div>
-              )}
-           </div>
-           <button onClick={() => handleAnalysis('forecast')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
-            Generate 7-Day Forecast
-          </button>
-           <button onClick={() => handleAnalysis('market')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
-            Local Market Analysis
-          </button>
-           <button onClick={() => handleAnalysis('marketing')} disabled={isLoading} className="bg-slate-700 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600">
-            Generate Marketing Ideas
-          </button>
-        </div>
 
-        <div className="mt-4 p-4 bg-slate-800 rounded-md border border-slate-700 flex-1 overflow-y-auto custom-scrollbar min-h-0">
-            {renderContent()}
-        </div>
-      </div>
-    </Modal>
-  );
+                {/* Right Column: AI Analysis Tabs */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-shrink-0 flex border-b border-slate-700">
+                        {tabConfig.map(tab => (
+                            <button 
+                                key={tab.id} 
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-slate-400 hover:text-white'}`}
+                            >
+                                <Icon name={tab.icon} className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex-1 p-4 bg-slate-800 rounded-b-lg overflow-y-auto custom-scrollbar min-h-0">
+                        {renderTabContent()}
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
 };

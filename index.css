@@ -51,4 +51,12 @@
   .animate-snow-flake {
     animation: snow-flake 2s linear infinite;
   }
+
+  @keyframes scroll-gallery {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .animate-scroll-gallery {
+    animation: scroll-gallery 40s linear infinite;
+  }
 }
