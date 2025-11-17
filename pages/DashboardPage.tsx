@@ -88,7 +88,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [savedViews, setSavedViews] = useState<SavedView[]>([]);
-    const [selectedKpi, setSelectedKpi] = useState<Kpi>(Kpi.Sales);
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
 
@@ -141,9 +140,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
             });
             return acc;
         }, {} as PerformanceData);
-
-        const storeCount = new Set(data.map(d => d.storeId)).size;
-        const weekCount = data.length / (storeCount || 1);
 
         ALL_KPIS.forEach(kpi => {
             const isAverage = ['percent', 'number'].includes(KPI_CONFIG[kpi].format);
@@ -241,10 +237,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentView, notes
     }, []);
 
     const mainKpis: Kpi[] = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
+    
     const historicalDataForAI = useMemo(() => {
-        return [currentPeriod, ...Array(5).fill(0).map((_, i) => getPreviousPeriod(ALL_PERIODS.find(p => p.label === (i === 0 ? currentPeriod.label : historicalDataForAI[i-1].periodLabel))!))].filter(Boolean).map(p => ({
-            periodLabel: p!.label,
-            data: aggregatePerformance(generateDataForPeriod(p!))
+        const periods: Period[] = [];
+        let current: Period | undefined = currentPeriod;
+        for (let i = 0; i < 6 && current; i++) {
+            periods.push(current);
+            current = getPreviousPeriod(current);
+        }
+        
+        return periods.map(p => ({
+            periodLabel: p.label,
+            data: aggregatePerformance(generateDataForPeriod(p))
         }));
     }, [currentPeriod]);
 
