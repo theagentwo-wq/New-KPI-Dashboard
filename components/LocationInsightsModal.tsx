@@ -107,8 +107,15 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     const [isImagesLoading, setIsImagesLoading] = useState(true);
 
     // State for each analysis tab (lazy-loaded)
-    const [analysisContent, setAnalysisContent] = useState<{ [key in AnalysisTab]?: any }>({});
+    const [analysisContent, setAnalysisContent] = useState<{ 
+        reviews?: any;
+        market?: any;
+        brief?: { [key in Audience]?: any };
+        forecast?: any;
+        marketing?: any;
+    }>({});
     const [isLoading, setIsLoading] = useState<{ [key in AnalysisTab]?: boolean }>({});
+    const [loadingAudience, setLoadingAudience] = useState<Audience | null>(null);
   
     const director = useMemo(() => {
         if (!location) return null;
@@ -145,16 +152,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     }, [isOpen, location]);
 
-    // Lazy-load tab content when a tab is activated for the first time
-    useEffect(() => {
-        if (isOpen && location && !analysisContent[activeTab] && !isLoading[activeTab]) {
-            handleAnalysis(activeTab);
-        }
-    }, [isOpen, location, activeTab, analysisContent, isLoading]);
-
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
         setIsLoading(prev => ({ ...prev, [type]: true }));
+        if (type === 'brief' && audience) {
+            setLoadingAudience(audience);
+        }
 
         let result: any = null;
         try {
@@ -192,8 +195,22 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             result = `<p class="text-red-400">Could not generate results at this time.</p>`;
         }
         
-        setAnalysisContent(prev => ({ ...prev, [type]: result }));
+        if (type === 'brief' && audience) {
+            setAnalysisContent(prev => ({
+                ...prev,
+                brief: {
+                    ...prev.brief,
+                    [audience]: result
+                }
+            }));
+        } else {
+            setAnalysisContent(prev => ({ ...prev, [type]: result }));
+        }
+
         setIsLoading(prev => ({ ...prev, [type]: false }));
+        if (type === 'brief') {
+            setLoadingAudience(null);
+        }
     };
     
     const tabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
@@ -206,28 +223,85 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
     const renderTabContent = () => {
         const content = analysisContent[activeTab];
-        
-        if (isLoading[activeTab]) {
+        const loading = isLoading[activeTab];
+
+        if (activeTab === 'brief') {
+            const audiences: Audience[] = ['FOH', 'BOH', 'Managers'];
+            const generatedBriefs = analysisContent.brief || {};
+            
+            return (
+                <div className="space-y-4">
+                    <p className="text-sm text-slate-300">Generate a pre-shift huddle brief tailored to a specific team.</p>
+                    <div className="flex flex-wrap gap-2">
+                        {audiences.map(aud => (
+                            <button
+                                key={aud}
+                                onClick={() => handleAnalysis('brief', aud)}
+                                disabled={loading}
+                                className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading && loadingAudience === aud ? (
+                                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : <Icon name="news" className="w-4 h-4" />}
+                                <span>Generate for <span className="font-bold">{aud}</span></span>
+                            </button>
+                        ))}
+                    </div>
+                    {Object.keys(generatedBriefs).length > 0 && (
+                        <div className="space-y-4 pt-4 border-t border-slate-700">
+                             {(Object.keys(generatedBriefs) as Audience[]).map(aud => (
+                                <div key={aud}>
+                                    <h4 className="font-bold text-cyan-400">Brief for {aud}</h4>
+                                    <div className="prose prose-sm prose-invert max-w-none text-slate-200 mt-2" dangerouslySetInnerHTML={{ __html: generatedBriefs[aud] }} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (loading) {
             return <LoadingSpinner message={`Generating ${activeTab} analysis...`} />;
         }
-        if (!content) return null;
+        
+        if (content) {
+            if (activeTab === 'forecast') {
+                return content.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={content} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis dataKey="date" stroke="#9ca3af" tick={<CustomXAxisTick weatherData={content} />} height={50} />
+                            <YAxis stroke="#9ca3af" tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend wrapperStyle={{ bottom: -5 }} />
+                            <Line type="monotone" dataKey="predictedSales" stroke="#22d3ee" strokeWidth={2} name="Predicted Sales" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                ) : <p className="text-center text-slate-400 py-8">Sales forecast data is currently unavailable.</p>;
+            }
 
-        if (activeTab === 'forecast') {
-            return content.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={content} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis dataKey="date" stroke="#9ca3af" tick={<CustomXAxisTick weatherData={content} />} height={50} />
-                        <YAxis stroke="#9ca3af" tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ bottom: -5 }} />
-                        <Line type="monotone" dataKey="predictedSales" stroke="#22d3ee" strokeWidth={2} name="Predicted Sales" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                    </LineChart>
-                </ResponsiveContainer>
-            ) : <p className="text-center text-slate-400 py-8">Sales forecast data is currently unavailable.</p>;
+            return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
         }
 
-        return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
+        const tabConfigItem = tabConfig.find(t => t.id === activeTab);
+        return (
+             <div className="text-center flex flex-col items-center justify-center h-full">
+                <Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" />
+                <h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4>
+                <p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p>
+                <button
+                    onClick={() => handleAnalysis(activeTab)}
+                    className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
+                >
+                    <Icon name="sparkles" className="w-4 h-4" />
+                    Generate Analysis
+                </button>
+            </div>
+        );
     };
 
     return (

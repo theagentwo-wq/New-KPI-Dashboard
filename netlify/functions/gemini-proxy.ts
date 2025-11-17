@@ -403,11 +403,12 @@ ${formattedNotes}`;
 
             case 'getStoreVisuals': {
                 const { location } = payload;
-                const prompt = `Find 5 high-quality, publicly available image URLs of the exterior, interior, or food from the restaurant 'Tupelo Honey Cafe' in ${location}. Ensure the images are directly linkable (e.g., ending in .jpg, .png, .webp). The response must be a JSON array of strings, where each string is a direct image URL. Output ONLY the JSON array, with no other text, markdown, or explanation.`;
+                const prompt = `Use Google Search to find 5 high-quality, publicly available image URLs of the exterior, interior, or food from the restaurant 'Tupelo Honey Cafe' in ${location}. The URLs must be direct links to image files (e.g., ending in .jpg, .png, .webp). The response must be a JSON array of strings, where each string is a direct image URL. Output ONLY the JSON array, with no other text, markdown, or explanation.`;
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,
                     config: {
+                        tools: [{ googleSearch: {} }],
                         responseMimeType: "application/json",
                         responseSchema: {
                             type: Type.ARRAY,
