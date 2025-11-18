@@ -69,7 +69,6 @@ export const WeatherIcon: React.FC<WeatherIconProps> = ({ condition, className =
           <svg {...commonProps}>
               <path d="M46.6,27.2a12.8,12.8,0,0,0-24-4.8,10.8,10.8,0,0,0-1.6,21.6h27.2a9.6,9.6,0,0,0,0-19.2,12.2,12.2,0,0,0-1.6-2.4Z"
                   fill="#64748B" stroke="#94A3B8" strokeWidth="2" strokeLinejoin="round" />
-              {/* FIX: The 'fill' attribute was missing a value, causing a TS error. Completed the tag. */}
               <polygon points="30 42, 24 52, 36 52, 30 62" fill="#FBBF24" className="animate-flash" />
           </svg>
       );
