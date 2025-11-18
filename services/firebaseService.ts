@@ -4,9 +4,11 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 // FIX: Add missing type imports to resolve 'Cannot find name' errors.
-import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal } from '../types';
+import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period } from '../types';
 // FIX: Add KPI_CONFIG import for use in new batchImportStructuredActuals function
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
+// FIX: Correct import path for ALL_PERIODS. It is defined in dateUtils.ts.
+import { ALL_PERIODS } from '../utils/dateUtils';
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
@@ -402,27 +404,57 @@ export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: strin
 };
 
 // --- Manual Data Entry Function ---
-export const saveManualPerformanceData = async (storeId: string, weekStartDate: Date, data: PerformanceData): Promise<void> => {
-    if (!actualsCollection) throw new Error("Firebase not initialized.");
-
-    // Ensure there's data to save
+export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData): Promise<void> => {
+    if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
+    
     if (Object.keys(data).length === 0) {
         throw new Error("No KPI data provided to save.");
     }
     
-    // Create a document ID that is consistent with the batch import process
-    const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
-    const docRef = actualsCollection.doc(docId);
+    // Find all the weeks that fall within the selected period
+    const weeksInPeriod = ALL_PERIODS.filter(p => 
+        p.type === 'Week' && 
+        p.startDate >= period.startDate && 
+        p.endDate <= period.endDate
+    );
 
-    // Prepare the document data
-    const documentData = {
-        storeId,
-        weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
-        data: data
-    };
-    
-    // Use set with merge:true to create or update the document.
-    // This will add new KPI fields or overwrite existing ones for that week
-    // without deleting other KPIs that might already be there.
-    await docRef.set(documentData, { merge: true });
+    if (weeksInPeriod.length === 0) {
+        throw new Error(`Could not find any weeks within the selected period: ${period.label}`);
+    }
+
+    const batch = db.batch();
+    const weekCount = weeksInPeriod.length;
+
+    // Distribute the entered values across all weeks in the period
+    weeksInPeriod.forEach(week => {
+        const docId = `${storeId}_${week.startDate.toISOString().split('T')[0]}`;
+        const docRef = actualsCollection!.doc(docId);
+        
+        const dataForThisWeek: PerformanceData = {};
+        
+        for (const key in data) {
+            const kpi = key as Kpi;
+            const value = data[kpi];
+            if (value !== undefined) {
+                const kpiConfig = KPI_CONFIG[kpi];
+                // For currency KPIs, divide the total across the weeks.
+                // For percentage/number KPIs, apply the same value to each week.
+                if (kpiConfig.format === 'currency') {
+                    dataForThisWeek[kpi] = value / weekCount;
+                } else {
+                    dataForThisWeek[kpi] = value;
+                }
+            }
+        }
+
+        const documentData = {
+            storeId,
+            weekStartDate: firebase.firestore.Timestamp.fromDate(week.startDate),
+            data: dataForThisWeek
+        };
+
+        batch.set(docRef, documentData, { merge: true });
+    });
+
+    await batch.commit();
 };

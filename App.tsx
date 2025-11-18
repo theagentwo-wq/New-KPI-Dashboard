@@ -6,7 +6,7 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, saveManualPerformanceData } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
@@ -115,8 +115,8 @@ const App: React.FC = () => {
         setGoals(prevGoals => [...prevGoals, newGoal]);
     };
 
-    const handleSaveManualData = async (storeId: string, weekStartDate: Date, data: PerformanceData) => {
-        await saveManualPerformanceData(storeId, weekStartDate, data);
+    const handleSaveDataForPeriod = async (storeId: string, period: Period, data: PerformanceData) => {
+        await savePerformanceDataForPeriod(storeId, period, data);
         // Re-fetch data to reflect changes immediately on the dashboard
         await fetchData(getInitialPeriod());
     };
@@ -173,7 +173,7 @@ const App: React.FC = () => {
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
                         {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
                         {currentPage === 'News' && <NewsFeedPage />}
-                        {currentPage === 'Data Entry' && <DataEntryPage onSave={handleSaveManualData} />}
+                        {currentPage === 'Data Entry' && <DataEntryPage onSave={handleSaveDataForPeriod} />}
                     </motion.main>
                 </AnimatePresence>
             </div>
