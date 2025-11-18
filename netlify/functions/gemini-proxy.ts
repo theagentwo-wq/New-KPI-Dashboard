@@ -1,7 +1,7 @@
 
 import { Type } from "@google/genai";
 import { Note } from '../../types';
-import { ai } from '../../lib/ai-client'; // Import the safe, pre-initialized client
+import { getAIClient } from '../../lib/ai-client';
 
 export const handler = async (event: { httpMethod: string; body?: string }) => {
     const headers = {
@@ -19,6 +19,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
     }
 
     try {
+        const ai = getAIClient(); // Initialize the AI client at runtime.
         const { action, payload } = JSON.parse(event.body || '{}');
 
         switch (action) {
