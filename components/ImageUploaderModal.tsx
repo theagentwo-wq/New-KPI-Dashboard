@@ -95,13 +95,4 @@ export const ImageUploaderModal: React.FC<ImageUploaderModalProps> = ({ isOpen, 
 
                 {success && <p className="text-sm text-center text-green-400 bg-green-900/50 p-2 rounded-md">{success}</p>}
                 
-                <div className="flex justify-end gap-2 pt-4">
-                    <button onClick={handleClose} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
-                    <button onClick={handleSaveChanges} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md">
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
+                <div className="
