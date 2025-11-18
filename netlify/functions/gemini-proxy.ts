@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Note } from '../../types';
 
@@ -20,7 +21,17 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
         const { action, payload } = JSON.parse(event.body || '{}');
         const geminiApiKey = process.env.GEMINI_API_KEY;
         const mapsApiKey = process.env.MAPS_API_KEY;
-        const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+        
+        // FIX: Add a guard to ensure the API key exists before using it.
+        if (!geminiApiKey) {
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ error: 'AI Service Error: GEMINI_API_KEY is not configured on the server.' })
+            };
+        }
+        
+        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
         const throwApiError = (service: 'AI' | 'Maps', reason: string) => {
             const keyName = service === 'AI' ? 'GEMINI_API_KEY' : 'MAPS_API_KEY';
@@ -33,7 +44,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
         switch (action) {
             case 'getExecutiveSummary': {
-                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { data, view, periodLabel } = payload;
                 const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
                 const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
@@ -41,7 +51,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getNoteTrends': {
-                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { notes }: { notes: Note[] } = payload;
                 const notesContent = notes.map(n => `[${n.category} on ${new Date(n.createdAt).toLocaleDateString()}]: ${n.content}`).join('\n');
                 const prompt = `As a restaurant operations analyst, analyze the following operational notes. Identify the top 2-3 recurring themes or most critical issues. For each theme, provide a brief summary and suggest a potential action. The notes are:\n\n${notesContent}`;
@@ -51,7 +60,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
             case 'extractKpisFromImage':
             case 'extractKpisFromDocument': {
-                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { fileData, mimeType, context } = payload;
                 if (!fileData || !mimeType) return { statusCode: 400, headers, body: JSON.stringify({ error: "fileData and mimeType are required." }) };
 
@@ -102,7 +110,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getAIAssistedMapping': {
-                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { headers: csvHeaders, kpis: appKpis } = payload;
                 const prompt = `You are an intelligent data mapping assistant. Map the user's CSV headers to the application's predefined KPIs.
 
