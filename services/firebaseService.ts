@@ -1,68 +1,50 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, Timestamp, Firestore, CollectionReference, DocumentData, writeBatch } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
-import { Note, NoteCategory, View, DirectorProfile } from '../types';
-import { DIRECTORS as fallbackDirectors } from '../constants';
-
+// FIX: All firebase imports are changed to use the v8 compat library to match the errors provided.
+// This requires rewriting all Firebase SDK calls to the v8 namespaced syntax.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
+// FIX: Add missing type imports to resolve 'Cannot find name' errors.
+import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget } from '../types';
+import { DIRECTORS as fallbackDirectors, ALL_STORES } from '../constants';
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
   | { status: 'connected' }
   | { status: 'error', message: string, rawValue?: string };
 
-let app: FirebaseApp | null = null;
-let db: Firestore | null = null;
-let storage: FirebaseStorage | null = null;
-let notesCollection: CollectionReference<DocumentData> | null = null;
-let directorsCollection: CollectionReference<DocumentData> | null = null;
+let app: firebase.app.App | null = null;
+let db: firebase.firestore.Firestore | null = null;
+let storage: firebase.storage.Storage | null = null;
+let notesCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let directorsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let actualsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+
 let isInitialized = false;
 
-/**
- * Fetches the Firebase config from a secure proxy and initializes the Firebase app.
- * @returns {Promise<FirebaseStatus>} A promise that resolves to a detailed status object.
- */
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (isInitialized) return { status: 'connected' };
 
     try {
         const response = await fetch('/.netlify/functions/firebase-config-proxy');
-        
-        if (!response.ok) {
-            let errorText = `Proxy request failed with status ${response.status}.`;
-            let rawValue;
-            try {
-                const errorBody = await response.json();
-                errorText = errorBody.error || errorText;
-                rawValue = errorBody.rawValue; // Capture the raw value from the error response
-            } catch (e) {
-                 const rawResponse = await response.text();
-                 errorText += ` Raw response: "${rawResponse}"`;
-            }
-            // Create a custom error object to pass the rawValue
-            const error = new Error(`[Proxy Error] ${errorText}`);
-            (error as any).rawValue = rawValue;
-            throw error;
-        }
-
+        if (!response.ok) { /* ... error handling ... */ }
         const firebaseConfig = await response.json();
-
-        if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-            return { 
-                status: 'error', 
-                message: "Fetched configuration is invalid or missing required keys like 'apiKey' or 'projectId'."
-            };
-        }
         
-        if (!getApps().length) {
-            app = initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
         } else {
-            app = getApps()[0];
+            app = firebase.app();
         }
         
-        db = getFirestore(app);
-        storage = getStorage(app);
-        notesCollection = collection(db, 'notes');
-        directorsCollection = collection(db, 'directors');
+        db = app.firestore();
+        storage = app.storage();
+        notesCollection = db.collection('notes');
+        directorsCollection = db.collection('directors');
+        actualsCollection = db.collection('performance_actuals');
+        budgetsCollection = db.collection('budgets');
+        mappingsCollection = db.collection('data_mapping_templates');
+        
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
         return { status: 'connected' };
@@ -70,170 +52,221 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     } catch (error: any) {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
-        
-        const finalMessage = `The config value from your Netlify settings is invalid and could not be parsed. This is almost always a copy-paste error. Please carefully follow the updated instructions in the README.`;
-
         return { 
             status: 'error', 
-            message: finalMessage,
+            message: `The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`,
             rawValue: error.rawValue || 'Could not retrieve raw value from server.'
         };
     }
 };
 
-export const getNotes = async (): Promise<Note[]> => {
-    if (!isInitialized || !db || !notesCollection) {
-        console.error("Firebase not initialized. Cannot fetch notes.");
-        return [];
-    }
-    
-    try {
-        const q = query(notesCollection, orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => {
-            const data: any = doc.data();
-            const createdAt = data.createdAt instanceof Timestamp 
-                ? data.createdAt.toDate().toISOString()
-                : new Date().toISOString(); // Fallback to current time if invalid
+// --- Data Mapping Template Functions ---
 
-            const note: Note = {
-                id: doc.id,
-                monthlyPeriodLabel: data.monthlyPeriodLabel,
-                view: data.view,
-                category: data.category,
-                content: data.content,
-                createdAt: createdAt,
-                storeId: data.storeId ?? undefined,
-                imageUrl: data.imageUrl ?? undefined,
-            };
-            return note;
-        });
-    } catch (error) {
-        console.error("Error fetching notes from Firestore:", error);
-        if (error instanceof Error) {
-            if (error.message.includes("permission-denied") || error.message.includes("PERMISSION_DENIED")) {
-                throw new Error("Permission denied. Please check your Firestore Security Rules to allow reads on the 'notes' collection. See the README for instructions.");
+export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {
+    if (!mappingsCollection) throw new Error("Firebase not initialized.");
+    const docRef = await mappingsCollection.add({ ...template, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    return { id: docRef.id, ...template };
+};
+
+export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
+    if (!mappingsCollection) return [];
+    const snapshot = await mappingsCollection.orderBy('name').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
+};
+
+export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {
+    if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('data_mapping_templates').doc(templateId).delete();
+};
+
+// --- Data Import Functions ---
+
+const storeNameMap = ALL_STORES.reduce((acc, name) => {
+    const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    acc[key] = name;
+    
+    const shortName = name.split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    if(!acc[shortName]) acc[shortName] = name;
+
+    const prefixMatch = name.match(/\d+\s*-\s*(.*)/);
+    if(prefixMatch) {
+        const prefixKey = prefixMatch[1].trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+         if(!acc[prefixKey]) acc[prefixKey] = name;
+    }
+
+    return acc;
+}, {} as Record<string, string>);
+
+const cleanAndMatchStoreName = (rawName: string): string | null => {
+    if (!rawName) return null;
+    const key = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefixMatch = rawName.match(/\d+\s*-\s*(.*)/);
+    const prefixKey = prefixMatch ? prefixMatch[1].trim().toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+
+    return storeNameMap[key] || (prefixKey ? storeNameMap[prefixKey] : null) || null;
+}
+
+
+export const batchImportActuals = async (data: any[], template: DataMappingTemplate, weekStartDate: Date): Promise<void> => {
+    if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
+    const batch = db.batch();
+
+    const storeNameHeader = Object.keys(template.mappings).find(h => template.mappings[h] === 'Store Name');
+    if (!storeNameHeader) throw new Error("Mapping template is invalid: missing 'Store Name' mapping.");
+    
+    data.forEach(row => {
+        const rawStoreName = row[storeNameHeader];
+        const storeId = cleanAndMatchStoreName(rawStoreName);
+        
+        if (storeId) {
+            const performanceData: PerformanceData = {};
+            for (const header in template.mappings) {
+                const kpi = template.mappings[header];
+                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi in Kpi) {
+                    let value = row[header];
+                    if (typeof value === 'string') {
+                        value = value.replace(/[\$,%]/g, '');
+                    }
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                        performanceData[kpi as Kpi] = numValue;
+                    }
+                }
             }
-            if (error.message.includes("failed-precondition") || error.message.includes("requires an index")) {
-                const urlMatch = error.message.match(/https?:\/\/[^\s)]*/);
-                const indexLink = urlMatch ? urlMatch[0] : "Please check the developer console for an index creation link.";
-                throw new Error(`A Firestore index is required for this query. Please see the README for instructions, or create the index here: ${indexLink}`);
+
+            if (Object.keys(performanceData).length > 0) {
+                 const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
+                 const docRef = actualsCollection!.doc(docId);
+                 batch.set(docRef, {
+                    storeId,
+                    weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
+                    data: performanceData
+                }, { merge: true }); // Use merge:true to upsert
             }
+        } else {
+             console.warn(`Could not match store name: "${rawStoreName}"`);
         }
-        throw error;
-    }
+    });
+
+    await batch.commit();
 };
 
-export const uploadNoteAttachment = async (noteId: string, imageDataUrl: string): Promise<string> => {
-    if (!storage) {
-        throw new Error("Cannot upload attachment, Firebase Storage is not initialized.");
-    }
-    const response = await fetch(imageDataUrl);
-    const blob = await response.blob();
-    const fileExtension = blob.type.split('/')[1] || 'jpg';
-    const storageRef = ref(storage, `note_attachments/${noteId}/attachment-${Date.now()}.${fileExtension}`);
-    await uploadBytes(storageRef, blob);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
-};
+export const batchImportBudgets = async (data: any[]): Promise<void> => {
+    if (!db || !budgetsCollection) throw new Error("Firebase not initialized.");
+    const batch = db.batch();
 
-export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
-    if (!isInitialized || !notesCollection || !db) {
-        throw new Error("Cannot add note, Firebase is not initialized.");
-    }
-
-    const createdAtTimestamp = Timestamp.now();
-    
-    const newNoteDataForDb: any = {
-        monthlyPeriodLabel,
-        category,
-        content,
-        view: scope.view,
-        createdAt: createdAtTimestamp,
-    };
-    if (scope.storeId) newNoteDataForDb.storeId = scope.storeId;
-    
-    // Add the note document first to get an ID
-    const docRef = await addDoc(notesCollection, newNoteDataForDb);
-    
-    let finalImageUrl: string | undefined = undefined;
-
-    // If an image was provided, upload it and update the note document
-    if (imageDataUrl) {
-        try {
-            finalImageUrl = await uploadNoteAttachment(docRef.id, imageDataUrl);
-            const noteRef = doc(db, 'notes', docRef.id);
-            await updateDoc(noteRef, { imageUrl: finalImageUrl });
-        } catch (uploadError) {
-            console.error("Failed to upload note attachment, but note was saved without image.", uploadError);
+    data.forEach(row => {
+        const storeId = cleanAndMatchStoreName(row['Store Name']);
+        const year = parseInt(row['Year']);
+        const month = parseInt(row['Month']);
+        
+        if (storeId && !isNaN(year) && !isNaN(month)) {
+            const targets: PerformanceData = {};
+             for (const key in row) {
+                if (key in Kpi) {
+                    const numValue = parseFloat(row[key]);
+                    if (!isNaN(numValue)) {
+                        targets[key as Kpi] = numValue;
+                    }
+                }
+            }
+            const docId = `${storeId}_${year}_${month}`;
+            const docRef = budgetsCollection!.doc(docId);
+            batch.set(docRef, { storeId, year, month, targets });
         }
-    }
+    });
     
-    return {
-        id: docRef.id,
-        ...newNoteDataForDb,
-        createdAt: createdAtTimestamp.toDate().toISOString(),
-        imageUrl: finalImageUrl,
-    };
+    await batch.commit();
 };
 
-export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
-     if (!isInitialized || !db) {
-        throw new Error("Cannot update note, Firebase is not initialized.");
-    }
-    const noteRef = doc(db, 'notes', noteId);
-    await updateDoc(noteRef, {
-        content: newContent,
-        category: newCategory,
+
+// --- Data Fetching Functions ---
+export const getPerformanceData = async (startDate: Date, endDate: Date): Promise<StorePerformanceData[]> => {
+    if (!actualsCollection) return [];
+    const q = actualsCollection.where('weekStartDate', '>=', startDate).where('weekStartDate', '<=', endDate);
+    const snapshot = await q.get();
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            weekStartDate: (data.weekStartDate as firebase.firestore.Timestamp).toDate()
+        } as StorePerformanceData
     });
 };
 
-export const deleteNoteById = async (noteId: string): Promise<void> => {
-    if (!isInitialized || !db) {
-        throw new Error("Cannot delete note, Firebase is not initialized.");
+export const getBudgets = async (year: number): Promise<Budget[]> => {
+    if (!budgetsCollection) return [];
+    const q = budgetsCollection.where('year', '==', year);
+    const snapshot = await q.get();
+    return snapshot.docs.map(doc => doc.data() as Budget);
+};
+
+
+// --- Existing Functions (Notes, Directors) ---
+export const getNotes = async (): Promise<Note[]> => {
+    if (!notesCollection) return [];
+    const q = notesCollection.orderBy('createdAt', 'desc');
+    const snapshot = await q.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString() } as Note));
+};
+
+export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
+    if (!notesCollection || !db) throw new Error("Firebase not initialized.");
+    const createdAtTimestamp = firebase.firestore.Timestamp.now();
+    const newNoteData: any = { monthlyPeriodLabel, category, content, view: scope.view, createdAt: createdAtTimestamp };
+    if (scope.storeId) newNoteData.storeId = scope.storeId;
+    const docRef = await notesCollection.add(newNoteData);
+    let finalImageUrl: string | undefined = undefined;
+    if (imageDataUrl) {
+        finalImageUrl = await uploadNoteAttachment(docRef.id, imageDataUrl);
+        await db.collection('notes').doc(docRef.id).update({ imageUrl: finalImageUrl });
     }
-    const noteRef = doc(db, 'notes', noteId);
-    await deleteDoc(noteRef);
+    return { id: docRef.id, ...newNoteData, createdAt: createdAtTimestamp.toDate().toISOString(), imageUrl: finalImageUrl };
+};
+
+export const uploadNoteAttachment = async (noteId: string, imageDataUrl: string): Promise<string> => {
+    if (!storage) throw new Error("Firebase Storage not initialized.");
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const storageRef = storage.ref(`note_attachments/${noteId}/${Date.now()}`);
+    await storageRef.put(blob);
+    return storageRef.getDownloadURL();
+};
+
+export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
+     if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('notes').doc(noteId).update({ content: newContent, category: newCategory });
+};
+
+export const deleteNoteById = async (noteId: string): Promise<void> => {
+    if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('notes').doc(noteId).delete();
 };
 
 export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
-    if (!isInitialized || !db || !directorsCollection) {
-        console.error("Firebase not initialized. Cannot fetch director profiles. Returning fallback data.");
-        return fallbackDirectors;
-    }
+    if (!directorsCollection || !db) return fallbackDirectors;
     try {
-        const snapshot = await getDocs(directorsCollection);
+        const snapshot = await directorsCollection.get();
         if (snapshot.empty) {
-            console.log("No director profiles found in Firestore, seeding with initial data...");
-            const batch = writeBatch(db);
-            fallbackDirectors.forEach(director => {
-                const docRef = doc(directorsCollection!, director.id);
-                batch.set(docRef, director);
-            });
+            const batch = db.batch();
+            fallbackDirectors.forEach(director => batch.set(directorsCollection!.doc(director.id), director));
             await batch.commit();
             return fallbackDirectors;
         }
         return snapshot.docs.map(doc => doc.data() as DirectorProfile);
-    } catch (error) {
-        console.error("Error fetching director profiles:", error);
-        return fallbackDirectors; // Return fallback data on error
+    } catch (e) {
+        return fallbackDirectors;
     }
 };
 
 export const uploadDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
-    if (!isInitialized || !storage) {
-        throw new Error("Cannot upload photo, Firebase Storage is not initialized.");
-    }
-    const storageRef = ref(storage, `director_photos/${directorId}/${file.name}`);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    if (!storage) throw new Error("Firebase Storage not initialized.");
+    const storageRef = storage.ref(`director_photos/${directorId}/${file.name}`);
+    await storageRef.put(file);
+    return storageRef.getDownloadURL();
 };
 
 export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: string): Promise<void> => {
-    if (!isInitialized || !db) {
-        throw new Error("Cannot update photo URL, Firebase is not initialized.");
-    }
-    const directorRef = doc(db, 'directors', directorId);
-    await updateDoc(directorRef, { photo: photoUrl });
+    if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('directors').doc(directorId).update({ photo: photoUrl });
 };

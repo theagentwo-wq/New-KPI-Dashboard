@@ -4,13 +4,12 @@ export enum Kpi {
   PrimeCost = 'Prime Cost',
   AvgReviews = 'Avg. Reviews',
   FoodCost = 'Food Cost',
-  LaborCost = 'Labor Cost',
   VariableLabor = 'Variable Labor',
   CulinaryAuditScore = 'Culinary Audit Score'
 }
 
 export type PerformanceData = {
-  [key in Kpi]: number;
+  [key in Kpi]?: number; // Make properties optional
 };
 
 export interface StorePerformanceData {
@@ -110,11 +109,17 @@ export interface StoreDetails {
   lon: number;
 }
 
-// FIX: Add SavedView type to be used by TimeSelector component.
 export interface SavedView {
   name: string;
   period: Period;
   view: View;
   comparisonMode: ComparisonMode;
   periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
+}
+
+export interface DataMappingTemplate {
+  id: string;
+  name: string;
+  headers: string[]; // The headers from the original file
+  mappings: { [header: string]: Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore' };
 }

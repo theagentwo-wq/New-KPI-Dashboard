@@ -46,7 +46,7 @@ export const DIRECTORS: DirectorProfile[] = [
 export const ALL_STORES: string[] = DIRECTORS.flatMap(d => d.stores);
 
 export const STORE_DETAILS: Record<string, StoreDetails> = {
-    'Arlington, VA': { address: '1616 N Troy St, Arlington, VA 22201', lat: 38.8911, lon: -77.0731 },
+    'Arlington, VA': { address: '1616 N Troy St, Arlington, VA 22201', lat: 38.8921, lon: -77.0819 },
     'Boise, ID': { address: '150 N 8th St, Suite 200, Boise, ID 83702', lat: 43.6169, lon: -116.2045 },
     'Charlotte, NC': { address: '101 S Tryon St, Suite 130, Charlotte, NC 28280', lat: 35.2269, lon: -80.8433 },
     'Chattanooga, TN': { address: '1110 Market St, Ste 121, Chattanooga, TN 37402', lat: 35.0454, lon: -85.3101 },
@@ -81,7 +81,6 @@ export const KPI_CONFIG: { [key in Kpi]: { format: 'currency' | 'percent' | 'num
   [Kpi.PrimeCost]: { format: 'percent', higherIsBetter: false },
   [Kpi.AvgReviews]: { format: 'number', higherIsBetter: true },
   [Kpi.FoodCost]: { format: 'percent', higherIsBetter: false },
-  [Kpi.LaborCost]: { format: 'percent', higherIsBetter: false },
   [Kpi.VariableLabor]: { format: 'percent', higherIsBetter: false },
   [Kpi.CulinaryAuditScore]: { format: 'percent', higherIsBetter: true, baseline: 0.90 },
 };
@@ -92,7 +91,6 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
   [Kpi.PrimeCost]: 'prime',
   [Kpi.AvgReviews]: 'reviews',
   [Kpi.FoodCost]: 'food',
-  [Kpi.LaborCost]: 'labor',
   [Kpi.VariableLabor]: 'labor',
   [Kpi.CulinaryAuditScore]: 'audit',
 };

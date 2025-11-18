@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
             
             <NavLink icon="sparkles" label="Executive Summary" isActive={false} isCollapsed={isCollapsed} onClick={onOpenExecutiveSummary} />
             <NavLink icon="bell" label="AI Alerts" isActive={false} isCollapsed={isCollapsed} onClick={onOpenAlerts} />
-            <NavLink icon="plus" label="Data Entry" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
+            <NavLink icon="plus" label="Import Report" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
             <NavLink icon="sparkles" label="Scenario Modeler" isActive={false} isCollapsed={isCollapsed} onClick={onOpenScenarioModeler} />
         </div>
         
