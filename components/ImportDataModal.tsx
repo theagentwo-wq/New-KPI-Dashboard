@@ -8,7 +8,7 @@ interface ImportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
   templates: DataMappingTemplate[];
-  onOpenMappingModal: (file: File, headers: string[], parsedData: any[]) => void;
+  onOpenMappingModal: (file: File, headers: string[], parsedData: any[], weekStartDate: string) => void;
   onImportSuccess: () => void;
 }
 
@@ -114,7 +114,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                 await processFileWithTemplate(data, template);
             } else {
                 setStatusMessage('No matching template found. Opening data mapper...');
-                onOpenMappingModal(file, headers, data);
+                onOpenMappingModal(file, headers, data, weekStartDate);
             }
         } else {
             // For budgets, use a simpler direct import for now

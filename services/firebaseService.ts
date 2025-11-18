@@ -28,8 +28,21 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
 
     try {
         const response = await fetch('/.netlify/functions/firebase-config-proxy');
-        if (!response.ok) { /* ... error handling ... */ }
+        if (!response.ok) {
+             const errorBody = await response.json();
+             // FIX: The `new Error()` constructor with a 'cause' options object is a newer JS feature and not supported by the current environment. This fix rewrites the error creation to be compatible, resolving the "Expected 0-1 arguments, but got 2" error.
+             const err = new Error(errorBody.error || 'Failed to fetch Firebase config');
+             (err as any).cause = errorBody.rawValue;
+             throw err;
+        }
         const firebaseConfig = await response.json();
+        
+        if (Object.keys(firebaseConfig).length === 0) {
+            // FIX: The `new Error()` constructor with a 'cause' options object is a newer JS feature and not supported by the current environment. This fix rewrites the error creation to be compatible, resolving the "Expected 0-1 arguments, but got 2" error.
+             const err = new Error("Received empty Firebase config from proxy. Ensure FIREBASE_CLIENT_CONFIG is set in Netlify.");
+             (err as any).cause = JSON.stringify(firebaseConfig);
+             throw err;
+        }
         
         if (!firebase.apps.length) {
             app = firebase.initializeApp(firebaseConfig);
@@ -55,7 +68,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         return { 
             status: 'error', 
             message: `The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`,
-            rawValue: error.rawValue || 'Could not retrieve raw value from server.'
+            rawValue: error.cause || 'Could not retrieve raw value from server.'
         };
     }
 };
@@ -85,25 +98,37 @@ const storeNameMap = ALL_STORES.reduce((acc, name) => {
     const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     acc[key] = name;
     
+    // Add mapping for short name (e.g., "Asheville Downtown")
     const shortName = name.split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
     if(!acc[shortName]) acc[shortName] = name;
-
-    const prefixMatch = name.match(/\d+\s*-\s*(.*)/);
-    if(prefixMatch) {
-        const prefixKey = prefixMatch[1].trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-         if(!acc[prefixKey]) acc[prefixKey] = name;
-    }
 
     return acc;
 }, {} as Record<string, string>);
 
+// FIX: More robust name matching logic
 const cleanAndMatchStoreName = (rawName: string): string | null => {
     if (!rawName) return null;
-    const key = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const prefixMatch = rawName.match(/\d+\s*-\s*(.*)/);
-    const prefixKey = prefixMatch ? prefixMatch[1].trim().toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+    
+    // Try to match with a prefix like "01 - Asheville Downtown"
+    const prefixMatch = rawName.match(/^\d+\s*-\s*(.*)/);
+    const potentialName = prefixMatch ? prefixMatch[1].trim() : rawName.trim();
 
-    return storeNameMap[key] || (prefixKey ? storeNameMap[prefixKey] : null) || null;
+    // Generate a clean key for matching
+    const key = potentialName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Direct match (e.g., 'ashevilledowntownnc' -> 'Downtown Asheville, NC')
+    if (storeNameMap[key]) return storeNameMap[key];
+    
+    // Short name match (e.g., 'ashevilledowntown' -> 'Downtown Asheville, NC')
+    const shortKey = potentialName.split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    if(storeNameMap[shortKey]) return storeNameMap[shortKey];
+
+    // Final fallback: check if any of our keys are a substring of the input
+    for (const mapKey in storeNameMap) {
+        if(key.includes(mapKey)) return storeNameMap[mapKey];
+    }
+    
+    return null;
 }
 
 
@@ -129,7 +154,12 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
                     }
                     const numValue = parseFloat(value);
                     if (!isNaN(numValue)) {
-                        performanceData[kpi as Kpi] = numValue;
+                        // For percentages, store them as decimals
+                        if(value.includes('%') || ['SOP', 'PrimeCost', 'FoodCost', 'VariableLabor'].includes(kpi)){
+                             performanceData[kpi as Kpi] = numValue / 100;
+                        } else {
+                             performanceData[kpi as Kpi] = numValue;
+                        }
                     }
                 }
             }
@@ -164,9 +194,17 @@ export const batchImportBudgets = async (data: any[]): Promise<void> => {
             const targets: PerformanceData = {};
              for (const key in row) {
                 if (key in Kpi) {
-                    const numValue = parseFloat(row[key]);
+                    let value = row[key];
+                    if (typeof value === 'string') {
+                        value = value.replace(/[\$,%]/g, '');
+                    }
+                    const numValue = parseFloat(value);
                     if (!isNaN(numValue)) {
-                        targets[key as Kpi] = numValue;
+                        if(value.includes('%') || ['SOP', 'PrimeCost', 'FoodCost', 'VariableLabor'].includes(key)){
+                             targets[key as Kpi] = numValue / 100;
+                        } else {
+                             targets[key as Kpi] = numValue;
+                        }
                     }
                 }
             }

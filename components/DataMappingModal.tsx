@@ -7,9 +7,9 @@ import { saveDataMappingTemplate, batchImportActuals } from '../services/firebas
 interface DataMappingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  file: File | null;
   headers: string[];
   parsedData: any[];
+  weekStartDate: string; // FIX: Receive the date from the parent
   onImportSuccess: () => void;
 }
 
@@ -19,7 +19,7 @@ const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ign
   'ignore'
 ];
 
-export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, file, headers, parsedData, onImportSuccess }) => {
+export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, weekStartDate, onImportSuccess }) => {
   const [mappings, setMappings] = useState<{ [header: string]: string }>({});
   const [templateName, setTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +38,10 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
       setError('You must map one column to "Store Name".');
       return;
     }
+     if (!weekStartDate) {
+      setError('A valid week start date is required for import.');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -51,15 +55,9 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
       
       const savedTemplate = await saveDataMappingTemplate(newTemplate);
       
-      // Now use the new template to import the data
-      // The week start date for this import will be handled by the parent component's state
-      // Here, we can pass a placeholder or get it passed down. For now, assuming parent has it.
-      // This part might need adjustment based on final data flow.
-      // We will assume the parent `ImportDataModal` handles the date.
-      // The role of this component is to create the template and then trigger the import.
-      
-      // Let's just pass back the new template. The parent can then decide to run the import.
-       await batchImportActuals(parsedData, savedTemplate, new Date()); // Pass a dummy date, parent will handle it better
+      // FIX: Use the weekStartDate prop for the import
+      const importDate = new Date(`${weekStartDate}T12:00:00`);
+      await batchImportActuals(parsedData, savedTemplate, importDate);
 
       onImportSuccess();
       onClose();

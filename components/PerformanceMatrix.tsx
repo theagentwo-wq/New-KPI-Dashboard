@@ -72,7 +72,7 @@ const getQuadrantColor = (x: number, y: number, xKpi: Kpi) => {
 };
 
 const growthKpis = [Kpi.Sales, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
-const efficiencyKpis = [Kpi.SOP, Kpi.PrimeCost, Kpi.FoodCost, Kpi.LaborCost, Kpi.VariableLabor];
+const efficiencyKpis = [Kpi.SOP, Kpi.PrimeCost, Kpi.FoodCost, Kpi.VariableLabor];
 const contextKpis = [Kpi.Sales, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
 
 export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, currentView, allStoresData, directorAggregates }) => {

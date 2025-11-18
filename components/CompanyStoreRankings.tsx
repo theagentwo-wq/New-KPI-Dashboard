@@ -18,8 +18,6 @@ interface CompanySnapshotProps {
   period: Period;
   periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
   setPeriodType: (type: 'Week' | 'Month' | 'Quarter' | 'Year') => void;
-  onPrev: () => void;
-  onNext: () => void;
   comparisonMode: ComparisonMode;
   setComparisonMode: (mode: ComparisonMode) => void;
   onLocationSelect: (location: string) => void;
@@ -82,7 +80,7 @@ const getRankIndicator = (rank: number) => {
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
 export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ 
-    data, currentView, period, periodType, setPeriodType, onPrev, onNext, comparisonMode, setComparisonMode, onLocationSelect, onReviewClick 
+    data, currentView, period, periodType, setPeriodType, comparisonMode, setComparisonMode, onLocationSelect, onReviewClick 
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
@@ -176,9 +174,9 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
                 </div>
                  <div className="flex flex-wrap justify-between items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <button onClick={onPrev} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronLeft" className="w-5 h-5" /></button>
+                        <button disabled className="p-2 rounded-md bg-slate-700 text-slate-300 opacity-50 cursor-not-allowed"><Icon name="chevronLeft" className="w-5 h-5" /></button>
                         <div className="text-center font-semibold text-cyan-400 w-48">{period.label}</div>
-                        <button onClick={onNext} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronRight" className="w-5 h-5" /></button>
+                        <button disabled className="p-2 rounded-md bg-slate-700 text-slate-300 opacity-50 cursor-not-allowed"><Icon name="chevronRight" className="w-5 h-5" /></button>
                     </div>
                      <div className="flex items-center gap-4">
                         <select value={comparisonMode} onChange={(e) => setComparisonMode(e.target.value as ComparisonMode)} className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500">

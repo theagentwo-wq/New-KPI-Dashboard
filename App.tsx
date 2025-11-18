@@ -29,7 +29,7 @@ const App: React.FC = () => {
     
     const [isImportDataOpen, setImportDataOpen] = useState(false);
     const [isMappingModalOpen, setMappingModalOpen] = useState(false);
-    const [mappingModalData, setMappingModalData] = useState<{ file: File, headers: string[], parsedData: any[] } | null>(null);
+    const [mappingModalData, setMappingModalData] = useState<{ file: File | null, headers: string[], parsedData: any[], weekStartDate: string } | null>(null);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
@@ -73,8 +73,8 @@ const App: React.FC = () => {
         }
     }, [dbStatus.status, fetchData]);
 
-    const handleOpenMappingModal = (file: File, headers: string[], parsedData: any[]) => {
-        setMappingModalData({ file, headers, parsedData });
+    const handleOpenMappingModal = (file: File, headers: string[], parsedData: any[], weekStartDate: string) => {
+        setMappingModalData({ file, headers, parsedData, weekStartDate });
         setImportDataOpen(false);
         setMappingModalOpen(true);
     };
@@ -84,12 +84,35 @@ const App: React.FC = () => {
         setMappingModalOpen(false);
     };
     
-    const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => { /* ... */ };
-    const updateNoteHandler = async (noteId: string, newContent: string, newCategory: NoteCategory) => { /* ... */ };
-    const deleteNoteHandler = async (noteId: string) => { /* ... */ };
-    const handleUpdateDirectorPhoto = async (directorId: string, file: File): Promise<string> => { /* ... */ return ''; };
-    const handleUpdateBudget = (storeId: string, year: number, month: number, kpi: Kpi, target: number) => { /* ... */ };
-    const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => { /* ... */ };
+    const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => {
+        const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageDataUrl);
+        setNotes(prevNotes => [newNote, ...prevNotes]);
+    };
+    const updateNoteHandler = async (noteId: string, newContent: string, newCategory: NoteCategory) => {
+        await updateNoteContent(noteId, newContent, newCategory);
+        setNotes(prevNotes => prevNotes.map(n => n.id === noteId ? { ...n, content: newContent, category: newCategory } : n));
+    };
+    const deleteNoteHandler = async (noteId: string) => {
+        await deleteNoteById(noteId);
+        setNotes(prevNotes => prevNotes.filter(n => n.id !== noteId));
+    };
+    
+    const handleUpdateDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
+        const photoUrl = await uploadDirectorPhoto(directorId, file);
+        await updateDirectorPhotoUrl(directorId, photoUrl);
+        setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, photo: photoUrl } : d));
+        return photoUrl;
+    };
+
+    const handleUpdateBudget = (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
+        // This would involve a call to a firebaseService function to update the budget
+        console.log("Budget updated (client-side):", { storeId, year, month, kpi, target });
+    };
+    const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
+        // This would involve a call to a firebaseService function to set the goal
+         console.log("Goal set (client-side):", { directorId, quarter, year, kpi, target });
+    };
+
     const openProfileModal = (director: DirectorProfile) => {
         setSelectedDirector(director);
         setProfileOpen(true);
@@ -107,7 +130,7 @@ const App: React.FC = () => {
                 directors={directors}
                 onOpenProfile={openProfileModal}
                 onOpenAlerts={() => setIsAlertsModalOpen(true)}
-                onOpenDataEntry={() => setImportDataOpen(true)} // Changed from DataEntry to ImportData
+                onOpenDataEntry={() => setImportDataOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
                 onOpenExecutiveSummary={() => setExecutiveSummaryOpen(true)}
             />
@@ -131,7 +154,7 @@ const App: React.FC = () => {
                                 onDeleteNote={deleteNoteHandler}
                                 dbStatus={dbStatus}
                                 loadedData={performanceData}
-                                setLoadedData={setPerformanceData} // Pass down setter
+                                setLoadedData={setPerformanceData}
                                 budgets={budgets}
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
@@ -159,9 +182,9 @@ const App: React.FC = () => {
                 <DataMappingModal 
                     isOpen={isMappingModalOpen}
                     onClose={() => { setMappingModalOpen(false); setImportDataOpen(true); }}
-                    file={mappingModalData.file}
                     headers={mappingModalData.headers}
                     parsedData={mappingModalData.parsedData}
+                    weekStartDate={mappingModalData.weekStartDate}
                     onImportSuccess={handleMappingSuccess}
                 />
             )}

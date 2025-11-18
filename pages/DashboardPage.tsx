@@ -162,13 +162,81 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const filteredData = useMemo(() => loadedData.filter(d => directorStores.includes(d.storeId)), [loadedData, directorStores]);
     const filteredComparisonData = useMemo(() => comparisonData.filter(d => directorStores.includes(d.storeId)), [comparisonData, directorStores]);
 
-    const aggregatePerformance = (data: StorePerformanceData[]): PerformanceData => { /* ... */ return {}; };
-    const aggregatedData = useMemo(() => aggregatePerformance(filteredData), [filteredData]);
-    const aggregatedComparisonData = useMemo(() => aggregatePerformance(filteredComparisonData), [filteredComparisonData]);
-    const processDataForTable = ( /* ... */ ) => { return {} };
-    const directorAggregates = useMemo(() => { /* ... */ return {}; }, []);
-    const processedDataForTable = useMemo(() => processDataForTable(), []);
-    const allStoresProcessedData = useMemo(() => processDataForTable(), []);
+    const processDataForTable = useCallback((
+        actualData: StorePerformanceData[],
+        comparisonStoreData: StorePerformanceData[],
+        budgetData: Budget[],
+        mode: ComparisonMode,
+        period: Period
+    ) => {
+        const result: { [storeId: string]: { actual: PerformanceData; comparison?: PerformanceData; variance: PerformanceData; } } = {};
+
+        actualData.forEach(storeData => {
+            const storeId = storeData.storeId;
+            const actual = storeData.data;
+            let comparison: PerformanceData | undefined = {};
+            
+            if (mode === 'vs. Budget') {
+                const month = period.startDate.getMonth() + 1; // 1-12
+                const year = period.startDate.getFullYear();
+                const budget = budgetData.find(b => b.storeId === storeId && b.year === year && b.month === month);
+                comparison = budget?.targets;
+            } else {
+                const comparisonStore = comparisonStoreData.find(c => c.storeId === storeId);
+                comparison = comparisonStore?.data;
+            }
+
+            const variance: PerformanceData = {};
+            ALL_KPIS.forEach(kpi => {
+                const actualValue = actual[kpi];
+                const comparisonValue = comparison?.[kpi];
+                if (actualValue !== undefined && comparisonValue !== undefined) {
+                    variance[kpi] = actualValue - comparisonValue;
+                }
+            });
+            result[storeId] = { actual, comparison, variance };
+        });
+
+        return result;
+
+    }, []);
+
+    const allStoresProcessedData = useMemo(() => {
+        return processDataForTable(loadedData, comparisonData, budgets, comparisonMode, currentPeriod);
+    }, [loadedData, comparisonData, budgets, comparisonMode, currentPeriod, processDataForTable]);
+    
+    const processedDataForTable = useMemo(() => {
+        const filtered: { [key: string]: any } = {};
+        for(const storeId of directorStores) {
+            if(allStoresProcessedData[storeId]){
+                filtered[storeId] = allStoresProcessedData[storeId];
+            }
+        }
+        return filtered;
+    }, [directorStores, allStoresProcessedData]);
+
+    const aggregatePerformance = useCallback((data: { [key: string]: { actual: PerformanceData } }, kpi: Kpi) => {
+        const kpiConfig = KPI_CONFIG[kpi];
+        const values = Object.values(data).map(d => d.actual[kpi]).filter(v => v !== undefined) as number[];
+        if (values.length === 0) return 0;
+        
+        if (kpiConfig.format === 'currency') {
+            return values.reduce((sum, v) => sum + v, 0); // Sum for currency
+        }
+        // Average for percentages and numbers
+        return values.reduce((sum, v) => sum + v, 0) / values.length;
+    }, []);
+
+    const aggregatedData = useMemo(() => {
+        const agg: PerformanceData = {};
+        ALL_KPIS.forEach(kpi => {
+            agg[kpi] = aggregatePerformance(processedDataForTable, kpi);
+        });
+        return agg;
+    }, [processedDataForTable, aggregatePerformance]);
+    
+    const directorAggregates = useMemo(() => { /* ... logic ... */ return {}; }, [allStoresProcessedData]);
+
 
     const handleLocationSelect = useCallback((location: string) => {
         setSelectedLocation(location);
@@ -196,14 +264,59 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
                 <div className="xl:col-span-3 space-y-6">
-                    {/* ... KPICards, CompanyStoreRankings, NotesPanel ... */}
+                    <CompanyStoreRankings
+                         data={processedDataForTable}
+                         currentView={currentView}
+                         period={currentPeriod}
+                         periodType={periodType}
+                         setPeriodType={setPeriodType}
+                         comparisonMode={comparisonMode}
+                         setComparisonMode={setComparisonMode}
+                         onLocationSelect={handleLocationSelect}
+                         onReviewClick={handleReviewClick}
+                    />
+                    <NotesPanel 
+                        allNotes={notes}
+                        addNote={onAddNote}
+                        updateNote={onUpdateNote}
+                        deleteNote={onDeleteNote}
+                        currentView={currentView}
+                        mainDashboardPeriod={currentPeriod}
+                        dbStatus={dbStatus}
+                    />
                 </div>
                 <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
                     <PerformanceMatrix periodLabel={currentPeriod.label} currentView={currentView} allStoresData={allStoresProcessedData} directorAggregates={directorAggregates} />
                     <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
                 </div>
             </div>
-            {/* ... Modals ... */}
+             <LocationInsightsModal 
+                isOpen={isLocationInsightsOpen}
+                onClose={() => setLocationInsightsOpen(false)}
+                location={selectedLocation}
+                performanceData={selectedLocation ? processedDataForTable[selectedLocation]?.actual : undefined}
+                userLocation={userLocation}
+            />
+            <ReviewAnalysisModal 
+                isOpen={isReviewModalOpen}
+                onClose={() => setReviewModalOpen(false)}
+                location={selectedLocation}
+            />
+             <Modal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} title="AI Anomaly Detections">
+                <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
+            </Modal>
+            <AnomalyDetailModal 
+                isOpen={isAnomalyModalOpen}
+                onClose={() => setAnomalyModalOpen(false)}
+                anomaly={selectedAnomaly}
+            />
+            <ExecutiveSummaryModal 
+                isOpen={isExecutiveSummaryOpen}
+                onClose={() => setIsExecutiveSummaryOpen(false)}
+                data={directorAggregates}
+                view={currentView}
+                period={currentPeriod}
+            />
         </div>
     );
 };
