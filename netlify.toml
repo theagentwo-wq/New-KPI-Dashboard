@@ -1,2 +1,2 @@
 [build.environment]
-SECRETS_SCAN_SMART_DETECTION_ENABLED = "true"
+SECRETS_SCAN_IGNORE = "node_modules/@firebase/app/dist/app-public.d.ts,node_modules/@firebase/app/dist/app.d.ts"
