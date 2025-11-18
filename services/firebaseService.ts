@@ -33,7 +33,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         const response = await fetch('/.netlify/functions/firebase-config-proxy');
         if (!response.ok) {
              const errorBody = await response.json();
-             // FIX: The `new Error()` constructor with a 'cause' options object is a newer JS feature and not supported by the current environment. This fix rewrites the error creation to be compatible, resolving the "Expected 0-1 arguments, but got 2" error.
              const err = new Error(errorBody.error || 'Failed to fetch Firebase config');
              (err as any).cause = errorBody.rawValue;
              throw err;
@@ -41,7 +40,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         const firebaseConfig = await response.json();
         
         if (Object.keys(firebaseConfig).length === 0) {
-            // FIX: The `new Error()` constructor with a 'cause' options object is a newer JS feature and not supported by the current environment. This fix rewrites the error creation to be compatible, resolving the "Expected 0-1 arguments, but got 2" error.
              const err = new Error("Received empty Firebase config from proxy. Ensure FIREBASE_CLIENT_CONFIG is set in Netlify.");
              (err as any).cause = JSON.stringify(firebaseConfig);
              throw err;
