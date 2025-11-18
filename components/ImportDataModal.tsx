@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { DataMappingTemplate } from '../types';
+import { DataMappingTemplate, Kpi } from '../types';
 import { batchImportActuals, batchImportBudgets } from '../services/firebaseService';
+import { getAIAssistedMapping } from '../services/geminiService';
+import { ALL_KPIS } from '../constants';
 
 interface ImportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
   templates: DataMappingTemplate[];
-  onOpenMappingModal: (file: File, headers: string[], parsedData: any[], weekStartDate: string) => void;
+  onOpenMappingModal: (file: File, headers: string[], parsedData: any[], weekStartDate: string, suggestedMappings: { [header: string]: string }) => void;
   onImportSuccess: () => void;
 }
 
@@ -113,8 +115,12 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             if (template) {
                 await processFileWithTemplate(data, template);
             } else {
-                setStatusMessage('No matching template found. Opening data mapper...');
-                onOpenMappingModal(file, headers, data, weekStartDate);
+                setStatusMessage('No matching template found. Asking AI to pre-map columns...');
+                const appKpis = ['Store Name', 'Week Start Date', 'Year', 'Month', ...Object.values(Kpi), 'ignore'];
+                const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
+                
+                setStatusMessage('AI analysis complete. Opening data mapper...');
+                onOpenMappingModal(file, headers, data, weekStartDate, suggestedMappings);
             }
         } else {
             // For budgets, use a simpler direct import for now

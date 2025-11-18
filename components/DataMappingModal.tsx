@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Kpi, DataMappingTemplate } from '../types';
 import { ALL_KPIS } from '../constants';
@@ -9,8 +9,9 @@ interface DataMappingModalProps {
   onClose: () => void;
   headers: string[];
   parsedData: any[];
-  weekStartDate: string; // FIX: Receive the date from the parent
+  weekStartDate: string;
   onImportSuccess: () => void;
+  initialMappings?: { [header: string]: string };
 }
 
 const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore')[] = [
@@ -19,11 +20,21 @@ const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ign
   'ignore'
 ];
 
-export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, weekStartDate, onImportSuccess }) => {
+export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, weekStartDate, onImportSuccess, initialMappings }) => {
   const [mappings, setMappings] = useState<{ [header: string]: string }>({});
   const [templateName, setTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+        // Pre-populate with AI suggestions if available
+        setMappings(initialMappings || {});
+        setTemplateName('');
+        setError(null);
+        setIsLoading(false);
+    }
+  }, [isOpen, initialMappings]);
 
   const handleMappingChange = (header: string, kpi: string) => {
     setMappings(prev => ({ ...prev, [header]: kpi }));
@@ -55,7 +66,6 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
       
       const savedTemplate = await saveDataMappingTemplate(newTemplate);
       
-      // FIX: Use the weekStartDate prop for the import
       const importDate = new Date(`${weekStartDate}T12:00:00`);
       await batchImportActuals(parsedData, savedTemplate, importDate);
 
@@ -73,7 +83,7 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Data Mapping Template">
       <div className="space-y-4">
-        <p className="text-slate-300">I don't recognize this file format. Please teach me how to read it by matching the columns from your file to the app's KPIs. This mapping will be saved for future uploads.</p>
+        <p className="text-slate-300">The AI has pre-filled its best guesses for this new file format. Please review the mappings below, give this template a name, and then click "Save & Import".</p>
         
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">Template Name</label>

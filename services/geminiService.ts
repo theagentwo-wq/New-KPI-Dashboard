@@ -67,6 +67,17 @@ const getDetailedErrorMessage = (error: unknown): string => {
     return `[AI Service Error] ${rawMessage}`;
 };
 
+export const getAIAssistedMapping = async (headers: string[], kpis: string[]): Promise<{ [header: string]: string }> => {
+    try {
+        const result = await callAIApi('getAIAssistedMapping', { headers, kpis });
+        return result.mappings || {};
+    } catch (error) {
+        console.error("Error getting AI-assisted mapping:", error);
+        // Return an empty object on error so the user can still map manually
+        return {};
+    }
+};
+
 export const getMapsApiKey = async (): Promise<string> => {
     try {
         const response = await fetch('/.netlify/functions/maps-api-key-proxy');
@@ -110,7 +121,7 @@ export const getInsights = async (data: any, view: View, periodLabel: string, qu
     }
 };
 
-export const getTrendAnalysis = async (historicalData: any, view: View): Promise<string> => {
+export const getTrendAnalysis = async (historicalData: { periodLabel: string; data: PerformanceData }[], view: View): Promise<string> => {
     try {
         const result = await callAIApi('getTrendAnalysis', { historicalData, view });
         return result.content || "Could not generate trend analysis.";

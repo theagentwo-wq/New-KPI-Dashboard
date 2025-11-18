@@ -29,7 +29,7 @@ const App: React.FC = () => {
     
     const [isImportDataOpen, setImportDataOpen] = useState(false);
     const [isMappingModalOpen, setMappingModalOpen] = useState(false);
-    const [mappingModalData, setMappingModalData] = useState<{ file: File | null, headers: string[], parsedData: any[], weekStartDate: string } | null>(null);
+    const [mappingModalData, setMappingModalData] = useState<{ file: File | null, headers: string[], parsedData: any[], weekStartDate: string, suggestedMappings?: { [header: string]: string } } | null>(null);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
@@ -75,8 +75,8 @@ const App: React.FC = () => {
         }
     }, [dbStatus.status, fetchData]);
 
-    const handleOpenMappingModal = (file: File, headers: string[], parsedData: any[], weekStartDate: string) => {
-        setMappingModalData({ file, headers, parsedData, weekStartDate });
+    const handleOpenMappingModal = (file: File, headers: string[], parsedData: any[], weekStartDate: string, suggestedMappings: { [header: string]: string }) => {
+        setMappingModalData({ file, headers, parsedData, weekStartDate, suggestedMappings });
         setImportDataOpen(false);
         setMappingModalOpen(true);
     };
@@ -177,6 +177,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
+                                // FIX: Corrected prop name from `setExecutiveSummaryOpen` to `setIsExecutiveSummaryOpen` to match the `DashboardPageProps` interface.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
@@ -204,6 +205,7 @@ const App: React.FC = () => {
                     parsedData={mappingModalData.parsedData}
                     weekStartDate={mappingModalData.weekStartDate}
                     onImportSuccess={handleMappingSuccess}
+                    initialMappings={mappingModalData.suggestedMappings}
                 />
             )}
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />

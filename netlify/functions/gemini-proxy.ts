@@ -122,6 +122,72 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
         }
 
         switch (action) {
+            case 'getAIAssistedMapping': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
+                const { headers: csvHeaders, kpis: appKpis } = payload;
+                if (!csvHeaders || !appKpis) return { statusCode: 400, headers, body: JSON.stringify({ error: "CSV headers and app KPIs are required." }) };
+
+                const prompt = `You are an intelligent data mapping assistant for a restaurant KPI dashboard. Your task is to map the columns from a user's uploaded CSV file to the application's predefined set of KPIs.
+
+                Analyze the provided CSV headers and, for each header, determine which of the application's KPIs it corresponds to. Use your knowledge of business and financial terms to make the best match.
+
+                **Application's Predefined KPIs:**
+                ${appKpis.join(', ')}
+
+                **CSV Headers to Map:**
+                ${csvHeaders.join(', ')}
+
+                **Instructions:**
+                - For each CSV header, find the single best match from the Application's KPIs.
+                - If a header is clearly for identifying the store location (e.g., "Location", "Store", "Restaurant Name"), map it to "Store Name".
+                - If a header is clearly for the date, map it to "Week Start Date".
+                - If a header does not match any of the KPIs or is irrelevant (e.g., "YOY Comp Traffic", internal codes), you MUST map it to "ignore".
+                - Your response MUST be a valid JSON object containing a single key "mappings", which is an array of objects. Each object in the array must have two keys: "header" (the original CSV header) and "mappedKpi" (your suggested mapping).
+
+                Example Response:
+                {
+                  "mappings": [
+                    { "header": "Location", "mappedKpi": "Store Name" },
+                    { "header": "MTD Actual", "mappedKpi": "Sales" },
+                    { "header": "Unused Column", "mappedKpi": "ignore" }
+                  ]
+                }`;
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                mappings: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            header: { type: Type.STRING },
+                                            mappedKpi: { type: Type.STRING },
+                                        },
+                                        required: ["header", "mappedKpi"],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+
+                const jsonString = response.text?.trim();
+                const parsedResponse = jsonString ? JSON.parse(jsonString) : { mappings: [] };
+
+                // Transform the array into the { header: mapping } object the frontend expects
+                const mappingsObject = (parsedResponse.mappings || []).reduce((acc: any, item: any) => {
+                    acc[item.header] = item.mappedKpi;
+                    return acc;
+                }, {});
+
+                return { statusCode: 200, headers, body: JSON.stringify({ mappings: mappingsObject }) };
+            }
             case 'getPlaceDetails': {
                 if (!mapsApiKey) return throwApiError('Maps', 'API key is not configured');
                 
