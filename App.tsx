@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, DataMappingTemplate, PerformanceData } from './types';
+import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, PerformanceData } from './types';
 import { getInitialPeriod } from './utils/dateUtils';
 import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getDataMappingTemplates, getGoals, addGoal, updateBudget, saveManualPerformanceData } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, saveManualPerformanceData } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
-import { DataMappingModal } from './components/DataMappingModal';
 import { DataEntryPage } from './pages/DataEntryPage';
 
 // Main App Component
@@ -28,8 +27,6 @@ const App: React.FC = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
     const [isImportDataOpen, setImportDataOpen] = useState(false);
-    const [isMappingModalOpen, setMappingModalOpen] = useState(false);
-    const [mappingModalData, setMappingModalData] = useState<{ file: File | null, headers: string[], parsedData: any[], suggestedMappings?: { [header: string]: string } } | null>(null);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
@@ -73,11 +70,6 @@ const App: React.FC = () => {
         }
     }, [dbStatus.status, fetchData]);
 
-    const handleMappingSuccess = () => {
-        fetchData(getInitialPeriod()); // Re-fetch all data after successful import
-        setMappingModalOpen(false);
-    };
-    
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => {
         const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageDataUrl);
         setNotes(prevNotes => [newNote, ...prevNotes]);
@@ -193,16 +185,6 @@ const App: React.FC = () => {
                 onClose={() => setImportDataOpen(false)}
                 onImportSuccess={() => fetchData(getInitialPeriod())}
             />
-            {mappingModalData && (
-                <DataMappingModal 
-                    isOpen={isMappingModalOpen}
-                    onClose={() => { setMappingModalOpen(false); setImportDataOpen(true); }}
-                    headers={mappingModalData.headers}
-                    parsedData={mappingModalData.parsedData}
-                    onImportSuccess={handleMappingSuccess}
-                    initialMappings={mappingModalData.suggestedMappings}
-                />
-            )}
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />
             <DirectorProfileModal 
                 isOpen={isProfileOpen} 
