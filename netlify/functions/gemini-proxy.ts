@@ -74,7 +74,7 @@ You must visually identify the dates or fiscal periods present in the document. 
         
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: { parts: [{ text: prompt }, { inlineData: { data: fileData, mimeType } }] },
+          contents: [{ parts: [{ text: prompt }, { inlineData: { data: fileData, mimeType } }] }],
           config: {
             responseMimeType: "application/json",
             responseSchema: {
