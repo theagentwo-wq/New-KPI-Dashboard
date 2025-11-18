@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-700 rounded-md;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-500 rounded-md;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+/* Weather Icon Animations */
+@layer components {
+  @keyframes rotate-sun {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-sun-spin {
+    transform-origin: center;
+    animation: rotate-sun 20s linear infinite;
+  }
+
+  @keyframes float-cloud {
+    0%, 100% { transform: translateX(-5%); }
+    50% { transform: translateX(5%); }
+  }
+  .animate-cloud-float {
+    animation: float-cloud 8s ease-in-out infinite;
+  }
+
+  @keyframes rain-drop {
+    0% { transform: translateY(-30%); opacity: 1; }
+    100% { transform: translateY(30%); opacity: 0; }
+  }
+  .animate-rain-drop {
+    animation: rain-drop 1s linear infinite;
+  }
+
+  @keyframes snow-flake {
+    0% { transform: translateY(-20%) translateX(0); opacity: 1; }
+    100% { transform: translateY(20%) translateX(10px); opacity: 0; }
+  }
+  .animate-snow-flake {
+    animation: snow-flake 2s linear infinite;
+  }
+
+  @keyframes scroll-gallery {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .animate-scroll-gallery {
+    animation: scroll-gallery 40s linear infinite;
+  }
+}
