@@ -5,7 +5,8 @@ import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 // FIX: Add missing type imports to resolve 'Cannot find name' errors.
 import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal } from '../types';
-import { DIRECTORS as fallbackDirectors, ALL_STORES } from '../constants';
+// FIX: Add KPI_CONFIG import for use in new batchImportStructuredActuals function
+import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
@@ -178,6 +179,57 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
             }
         } else {
              console.warn(`Could not match store name: "${rawStoreName}"`);
+        }
+    });
+
+    await batch.commit();
+};
+
+// FIX: Add missing 'batchImportStructuredActuals' function to handle importing data extracted by AI.
+export const batchImportStructuredActuals = async (data: any[]): Promise<void> => {
+    if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
+    const batch = db.batch();
+
+    data.forEach(row => {
+        const rawStoreName = row.storeName;
+        const storeId = cleanAndMatchStoreName(rawStoreName);
+        const weekStartDateStr = row.weekStartDate;
+
+        if (storeId && weekStartDateStr) {
+            const weekStartDate = new Date(`${weekStartDateStr}T12:00:00`);
+
+            const performanceData: PerformanceData = {};
+            
+            for (const key in row) {
+                if (Object.values(Kpi).includes(key as Kpi)) {
+                    let value = row[key];
+                    if (typeof value === 'string') {
+                        value = String(value).replace(/[\$,%]/g, '').trim();
+                    }
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                        const kpiConfig = KPI_CONFIG[key as Kpi];
+                        // AI returns percentages as numbers (e.g., 21.6), so convert to decimal
+                        if (kpiConfig.format === 'percent') {
+                            performanceData[key as Kpi] = numValue / 100;
+                        } else {
+                            performanceData[key as Kpi] = numValue;
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(performanceData).length > 0) {
+                const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
+                const docRef = actualsCollection!.doc(docId);
+                batch.set(docRef, {
+                    storeId,
+                    weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
+                    data: performanceData
+                }, { merge: true });
+            }
+        } else {
+            console.warn(`Could not match store name or missing date for AI-extracted row:`, row);
         }
     });
 
