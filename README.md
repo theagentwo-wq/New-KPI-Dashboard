@@ -150,7 +150,7 @@ The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CO
 5.  You will see the `firebaseConfig` object. This is what you need.
     ```javascript
     const firebaseConfig = {
-      apiKey: "AIzaSy...",
+      apiKey: "YOUR_FIREBASE_API_KEY",
       authDomain: "your-project.firebaseapp.com",
       projectId: "your-project",
       // ... and so on
@@ -164,7 +164,7 @@ The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CO
 3.  This single line is the value you will paste into your `.env.local` file and your Netlify settings.
 
 #### ✅ Correct Final Format:
-`{"apiKey":"AIzaSy...","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}`
+`{"apiKey":"YOUR_FIREBASE_API_KEY","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}`
 
 #### ❌ Common Mistakes to Avoid:
 -   **Do not** wrap the final string in any quotes (`'` or `"`). Paste the raw `{"key":...}` object.
