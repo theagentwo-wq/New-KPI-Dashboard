@@ -9,8 +9,6 @@ import * as XLSX from 'xlsx';
 interface ImportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
-  templates: DataMappingTemplate[];
-  onOpenMappingModal: (file: File, headers: string[], parsedData: any[], suggestedMappings: { [header: string]: string }) => void;
   onImportSuccess: () => void;
 }
 
@@ -73,7 +71,7 @@ const parseExcel = (file: File): Promise<{ headers: string[], data: any[] }> => 
 };
 
 
-export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, templates, onOpenMappingModal, onImportSuccess }) => {
+export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportSuccess }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);

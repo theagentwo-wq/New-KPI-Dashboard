@@ -22,7 +22,6 @@ const App: React.FC = () => {
     const [notes, setNotes] = useState<Note[]>([]);
     const [dbStatus, setDbStatus] = useState<FirebaseStatus>({ status: 'initializing' });
     const [directors, setDirectors] = useState<DirectorProfile[]>([]);
-    const [mappingTemplates, setMappingTemplates] = useState<DataMappingTemplate[]>([]);
     
     const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
@@ -40,19 +39,17 @@ const App: React.FC = () => {
     const fetchData = useCallback(async (period: Period) => {
         if (dbStatus.status === 'connected') {
             try {
-                const [pData, bData, nData, dData, tData, gData] = await Promise.all([
+                const [pData, bData, nData, dData, gData] = await Promise.all([
                     getPerformanceData(period.startDate, period.endDate),
                     getBudgets(period.startDate.getFullYear()),
                     getNotes(),
                     getDirectorProfiles(),
-                    getDataMappingTemplates(),
                     getGoals(),
                 ]);
                 setPerformanceData(pData);
                 setBudgets(bData);
                 setNotes(nData);
                 setDirectors(dData);
-                setMappingTemplates(tData);
                 setGoals(gData);
             } catch (error) {
                  console.error("Error fetching initial data from Firebase:", error);
@@ -75,12 +72,6 @@ const App: React.FC = () => {
             fetchData(getInitialPeriod());
         }
     }, [dbStatus.status, fetchData]);
-
-    const handleOpenMappingModal = (file: File, headers: string[], parsedData: any[], suggestedMappings: { [header: string]: string }) => {
-        setMappingModalData({ file, headers, parsedData, suggestedMappings });
-        setImportDataOpen(false);
-        setMappingModalOpen(true);
-    };
 
     const handleMappingSuccess = () => {
         fetchData(getInitialPeriod()); // Re-fetch all data after successful import
@@ -200,8 +191,6 @@ const App: React.FC = () => {
              <ImportDataModal 
                 isOpen={isImportDataOpen}
                 onClose={() => setImportDataOpen(false)}
-                templates={mappingTemplates}
-                onOpenMappingModal={handleOpenMappingModal}
                 onImportSuccess={() => fetchData(getInitialPeriod())}
             />
             {mappingModalData && (
