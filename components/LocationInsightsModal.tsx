@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getMapsApiKey } from '../services/geminiService';
 import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition, Kpi, StoreDetails } from '../types';
@@ -19,6 +19,7 @@ interface LocationInsightsModalProps {
 
 type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
+type ApiKeyStatus = 'loading' | 'loaded' | 'error';
 
 // --- Reusable Components for the Modal ---
 
@@ -100,6 +101,9 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     // State for UI and data
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [activeTab, setActiveTab] = useState<AnalysisTab>('reviews');
+    const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+    const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus>('loading');
+    const [apiKeyError, setApiKeyError] = useState<string | null>(null);
     
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -130,6 +134,23 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             setActiveTab('reviews');
             setAnalysisContent({});
             setIsLoading({});
+            setMapsApiKey(null);
+            setApiKeyStatus('loading');
+            setApiKeyError(null);
+        } else {
+            // Fetch the maps API key when the modal opens
+            const fetchKey = async () => {
+                try {
+                    const key = await getMapsApiKey();
+                    setMapsApiKey(key);
+                    setApiKeyStatus('loaded');
+                } catch (error) {
+                    setApiKeyStatus('error');
+                    setApiKeyError(error instanceof Error ? error.message : "An unknown error occurred.");
+                    console.error("Failed to load Maps API Key:", error);
+                }
+            };
+            fetchKey();
         }
     }, [isOpen]);
 
@@ -203,6 +224,21 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     ];
 
     const renderMapEmbed = () => {
+        if (apiKeyStatus === 'loading') {
+            return <LoadingSpinner message="Loading map..." />;
+        }
+        
+        if (apiKeyStatus === 'error') {
+            return (
+                <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
+                    <h4 className="font-bold text-red-400">Map Unavailable</h4>
+                    <p className="text-slate-400 text-xs mt-2">Could not load the Google Maps API key.</p>
+                    <p className="text-slate-500 text-xs mt-1">{apiKeyError}</p>
+                    <p className="text-slate-400 text-xs mt-3">Please ensure the `MAPS_API_KEY` is configured correctly in your Netlify settings. See the README for instructions.</p>
+                </div>
+            );
+        }
+
         if (!storeDetails) {
             return (
                 <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
@@ -211,10 +247,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             );
         }
 
-        // Use the full address for the query to leverage Google's powerful place matching.
-        // This is more reliable than using coordinates for finding a specific business.
         const searchQuery = encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${storeDetails.address}`);
-        const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.API_KEY}&q=${searchQuery}`;
+        const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${searchQuery}`;
 
         return (
             <iframe

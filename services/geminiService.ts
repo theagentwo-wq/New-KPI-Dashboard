@@ -67,6 +67,24 @@ const getDetailedErrorMessage = (error: unknown): string => {
     return `[AI Service Error] ${rawMessage}`;
 };
 
+export const getMapsApiKey = async (): Promise<string> => {
+    try {
+        const response = await fetch('/.netlify/functions/maps-api-key-proxy');
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(errorBody.error || 'Failed to fetch Maps API key');
+        }
+        const data = await response.json();
+        return data.apiKey;
+    } catch (error) {
+        console.error("Error fetching Maps API key:", error);
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('An unknown error occurred while fetching the Maps API key.');
+    }
+};
+
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
     try {
         const result = await callAIApi('getExecutiveSummary', { data, view, periodLabel });

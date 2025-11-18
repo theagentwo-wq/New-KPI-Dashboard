@@ -10,6 +10,7 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Animations**: Framer Motion
 - **Charts**: Recharts
 - **AI**: Google Gemini API (via Netlify Proxy)
+- **Maps**: Google Maps Platform (via Netlify Proxy)
 - **Database**: Google Firestore
 
 ## Local Setup (Foolproof Guide)
@@ -46,6 +47,7 @@ This is the most important step. All API keys are managed in a local environment
 2.  **Rename the file:** Rename this file to **`.env.local`**.
 3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
     *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
+    *   `MAPS_API_KEY`: **(New & Required)** Get this from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). See the "Google Maps API Key Guide" below.
     *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
 
 ### 4. Run the Development Server
@@ -81,19 +83,47 @@ Netlify should automatically detect these settings:
 
 ### 4. Add Environment Variables
 
-This step is **critical** for the deployed application to work. You must add **both** of the following variables from your `.env.local` file to your Netlify settings.
+This step is **critical** for the deployed application to work. You must add **all** of the following variables from your `.env.local` file to your Netlify settings.
 
 1.  In your Netlify site's dashboard, go to **Site configuration > Environment variables**.
 2.  Add your **Gemini API Key**:
     -   **Key**: `GEMINI_API_KEY`
     -   **Value**: Paste your Google Gemini API key.
-3.  Add your **Firebase Client Config**:
+3.  Add your **Maps API Key**:
+    -   **Key**: `MAPS_API_KEY`
+    -   **Value**: Paste your Google Maps Platform API key.
+4.  Add your **Firebase Client Config**:
     -   **Key**: `FIREBASE_CLIENT_CONFIG`
     -   **Value**: Paste the single-line JSON string for your Firebase client config. See the guide below for the exact format.
 
 ### 5. Deploy
 
 Trigger a new deploy from the "Deploys" tab.
+
+---
+
+## Google Maps API Key Guide
+
+A dedicated API key is required for the Store Hub map features.
+
+### Step 1: Create the API Key
+
+1.  Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
+2.  Make sure you have a project selected.
+3.  Click **"+ CREATE CREDENTIALS"** at the top of the page and select **"API key"**.
+4.  Copy the new API key that is generated. This is the value you will use.
+
+### Step 2: Enable the Correct API
+
+1.  After creating the key, a dialog will appear. Click the **"EDIT API KEY"** button (or find your new key in the list and click the pencil icon to edit it).
+2.  Under **"API restrictions"**, select **"Restrict key"**.
+3.  In the dropdown menu, find and enable the **"Maps Embed API"**. This is the only API needed for the current map feature.
+4.  Click **"Save"**.
+
+### Step 3: Add the Key to Your Project
+
+-   **For Local Development:** Paste the key into your `.env.local` file for the `MAPS_API_KEY` variable.
+-   **For Deployment:** Paste the key into your Netlify site's environment variables with the key `MAPS_API_KEY`.
 
 ---
 
@@ -163,11 +193,9 @@ This means your Firestore Security Rules are blocking the app. This is the **def
     rules_version = '2';
     service cloud.firestore {
       match /databases/{database}/documents {
-        // Allow public read access to the 'notes' collection
-        match /notes/{noteId} {
-          allow read: if true;
-          // Keep writes secure or open them for the demo
-          allow write: if true; // Allows anyone to write, use for demo purposes only
+        // Allow public read access to the 'notes' and 'directors' collections
+        match /{collectionId}/{documentId} {
+          allow read, write: if true; // Allows anyone to read/write, use for demo purposes only
         }
       }
     }
