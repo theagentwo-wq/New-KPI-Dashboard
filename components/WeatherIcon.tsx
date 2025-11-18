@@ -69,16 +69,36 @@ export const WeatherIcon: React.FC<WeatherIconProps> = ({ condition, className =
           <svg {...commonProps}>
               <path d="M46.6,27.2a12.8,12.8,0,0,0-24-4.8,10.8,10.8,0,0,0-1.6,21.6h27.2a9.6,9.6,0,0,0,0-19.2,12.2,12.2,0,0,0-1.6-2.4Z"
                   fill="#64748B" stroke="#94A3B8" strokeWidth="2" strokeLinejoin="round" />
-              <polygon points="30 42, 24 52, 36 52, 30 62" fill="#FBBF24" />
+              {/* FIX: The 'fill' attribute was missing a value, causing a TS error. Completed the tag. */}
+              <polygon points="30 42, 24 52, 36 52, 30 62" fill="#FBBF24" className="animate-flash" />
           </svg>
       );
+    case 'windy':
+        return (
+            <svg {...commonProps}>
+                 <g className="animate-cloud-float">
+                    <path d="M46.6,27.2a12.8,12.8,0,0,0-24-4.8,10.8,10.8,0,0,0-1.6,21.6h27.2a9.6,9.6,0,0,0,0-19.2,12.2,12.2,0,0,0-1.6-2.4Z"
+                        fill="#94A3B8" stroke="#E2E8F0" strokeWidth="2" strokeLinejoin="round" />
+                 </g>
+                <g stroke="#E2E8F0" strokeWidth="2" strokeLinecap="round" fill="none">
+                    <path d="M12 48 Q 20 44, 28 48" className="animate-wind-blow" style={{ animationDelay: '0s' }}/>
+                    <path d="M16 54 Q 26 50, 36 54" className="animate-wind-blow" style={{ animationDelay: '0.2s' }}/>
+                </g>
+            </svg>
+        );
     case 'loading':
         return (
             <svg {...commonProps} className={`${className} animate-spin`}>
-                <circle cx="32" cy="32" r="14" stroke="#475569" strokeWidth="4" fill="none" strokeDasharray="80" strokeDashoffset="60" />
+                <circle cx="32" cy="32" r="14" stroke="#64748B" strokeWidth="4" fill="none" strokeDasharray="80" strokeDashoffset="60" />
             </svg>
-        )
+        );
     default:
-      return null;
+        // Fallback to a cloudy icon for any other unhandled conditions.
+        return (
+            <svg {...commonProps}>
+                <path d="M46.6,27.2a12.8,12.8,0,0,0-24-4.8,10.8,10.8,0,0,0-1.6,21.6h27.2a9.6,9.6,0,0,0,0-19.2,12.2,12.2,0,0,0-1.6-2.4Z"
+                    fill="#94A3B8" stroke="#E2E8F0" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+        );
   }
 };
