@@ -125,3 +125,14 @@ export interface DataMappingTemplate {
   headers: string[]; // The headers from the original file
   mappings: { [header: string]: Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore' };
 }
+
+// FIX: Add DataItem type for use in PerformanceMatrix and DashboardPage
+export type DataItem = {
+    actual: PerformanceData;
+    comparison?: PerformanceData;
+    variance: PerformanceData;
+} | {
+    aggregated: PerformanceData;
+    comparison?: PerformanceData;
+    variance: PerformanceData;
+};

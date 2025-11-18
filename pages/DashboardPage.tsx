@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS } from '../constants';
 import { getInitialPeriod, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
@@ -148,7 +148,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [directorStores, allStoresProcessedData]);
 
     const directorAggregates = useMemo(() => { 
-        const directorData: { [key: string]: any} = {};
+        const directorData: { [key: string]: DataItem} = {};
         DIRECTORS.forEach(d => {
             const directorStoreIds = d.stores;
             const directorStoreData = directorStoreIds.reduce((acc, storeId) => {
@@ -162,10 +162,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 actual: {}, comparison: {}, variance: {}
             };
 
+            // FIX: Explicitly type the value from Object.values to prevent `unknown` type error.
+            type StoreProcessedData = (typeof allStoresProcessedData)[string];
+
             ALL_KPIS.forEach(kpi => {
                  const kpiConfig = KPI_CONFIG[kpi];
-                 const actualValues = Object.values(directorStoreData).map(s => s.actual[kpi]).filter(v => v !== undefined) as number[];
-                 const comparisonValues = Object.values(directorStoreData).map(s => s.comparison?.[kpi]).filter(v => v !== undefined) as number[];
+                 const actualValues = Object.values(directorStoreData).map((s: StoreProcessedData) => s.actual[kpi]).filter(v => v !== undefined) as number[];
+                 const comparisonValues = Object.values(directorStoreData).map((s: StoreProcessedData) => s.comparison?.[kpi]).filter(v => v !== undefined) as number[];
                 
                 if (kpiConfig.format === 'currency') {
                     aggregated.actual[kpi] = actualValues.reduce((a, b) => a + b, 0);

@@ -4,7 +4,8 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Res
 import { getQuadrantAnalysis } from '../services/geminiService';
 import { marked } from 'marked';
 import { Icon } from './Icon';
-import { Kpi, View, PerformanceData } from '../types';
+// FIX: Import DataItem from types.ts
+import { Kpi, View, PerformanceData, DataItem } from '../types';
 import { KPI_CONFIG } from '../constants';
 
 type ChartDataPoint = {
@@ -14,15 +15,7 @@ type ChartDataPoint = {
     z: number;
 };
 
-type DataItem = {
-    actual: PerformanceData;
-    comparison?: PerformanceData;
-    variance: PerformanceData;
-} | {
-    aggregated: PerformanceData;
-    comparison?: PerformanceData;
-    variance: PerformanceData;
-};
+// FIX: Removed local DataItem type definition as it's now in types.ts
 
 interface PerformanceMatrixProps {
     periodLabel: string;
