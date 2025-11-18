@@ -98,7 +98,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     
     try {
         if (['csv', 'xlsx', 'xlsm'].includes(fileType)) {
-            // Tabular Data Flow (CSV/Excel)
+            // Tabular Data Flow (CSV/Excel) - NOW FULLY AUTOMATED
             setStatusMessage(`Parsing ${file.name}...`);
             const { headers, data } = fileType === 'csv' 
                 ? parseCSV(await file.text())
@@ -106,31 +106,30 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             
             if (data.length === 0) throw new Error("Could not find any data rows in the file.");
             
-            // Intelligent Routing: Check for Budget headers
             const isBudget = headers.includes('Year') && headers.includes('Month');
             
             if (isBudget) {
                 setStatusMessage('Detected Budget format. Importing...');
                 await batchImportBudgets(data);
-                setStatusMessage('Successfully imported budget data!');
-                setTimeout(() => { onImportSuccess(); onClose(); }, 1500);
             } else {
-                // Actuals
-                setStatusMessage(`Parsed ${data.length} rows. Checking for matching templates...`);
-                const template = templates.find(t => JSON.stringify(t.headers) === JSON.stringify(headers));
+                // Actuals: AI-driven mapping, no user interaction
+                setStatusMessage('Asking AI to map columns...');
+                const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
+                const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
                 
-                if (template) {
-                    setStatusMessage(`Applying template "${template.name}" and importing data...`);
-                    await batchImportActuals(data, template);
-                    setStatusMessage('Successfully imported data!');
-                    setTimeout(() => { onImportSuccess(); onClose(); }, 1500);
-                } else {
-                    setStatusMessage('No template found. Asking AI to assist with mapping...');
-                    const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                    const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
-                    onOpenMappingModal(file, headers, data, suggestedMappings);
-                }
+                const adHocTemplate: DataMappingTemplate = {
+                    id: 'ad-hoc-template', // Not saved, just for type compliance
+                    name: `Ad-hoc for ${file.name}`,
+                    headers: headers,
+                    mappings: suggestedMappings as DataMappingTemplate['mappings'],
+                };
+                
+                setStatusMessage(`Applying AI-generated map and importing data...`);
+                await batchImportActuals(data, adHocTemplate);
             }
+            
+            setStatusMessage('Successfully imported data!');
+            setTimeout(() => { onImportSuccess(); onClose(); }, 1500);
 
         } else if (['png', 'jpg', 'jpeg', 'pdf', 'docx'].includes(fileType)) {
             // AI Vision Flow (Image/PDF/Doc)
