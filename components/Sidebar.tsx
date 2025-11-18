@@ -7,7 +7,7 @@ interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (isCollapsed: boolean) => void;
   currentPage: string;
-  setCurrentPage: (page: 'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News') => void;
+  setCurrentPage: (page: 'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry') => void;
   currentView: View;
   setCurrentView: (view: View) => void;
   directors: DirectorProfile[];
@@ -89,6 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
             <NavLink icon="dashboard" label="Dashboard" isActive={currentPage === 'Dashboard'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Dashboard')} />
             <NavLink icon="budget" label="Budget Planner" isActive={currentPage === 'Budget Planner'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Budget Planner')} />
             <NavLink icon="goal" label="Goal Setter" isActive={currentPage === 'Goal Setter'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Goal Setter')} />
+            <NavLink icon="edit" label="Data Entry" isActive={currentPage === 'Data Entry'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Data Entry')} />
             <NavLink icon="news" label="Industry News" isActive={currentPage === 'News'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('News')} />
 
             <div className="pt-2 mt-2 border-t border-slate-700" />

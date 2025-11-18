@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, DataMappingTemplate } from './types';
+import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, DataMappingTemplate, PerformanceData } from './types';
 import { getInitialPeriod } from './utils/dateUtils';
 import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getDataMappingTemplates, getGoals, addGoal, updateBudget } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getDataMappingTemplates, getGoals, addGoal, updateBudget, saveManualPerformanceData } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataMappingModal } from './components/DataMappingModal';
+import { DataEntryPage } from './pages/DataEntryPage';
 
 // Main App Component
 const App: React.FC = () => {
@@ -23,7 +24,7 @@ const App: React.FC = () => {
     const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     const [mappingTemplates, setMappingTemplates] = useState<DataMappingTemplate[]>([]);
     
-    const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
+    const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
@@ -131,6 +132,12 @@ const App: React.FC = () => {
         setGoals(prevGoals => [...prevGoals, newGoal]);
     };
 
+    const handleSaveManualData = async (storeId: string, weekStartDate: Date, data: PerformanceData) => {
+        await saveManualPerformanceData(storeId, weekStartDate, data);
+        // Re-fetch data to reflect changes immediately on the dashboard
+        await fetchData(getInitialPeriod());
+    };
+
     const openProfileModal = (director: DirectorProfile) => {
         setSelectedDirector(director);
         setProfileOpen(true);
@@ -183,6 +190,7 @@ const App: React.FC = () => {
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
                         {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
                         {currentPage === 'News' && <NewsFeedPage />}
+                        {currentPage === 'Data Entry' && <DataEntryPage onSave={handleSaveManualData} />}
                     </motion.main>
                 </AnimatePresence>
             </div>

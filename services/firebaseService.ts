@@ -400,3 +400,29 @@ export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: strin
     if (!db) throw new Error("Firebase not initialized.");
     await db.collection('directors').doc(directorId).update({ photo: photoUrl });
 };
+
+// --- Manual Data Entry Function ---
+export const saveManualPerformanceData = async (storeId: string, weekStartDate: Date, data: PerformanceData): Promise<void> => {
+    if (!actualsCollection) throw new Error("Firebase not initialized.");
+
+    // Ensure there's data to save
+    if (Object.keys(data).length === 0) {
+        throw new Error("No KPI data provided to save.");
+    }
+    
+    // Create a document ID that is consistent with the batch import process
+    const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
+    const docRef = actualsCollection.doc(docId);
+
+    // Prepare the document data
+    const documentData = {
+        storeId,
+        weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
+        data: data
+    };
+    
+    // Use set with merge:true to create or update the document.
+    // This will add new KPI fields or overwrite existing ones for that week
+    // without deleting other KPIs that might already be there.
+    await docRef.set(documentData, { merge: true });
+};
