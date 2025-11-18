@@ -1,7 +1,16 @@
 
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Note } from '../../types';
+
+// FIX: Module-level initialization to permanently resolve TS2345 error.
+// The function will fail to load if the key is missing, providing a clear error
+// and guaranteeing to the compiler that `ai` is always valid.
+const geminiApiKey = process.env.GEMINI_API_KEY;
+if (!geminiApiKey) {
+    throw new Error('FATAL: AI Service Error: GEMINI_API_KEY is not configured on the server.');
+}
+const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
 
 export const handler = async (event: { httpMethod: string; body?: string }) => {
     const headers = {
@@ -18,32 +27,8 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
         return { statusCode: 405, headers, body: 'Method Not Allowed' };
     }
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    const mapsApiKey = process.env.MAPS_API_KEY;
-
-    // CRITICAL FIX: Add fail-fast guards for API keys at the very top.
-    if (!geminiApiKey) {
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'AI Service Error: GEMINI_API_KEY is not configured on the server.' })
-        };
-    }
-    
-    // Most actions require the Maps key, so we check it here too unless it's a known exception.
-    const bodyPayload = JSON.parse(event.body || '{}');
-    if (bodyPayload.action === 'getPlaceDetails' && !mapsApiKey) {
-         return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Maps Service Error: MAPS_API_KEY is not configured on the server.' })
-        };
-    }
-
     try {
-        const { action, payload } = bodyPayload;
-        
-        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+        const { action, payload } = JSON.parse(event.body || '{}');
 
         switch (action) {
             case 'getExecutiveSummary': {
@@ -145,7 +130,14 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getPlaceDetails': {
-                if (!mapsApiKey) throw new Error("MAPS_API_KEY is not configured."); // Should be caught by top-level guard
+                const mapsApiKey = process.env.MAPS_API_KEY;
+                if (!mapsApiKey) {
+                     return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({ error: 'Maps Service Error: MAPS_API_KEY is not configured on the server.' })
+                    };
+                }
                 const { address } = payload;
                 const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
                 const findPlaceResponse = await fetch(findPlaceUrl);
