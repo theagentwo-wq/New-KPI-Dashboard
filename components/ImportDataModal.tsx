@@ -4,7 +4,6 @@ import { Icon } from './Icon';
 import { DataMappingTemplate, Kpi } from '../types';
 import { batchImportActuals, batchImportBudgets } from '../services/firebaseService';
 import { getAIAssistedMapping } from '../services/geminiService';
-import { ALL_KPIS } from '../constants';
 
 interface ImportDataModalProps {
   isOpen: boolean;
