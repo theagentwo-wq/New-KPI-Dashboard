@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getMapsApiKey } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getMapsApiKey, getPlaceDetails, PlaceDetails } from '../services/geminiService';
 import { get7DayForecastForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, ForecastDataPoint, WeatherCondition, Kpi, StoreDetails } from '../types';
@@ -19,7 +19,7 @@ interface LocationInsightsModalProps {
 
 type AnalysisTab = 'reviews' | 'market' | 'brief' | 'forecast' | 'marketing';
 type Audience = 'FOH' | 'BOH' | 'Managers';
-type ApiKeyStatus = 'loading' | 'loaded' | 'error';
+type VisualTab = 'details' | 'streetview';
 
 // --- Reusable Components for the Modal ---
 
@@ -100,10 +100,14 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
 export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ isOpen, onClose, location, performanceData, userLocation }) => {
     // State for UI and data
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [activeTab, setActiveTab] = useState<AnalysisTab>('reviews');
+    const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>('reviews');
+    const [activeVisualTab, setActiveVisualTab] = useState<VisualTab>('details');
+    
+    // State for Google Maps data
     const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
-    const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus>('loading');
-    const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+    const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
+    const [isPlaceDetailsLoading, setIsPlaceDetailsLoading] = useState(false);
+    const [placeDetailsError, setPlaceDetailsError] = useState<string | null>(null);
     
     // State for each analysis tab (lazy-loaded)
     const [analysisContent, setAnalysisContent] = useState<{ 
@@ -113,7 +117,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         forecast?: any;
         marketing?: any;
     }>({});
-    const [isLoading, setIsLoading] = useState<{ [key in AnalysisTab]?: boolean }>({});
+    const [isLoadingAnalysis, setIsLoadingAnalysis] = useState<{ [key in AnalysisTab]?: boolean }>({});
     const [loadingAudience, setLoadingAudience] = useState<Audience | null>(null);
   
     const director = useMemo(() => {
@@ -126,37 +130,55 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         return STORE_DETAILS[location];
     }, [location]);
 
+    const resetState = () => {
+        setIsFullScreen(false);
+        setActiveAnalysisTab('reviews');
+        setActiveVisualTab('details');
+        setAnalysisContent({});
+        setIsLoadingAnalysis({});
+        setMapsApiKey(null);
+        setPlaceDetails(null);
+        setIsPlaceDetailsLoading(false);
+        setPlaceDetailsError(null);
+    };
 
-    // Reset all state when the modal is closed
+    // Main data fetching logic when modal opens
     useEffect(() => {
-        if (!isOpen) {
-            setIsFullScreen(false);
-            setActiveTab('reviews');
-            setAnalysisContent({});
-            setIsLoading({});
-            setMapsApiKey(null);
-            setApiKeyStatus('loading');
-            setApiKeyError(null);
-        } else {
-            // Fetch the maps API key when the modal opens
-            const fetchKey = async () => {
+        if (isOpen && location && storeDetails) {
+            const fetchInitialVisuals = async () => {
+                // Fetch Maps API key
                 try {
                     const key = await getMapsApiKey();
                     setMapsApiKey(key);
-                    setApiKeyStatus('loaded');
                 } catch (error) {
-                    setApiKeyStatus('error');
-                    setApiKeyError(error instanceof Error ? error.message : "An unknown error occurred.");
-                    console.error("Failed to load Maps API Key:", error);
+                    const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
+                    setPlaceDetailsError(`Failed to load Maps API Key: ${errorMsg}`);
+                    return; // Stop if key fails
+                }
+
+                // Fetch Place Details for photos and rating
+                setIsPlaceDetailsLoading(true);
+                setPlaceDetailsError(null);
+                try {
+                    const details = await getPlaceDetails(storeDetails.address);
+                    setPlaceDetails(details);
+                } catch (error) {
+                    const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
+                    setPlaceDetailsError(`Could not load location details. ${errorMsg}`);
+                    console.error("Failed to load Place Details:", error);
+                } finally {
+                    setIsPlaceDetailsLoading(false);
                 }
             };
-            fetchKey();
+            fetchInitialVisuals();
+        } else {
+            resetState();
         }
-    }, [isOpen]);
+    }, [isOpen, location, storeDetails]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
-        setIsLoading(prev => ({ ...prev, [type]: true }));
+        setIsLoadingAnalysis(prev => ({ ...prev, [type]: true }));
         if (type === 'brief' && audience) {
             setLoadingAudience(audience);
         }
@@ -209,63 +231,80 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             setAnalysisContent(prev => ({ ...prev, [type]: result }));
         }
 
-        setIsLoading(prev => ({ ...prev, [type]: false }));
+        setIsLoadingAnalysis(prev => ({ ...prev, [type]: false }));
         if (type === 'brief') {
             setLoadingAudience(null);
         }
     };
     
-    const tabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
+    const analysisTabConfig: { id: AnalysisTab; label: string; icon: string }[] = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
         { id: 'market', label: 'Local Market', icon: 'sop' },
         { id: 'brief', label: 'Huddle Brief', icon: 'news' },
         { id: 'forecast', label: 'Forecast', icon: 'sales' },
         { id: 'marketing', label: 'Marketing', icon: 'sparkles' },
     ];
+    
+    const renderVisualContent = () => {
+        if (activeVisualTab === 'streetview') {
+            if (!mapsApiKey || !storeDetails) return <LoadingSpinner message="Loading Street View..." />;
+            
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${mapsApiKey}&location=${storeDetails.lat},${storeDetails.lon}&heading=210&pitch=10&fov=75`;
 
-    const renderMapEmbed = () => {
-        if (apiKeyStatus === 'loading') {
-            return <LoadingSpinner message="Loading map..." />;
+            return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+        }
+
+        // Default to 'details' tab
+        if (isPlaceDetailsLoading) {
+            return <LoadingSpinner message="Loading location details..." />;
         }
         
-        if (apiKeyStatus === 'error') {
-            return (
+        if (placeDetailsError) {
+             return (
                 <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
-                    <h4 className="font-bold text-red-400">Map Unavailable</h4>
-                    <p className="text-slate-400 text-xs mt-2">Could not load the Google Maps API key.</p>
-                    <p className="text-slate-500 text-xs mt-1">{apiKeyError}</p>
-                    <p className="text-slate-400 text-xs mt-3">Please ensure the `MAPS_API_KEY` is configured correctly in your Netlify settings. See the README for instructions.</p>
+                    <h4 className="font-bold text-red-400">Could not load location details from Google Maps.</h4>
+                    <p className="text-slate-500 text-xs mt-1 break-all">{placeDetailsError}</p>
+                    <p className="text-slate-400 text-xs mt-3">Please ensure the Places and Geocoding APIs are enabled for your key. See the README for instructions.</p>
                 </div>
             );
         }
 
-        if (!storeDetails) {
+        if (placeDetails) {
             return (
-                <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400 text-sm">
-                    Location address not found.
+                <div className="h-full flex flex-col">
+                    <div className="p-3">
+                        <h4 className="font-bold text-base text-white">{placeDetails.name}</h4>
+                        {placeDetails.rating && (
+                            <div className="flex items-center gap-1 text-sm">
+                                <span className="font-bold text-yellow-400">{placeDetails.rating.toFixed(1)}</span>
+                                <Icon name="reviews" className="w-4 h-4 text-yellow-400" />
+                            </div>
+                        )}
+                    </div>
+                    {placeDetails.photoUrls && placeDetails.photoUrls.length > 0 ? (
+                        <div className="flex-1 overflow-x-auto overflow-y-hidden whitespace-nowrap custom-scrollbar">
+                           {placeDetails.photoUrls.map((url, index) => (
+                                <img 
+                                    key={index}
+                                    src={url}
+                                    alt={`Photo ${index + 1} of ${placeDetails.name}`}
+                                    className="inline-block h-full w-auto object-cover rounded-b-lg"
+                                />
+                           ))}
+                        </div>
+                    ) : <p className="text-center text-slate-500 p-4">No photos available.</p>}
                 </div>
             );
         }
 
-        const searchQuery = encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${storeDetails.address}`);
-        const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${searchQuery}`;
-
-        return (
-            <iframe
-                title="Google Maps Embed"
-                className="w-full h-full border-0"
-                loading="lazy"
-                allowFullScreen
-                src={embedUrl}>
-            </iframe>
-        );
+        return null;
     };
 
-    const renderTabContent = () => {
-        const content = analysisContent[activeTab];
-        const loading = isLoading[activeTab];
+    const renderAnalysisTabContent = () => {
+        const content = analysisContent[activeAnalysisTab];
+        const loading = isLoadingAnalysis[activeAnalysisTab];
 
-        if (activeTab === 'brief') {
+        if (activeAnalysisTab === 'brief') {
             const audiences: Audience[] = ['FOH', 'BOH', 'Managers'];
             const generatedBriefs = analysisContent.brief || {};
             
@@ -305,11 +344,11 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
 
         if (loading) {
-            return <LoadingSpinner message={`Generating ${activeTab} analysis...`} />;
+            return <LoadingSpinner message={`Generating ${activeAnalysisTab} analysis...`} />;
         }
         
         if (content) {
-            if (activeTab === 'forecast') {
+            if (activeAnalysisTab === 'forecast') {
                 return content.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={content} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
@@ -327,14 +366,14 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
         }
 
-        const tabConfigItem = tabConfig.find(t => t.id === activeTab);
+        const tabConfigItem = analysisTabConfig.find(t => t.id === activeAnalysisTab);
         return (
              <div className="text-center flex flex-col items-center justify-center h-full">
                 <Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" />
                 <h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4>
                 <p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p>
                 <button
-                    onClick={() => handleAnalysis(activeTab)}
+                    onClick={() => handleAnalysis(activeAnalysisTab)}
                     className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"
                 >
                     <Icon name="sparkles" className="w-4 h-4" />
@@ -358,7 +397,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         >
             <div className="flex flex-col md:flex-row gap-6 h-full">
                 {/* Left Column: Visuals & Quick Info */}
-                <div className="md:w-1/3 space-y-4 flex-shrink-0">
+                <div className="md:w-1/3 space-y-4 flex flex-col flex-shrink-0">
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                         <h3 className="font-bold text-lg text-white">{location}</h3>
                         {director && (
@@ -372,8 +411,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         )}
                     </div>
                     
-                    <div className="h-64 bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden">
-                        {renderMapEmbed()}
+                    <div className="h-64 bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden flex flex-col">
+                        <div className="flex-shrink-0 flex border-b border-slate-700">
+                             <button onClick={() => setActiveVisualTab('details')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'details' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Details & Photos</button>
+                             <button onClick={() => setActiveVisualTab('streetview')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'streetview' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Street View</button>
+                        </div>
+                        <div className="flex-1 min-h-0">{renderVisualContent()}</div>
                     </div>
 
                     {performanceData && (
@@ -390,11 +433,11 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 {/* Right Column: AI Analysis Tabs */}
                 <div className="flex-1 flex flex-col min-w-0">
                     <div className="flex-shrink-0 flex border-b border-slate-700">
-                        {tabConfig.map(tab => (
+                        {analysisTabConfig.map(tab => (
                             <button 
                                 key={tab.id} 
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-slate-400 hover:text-white'}`}
+                                onClick={() => setActiveAnalysisTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeAnalysisTab === tab.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-slate-400 hover:text-white'}`}
                             >
                                 <Icon name={tab.icon} className="w-4 h-4" />
                                 {tab.label}
@@ -402,7 +445,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         ))}
                     </div>
                     <div className="flex-1 p-4 bg-slate-800 rounded-b-lg overflow-y-auto custom-scrollbar min-h-0">
-                        {renderTabContent()}
+                        {renderAnalysisTabContent()}
                     </div>
                 </div>
             </div>

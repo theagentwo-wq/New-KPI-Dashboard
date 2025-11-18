@@ -113,14 +113,24 @@ A dedicated API key is required for the Store Hub map features.
 3.  Click **"+ CREATE CREDENTIALS"** at the top of the page and select **"API key"**.
 4.  Copy the new API key that is generated. This is the value you will use.
 
-### Step 2: Enable the Correct API
+### Step 2: Enable the Correct APIs (Important Update)
 
-1.  After creating the key, a dialog will appear. Click the **"EDIT API KEY"** button (or find your new key in the list and click the pencil icon to edit it).
+You must enable three specific APIs for all map features to work.
+
+1.  Go to the **[Google Cloud API Library](https://console.cloud.google.com/apis/library)**.
+2.  Search for and **ENABLE** each of the following APIs one by one:
+    *   **Maps Embed API** (for Street View)
+    *   **Places API** (for photos and ratings)
+    *   **Geocoding API** (for finding locations accurately)
+
+### Step 3: Restrict Your API Key
+
+1.  Go back to the **[Credentials Page](https://console.cloud.google.com/apis/credentials)** and click the pencil icon to edit your Maps API key.
 2.  Under **"API restrictions"**, select **"Restrict key"**.
-3.  In the dropdown menu, find and enable the **"Maps Embed API"**. This is the only API needed for the current map feature.
+3.  In the dropdown menu, find and select the three APIs you just enabled: **Maps Embed API**, **Places API**, and **Geocoding API**.
 4.  Click **"Save"**.
 
-### Step 3: Add the Key to Your Project
+### Step 4: Add the Key to Your Project
 
 -   **For Local Development:** Paste the key into your `.env.local` file for the `MAPS_API_KEY` variable.
 -   **For Deployment:** Paste the key into your Netlify site's environment variables with the key `MAPS_API_KEY`.

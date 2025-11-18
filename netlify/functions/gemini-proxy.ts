@@ -101,24 +101,69 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, headers, body: 'Method Not Allowed' };
     }
-    
-    // This function runs on Netlify's backend.
-    // The API key is securely accessed from environment variables and never exposed to the client.
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-         return { 
-            statusCode: 500, 
-            headers, 
-            body: JSON.stringify({ error: "AI Service Error: The GEMINI_API_KEY environment variable is not configured on the server. Please check your Netlify site settings." }) 
-        };
-    }
-    const ai = new GoogleGenAI({ apiKey });
 
     try {
         const { action, payload } = JSON.parse(event.body || '{}');
+        
+        // This function runs on Netlify's backend.
+        // API keys are securely accessed from environment variables.
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        const mapsApiKey = process.env.MAPS_API_KEY;
+
+        const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+
+        const throwApiError = (service: 'AI' | 'Maps', reason: string) => {
+            const keyName = service === 'AI' ? 'GEMINI_API_KEY' : 'MAPS_API_KEY';
+            return { 
+                statusCode: 500, 
+                headers, 
+                body: JSON.stringify({ error: `${service} Service Error: ${reason}. Please check that the ${keyName} is configured correctly in your Netlify site settings.` }) 
+            };
+        }
 
         switch (action) {
+            case 'getPlaceDetails': {
+                if (!mapsApiKey) return throwApiError('Maps', 'API key is not configured');
+                
+                const { address } = payload;
+                if (!address) return { statusCode: 400, headers, body: JSON.stringify({ error: "Address is required."}) };
+                
+                // 1. Find Place ID from text query
+                const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
+                const findPlaceResponse = await fetch(findPlaceUrl);
+                const findPlaceData = await findPlaceResponse.json();
+
+                if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
+                    return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not find a Google Maps location for "${address}". Details: ${findPlaceData.status}` }) };
+                }
+                const placeId = findPlaceData.candidates[0].place_id;
+
+                // 2. Get Place Details using the Place ID
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${mapsApiKey}`;
+                const detailsResponse = await fetch(detailsUrl);
+                const detailsData = await detailsResponse.json();
+
+                if (detailsData.status !== 'OK') {
+                    return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not fetch details for place. Details: ${detailsData.status}` }) };
+                }
+                
+                const result = detailsData.result;
+                const photoUrls = (result.photos || []).slice(0, 10).map((photo: any) => 
+                    `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${mapsApiKey}`
+                );
+
+                const data = {
+                    name: result.name,
+                    rating: result.rating,
+                    photoUrls,
+                };
+
+                return { statusCode: 200, headers, body: JSON.stringify({ data }) };
+            }
+            
+            // --- All other Gemini-related cases ---
             case 'getExecutiveSummary': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { data, view, periodLabel } = payload;
                 const formattedData = formatDataForAI(data, view, 'All');
                 const prompt = `${AI_CONTEXT} Based on the following data for ${periodLabel}, provide a concise 2-3 sentence executive summary of the performance for ${view}. Highlight the most significant win and the biggest area for improvement. Data:\n${formattedData}`;
@@ -127,6 +172,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getInsights': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { data, view, periodLabel, query, userLocation } = payload;
                 const formattedData = formatDataForAI(data, view, 'All');
                 const prompt = `${AI_CONTEXT} The user is looking at data for ${periodLabel} for the view "${view}". Answer their question based on the data provided. If relevant, use your tools to incorporate real-world geographic information.\n\nData:\n${formattedData}\n\nQuestion: ${query}`;
@@ -152,6 +198,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getTrendAnalysis': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { historicalData, view } = payload;
                 const formattedData = formatHistoricalDataForAI(historicalData, view);
                 const prompt = `${AI_CONTEXT} Based on the following historical data for "${view}", analyze the trends for the key KPIs over these periods. Identify 1-2 of the most significant positive or negative trends. Explain what the trend is (e.g., "Food Cost is consistently increasing") and briefly suggest a potential implication. Present the analysis in a clear, bulleted list.\n\nData:\n${formattedData}`;
@@ -160,6 +207,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getDirectorPerformanceSnapshot': {
+                 if (!ai) return throwApiError('AI', 'Service is not initialized');
                  const { directorName, periodLabel, directorData } = payload;
                  const formattedData = Object.entries(directorData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
                  const prompt = `${AI_CONTEXT}\nBased on the aggregated performance data for director ${directorName}'s region for the period "${periodLabel}", provide a concise performance snapshot. Format the response using markdown with these exact three headers: ### 🏆 Key Win, ### 📉 Key Challenge, and ### 🎯 Strategic Focus. For the "Key Win", identify the top-performing KPI and briefly explain its positive impact. For the "Key Challenge", identify the most significant underperforming KPI and its negative impact. For the "Strategic Focus", provide a single, clear, actionable recommendation based on restaurant industry best practices to improve the key challenge.\n\nData:\n${formattedData}`;
@@ -168,6 +216,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getAnomalyDetections': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { allStoresData, periodLabel } = payload;
                 const dataForAnomalies = Object.entries(allStoresData).map(([location, data]: [string, any]) => ({ location, ...data.actual }));
                 const prompt = `${AI_CONTEXT} You are a data scientist. Analyze the following performance data for all stores for the period "${periodLabel}". Identify up to 3 of the most statistically significant anomalies (either positive or negative). For each anomaly, provide a concise one-sentence summary and a brief root cause analysis.\n\nData:\n${JSON.stringify(dataForAnomalies, null, 2)}`;
@@ -186,6 +235,7 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'generateHuddleBrief': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location, storeData, audience } = payload;
                 const formattedData = Object.entries(storeData).map(([kpi, value]) => `${kpi}: ${(value as number).toFixed(4)}`).join('\n');
                 let audienceFocus = '';
@@ -218,6 +268,7 @@ ${formattedData}`;
             }
 
             case 'runWhatIfScenario': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { data, userPrompt } = payload;
                 const formattedData = formatDataForAI(data, 'Total Company', 'All');
                 const prompt = `${AI_CONTEXT}\nYou are an expert financial modeler. Analyze the following "what-if" scenario based on the provided data. First, use the 'parseScenario' tool to extract the parameters from the user's request. Second, provide a concise analysis of the likely impact of this change. Explain your reasoning.\n\nData:\n${formattedData}\n\nScenario: "${userPrompt}"`;
@@ -232,6 +283,7 @@ ${formattedData}`;
             }
 
              case 'getSalesForecast': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location, weatherForecast } = payload as { location: string; weatherForecast: DailyForecast[] };
                 const formattedWeather = weatherForecast.map(day => 
                     `${day.date}: ${day.shortForecast}, Temp: ${day.temperature}°F`
@@ -270,6 +322,7 @@ ${formattedData}`;
             }
 
             case 'getReviewSummary': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location } = payload;
                 const prompt = `${AI_CONTEXT}\nUser wants customer sentiment for our restaurant in "${location}". Use Google Search for recent Google Reviews. Analyze and identify top 3 positive themes and top 3 areas for improvement. For each theme, provide 1-2 anonymous, representative customer quotes. Format response as markdown with headers "### 👍 Top 3 Positives", "### 📉 Areas for Improvement", and "### 💬 Representative Quotes".`;
                 
@@ -287,6 +340,7 @@ ${formattedData}`;
             }
             
             case 'getVarianceAnalysis': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location, kpi, variance, allKpis } = payload;
                 const formattedKpis = Object.entries(allKpis).map(([key, val]) => `${key}: ${(val as number).toFixed(4)}`).join(', ');
                 const prompt = `For the ${location} restaurant, ${kpi} had a variance of ${variance.toFixed(4)}. Given the other KPI values for this period (${formattedKpis}), provide a very brief, one-sentence hypothesis explaining a potential reason for this specific variance. Start your response directly with the hypothesis. Example: 'The negative variance in SOP is likely driven by the increase in Food Cost.'`;
@@ -295,6 +349,7 @@ ${formattedData}`;
             }
             
             case 'getQuadrantAnalysis': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { data, periodLabel, kpiAxes } = payload;
                 const { x, y, z } = kpiAxes;
                 
@@ -337,6 +392,7 @@ ${JSON.stringify(data, null, 2)}`;
             }
             
             case 'getLocationMarketAnalysis': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location } = payload;
                 const prompt = `${AI_CONTEXT} You are a market intelligence expert. For our restaurant in ${location}, generate a hyper-local market snapshot. Use your tools to find relevant, recent information.
 Format the response using markdown with these exact headers:
@@ -360,6 +416,7 @@ For each header, provide 2-3 bullet points of the most significant items that co
             }
 
             case 'getMarketingIdeas': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { location, userLocation } = payload;
                 const prompt = `${AI_CONTEXT} You are a creative marketing strategist. For our restaurant in ${location}, generate 3 distinct, hyper-local marketing ideas. Use tools to identify nearby points of interest (schools, businesses, venues) as partners. For each idea, provide a "Concept", a "Rationale" for this specific area, and simple "Execution Steps". Focus on community engagement, local partnerships, and direct outreach. Format as a markdown list.`;
 
@@ -383,6 +440,7 @@ For each header, provide 2-3 bullet points of the most significant items that co
             }
 
             case 'getNoteTrends': {
+                if (!ai) return throwApiError('AI', 'Service is not initialized');
                 const { notes } = payload as { notes: Note[] };
                 const formattedNotes = notes.map(n => `- Note (${n.category}, ${new Date(n.createdAt).toLocaleDateString()}): ${n.content}`).join('\n');
                 const prompt = `${AI_CONTEXT} As an operations analyst, I have a collection of notes for a specific restaurant or region. Your task is to analyze these notes and identify recurring themes or critical issues.

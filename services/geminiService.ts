@@ -85,6 +85,11 @@ export const getMapsApiKey = async (): Promise<string> => {
     }
 };
 
+export const getPlaceDetails = async (address: string): Promise<PlaceDetails> => {
+    const result = await callAIApi('getPlaceDetails', { address });
+    return result.data;
+};
+
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
     try {
         const result = await callAIApi('getExecutiveSummary', { data, view, periodLabel });
