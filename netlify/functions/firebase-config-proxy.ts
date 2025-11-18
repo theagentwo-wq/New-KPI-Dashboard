@@ -7,18 +7,10 @@ export const handler = async () => {
         'Access-Control-Allow-Origin': '*', // Allow requests from any origin
     };
     
-    // Reads the config from the server-side environment variable.
-    const configStr = process.env.FIREBASE_CLIENT_CONFIG;
-
-    if (!configStr) {
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: "Firebase config environment variable (FIREBASE_CLIENT_CONFIG) is not set on the server." }),
-        };
-    }
+    // The new build script (scripts/validate-env.js) guarantees this key exists.
+    // Using the '!' non-null assertion is now safe and tells TypeScript to trust us.
+    const configStr = process.env.FIREBASE_CLIENT_CONFIG!;
     
-    // Define here to be accessible in the catch block
     let cleanedConfigStr = configStr.trim();
 
     try {

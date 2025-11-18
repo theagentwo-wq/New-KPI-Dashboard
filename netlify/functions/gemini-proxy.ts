@@ -1,7 +1,10 @@
 
-import { Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Note } from '../../types';
-import { getAIClient } from '../../lib/ai-client';
+
+// The new build script (scripts/validate-env.js) guarantees this key exists.
+// Using the '!' non-null assertion is now safe and tells TypeScript to trust us.
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export const handler = async (event: { httpMethod: string; body?: string }) => {
     const headers = {
@@ -20,7 +23,6 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
 
     try {
         const { action, payload } = JSON.parse(event.body || '{}');
-        const ai = getAIClient(); // Initialize the AI client at runtime.
 
         switch (action) {
             case 'getExecutiveSummary': {
@@ -122,14 +124,9 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
             }
 
             case 'getPlaceDetails': {
-                const mapsApiKey = process.env.MAPS_API_KEY;
-                if (!mapsApiKey) {
-                     return {
-                        statusCode: 500,
-                        headers,
-                        body: JSON.stringify({ error: 'Maps Service Error: MAPS_API_KEY is not configured on the server.' })
-                    };
-                }
+                // The new build script guarantees this key exists. Safe to use '!'.
+                const mapsApiKey = process.env.MAPS_API_KEY!;
+                
                 const { address } = payload;
                 const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
                 const findPlaceResponse = await fetch(findPlaceUrl);
