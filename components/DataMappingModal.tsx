@@ -9,18 +9,18 @@ interface DataMappingModalProps {
   onClose: () => void;
   headers: string[];
   parsedData: any[];
-  weekStartDate: string;
   onImportSuccess: () => void;
   initialMappings?: { [header: string]: string };
 }
 
 const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore')[] = [
   'Store Name',
+  'Week Start Date',
   ...ALL_KPIS,
   'ignore'
 ];
 
-export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, weekStartDate, onImportSuccess, initialMappings }) => {
+export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, onImportSuccess, initialMappings }) => {
   const [mappings, setMappings] = useState<{ [header: string]: string }>({});
   const [templateName, setTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,13 +45,21 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
       setError('Please provide a name for this new template.');
       return;
     }
-    if (Object.values(mappings).filter(m => m === 'Store Name').length === 0) {
+    
+    const mappingValues = Object.values(mappings);
+
+    if (!mappingValues.includes('Store Name')) {
       setError('You must map one column to "Store Name".');
       return;
     }
-     if (!weekStartDate) {
-      setError('A valid week start date is required for import.');
-      return;
+
+    // Check if it looks like a budget (Year + Month) or Actuals (Week Start Date)
+    const hasYearMonth = mappingValues.includes('Year') && mappingValues.includes('Month');
+    const hasDate = mappingValues.includes('Week Start Date');
+
+    if (!hasYearMonth && !hasDate) {
+        setError('You must map a column to "Week Start Date" (for actuals) or "Year" and "Month" (for budgets).');
+        return;
     }
 
     setIsLoading(true);
@@ -66,8 +74,8 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
       
       const savedTemplate = await saveDataMappingTemplate(newTemplate);
       
-      const importDate = new Date(`${weekStartDate}T12:00:00`);
-      await batchImportActuals(parsedData, savedTemplate, importDate);
+      // Logic handled inside service: it extracts dates/years/months from the rows based on the mapping
+      await batchImportActuals(parsedData, savedTemplate);
 
       onImportSuccess();
       onClose();
@@ -83,7 +91,7 @@ export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onCl
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Data Mapping Template">
       <div className="space-y-4">
-        <p className="text-slate-300">The AI has pre-filled its best guesses for this new file format. Please review the mappings below, give this template a name, and then click "Save & Import".</p>
+        <p className="text-slate-300">The AI has pre-filled its best guesses. Please match your file columns to the system fields. Ensure you have mapped a <strong>Date</strong> field so the system knows when this data belongs.</p>
         
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">Template Name</label>

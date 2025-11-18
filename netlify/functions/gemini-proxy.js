@@ -55,6 +55,9 @@ exports.handler = async (event) => {
 
         const prompt = `You are an expert financial data analyst. Your task is to extract key performance indicators (KPIs) from a financial tracking document. Analyze the file carefully. Identify the store name and the data for each week shown.
 
+**CRITICAL: Date Detection**
+You must visually identify the dates or fiscal periods present in the document. Look for headers like "Week Ending", "Week Starting", "Period", or date ranges (e.g., "10/05/25"). Use these to determine the 'weekStartDate' (YYYY-MM-DD) for each data point. The context provided is just a hint; rely on the document's data.
+
 **KPIs to Extract (and their required JSON key):**
 - "Total Net Sales" -> "Sales"
 - "Store Operating Profit" or "SOP w/ Store Other Expense Budget Mix" -> "SOP"
@@ -65,11 +68,11 @@ exports.handler = async (event) => {
 **Instructions:**
 1. Identify the Store Name.
 2. For EACH weekly "Actual" column you find, extract the values for the KPIs.
-3. The date should be in YYYY-MM-DD format. Assume the year from the context.
+3. Determine the 'weekStartDate' for each column based on the headers.
 4. Your output MUST be a valid JSON array of objects, one for each store-week combination.
 5. All percentage values must be returned as plain numbers (e.g., "21.6%" -> 21.6). All currency values must be numbers.
 
-**Context:**
+**Context Hint:**
 - ${context}`;
         
         const response = await ai.models.generateContent({
