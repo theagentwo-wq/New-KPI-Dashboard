@@ -81,7 +81,9 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     useEffect(() => {
         const sourceData = currentView === 'Total Company' ? directorAggregates : allStoresData;
         
-        const dataPoints = Object.entries(sourceData).map(([name, item]) => {
+        // FIX: Cast the result of Object.entries to correctly type `item` as DataItem.
+        // This resolves errors where `item` was inferred as `unknown`, preventing property access.
+        const dataPoints = (Object.entries(sourceData) as [string, DataItem][]).map(([name, item]) => {
             const actual = 'aggregated' in item ? item.aggregated : item.actual;
             const comparison = item.comparison;
 
