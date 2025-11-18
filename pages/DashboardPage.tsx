@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS } from '../constants';
-import { getInitialPeriod, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
+import { getInitialPeriod, getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
 import { NotesPanel } from '../components/NotesPanel';
 import { LocationInsightsModal } from '../components/LocationInsightsModal';
@@ -37,7 +37,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     isExecutiveSummaryOpen, setIsExecutiveSummaryOpen 
 }) => {
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
-    const [currentPeriod, _setCurrentPeriod] = useState<Period>(getInitialPeriod());
+    const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
@@ -80,8 +80,38 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         fetchComparisonData();
     }, [comparisonPeriod, comparisonMode, dbStatus.status]);
     
-    // FIX: Replaced a large block of corrupted and duplicated code with the correct useEffect for geolocation.
-    // This resolves multiple syntax and runtime errors that prevented the component from rendering.
+    useEffect(() => {
+        const today = new Date();
+        const relevantPeriods = ALL_PERIODS.filter(p => p.type === periodType);
+        const newPeriod = relevantPeriods.find(p => today >= p.startDate && today <= p.endDate) || relevantPeriods[relevantPeriods.length - 1];
+        if (newPeriod) {
+            setCurrentPeriod(newPeriod);
+        }
+    }, [periodType]);
+
+    const periodsForType = useMemo(() => {
+        return ALL_PERIODS.filter(p => p.type === periodType);
+    }, [periodType]);
+
+    const currentPeriodIndex = useMemo(() => {
+        return periodsForType.findIndex(p => p.label === currentPeriod.label);
+    }, [periodsForType, currentPeriod]);
+
+    const handlePreviousPeriod = () => {
+        if (currentPeriodIndex > 0) {
+            setCurrentPeriod(periodsForType[currentPeriodIndex - 1]);
+        }
+    };
+
+    const handleNextPeriod = () => {
+        if (currentPeriodIndex < periodsForType.length - 1) {
+            setCurrentPeriod(periodsForType[currentPeriodIndex + 1]);
+        }
+    };
+
+    const isPrevPeriodDisabled = currentPeriodIndex <= 0;
+    const isNextPeriodDisabled = currentPeriodIndex >= periodsForType.length - 1;
+
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
             (position) => { setUserLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude }); },
@@ -218,6 +248,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          setComparisonMode={setComparisonMode}
                          onLocationSelect={handleLocationSelect}
                          onReviewClick={handleReviewClick}
+                         onPrevPeriod={handlePreviousPeriod}
+                         onNextPeriod={handleNextPeriod}
+                         isPrevPeriodDisabled={isPrevPeriodDisabled}
+                         isNextPeriodDisabled={isNextPeriodDisabled}
                     />
                     <NotesPanel 
                         allNotes={notes}
