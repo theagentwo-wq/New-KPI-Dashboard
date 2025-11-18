@@ -17,7 +17,6 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
   const [isFetching, setIsFetching] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [indexError, setIndexError] = useState<{ message: string, url: string } | null>(null);
 
   const availablePeriods = useMemo(() => {
     return ALL_PERIODS.filter(p => p.type === periodType);
@@ -45,7 +44,6 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
 
       setIsFetching(true);
       setError(null);
-      setIndexError(null);
       try {
         const existingData = await getAggregatedPerformanceDataForPeriod(selectedStore, selectedPeriod);
         
@@ -69,17 +67,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
         setKpiValues(formattedValues);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Could not fetch existing data.";
-        const indexUrlMatch = message.match(/https?:\/\/[^\s]+/);
-        if (indexUrlMatch && message.includes("requires an index")) {
-            setIndexError({
-                message: "This query requires a database index. Please click the button below to create it in your Firebase console. This is a one-time setup.",
-                url: indexUrlMatch[0]
-            });
-            setError(null);
-        } else {
-            setError(message);
-            setIndexError(null);
-        }
+        setError(message);
         setKpiValues({});
       } finally {
         setIsFetching(false);
@@ -108,7 +96,6 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
     
     setIsLoading(true);
     setError(null);
-    setIndexError(null);
     setSuccessMessage(null);
 
     try {
@@ -154,24 +141,9 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
           <p className="text-slate-400 mb-6">Enter or edit data for a store and period. For longer periods (Month, Quarter, Year), totals will be distributed across the weeks within that period.</p>
           
           {successMessage && <div className="mb-4 p-3 bg-green-900/50 border border-green-700 text-green-300 rounded-md text-sm">{successMessage}</div>}
-          {indexError && (
-            <div className="mb-4 p-4 bg-yellow-900/50 border border-yellow-700 text-yellow-300 rounded-md text-sm space-y-3">
-                <h4 className="font-bold">Action Required: Create Database Index</h4>
-                <p>{indexError.message}</p>
-                <p className="text-xs text-yellow-400">After creating the index, it may take a few minutes to become active. Please refresh this page afterward.</p>
-                <a 
-                    href={indexError.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-md no-underline"
-                >
-                    Create Index in Firebase
-                </a>
-            </div>
-          )}
           {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-700 text-red-300 rounded-md text-sm">{error}</div>}
 
-          <fieldset disabled={isFetching || !!indexError}>
+          <fieldset disabled={isFetching}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div>
                 <label htmlFor="store-select" className="block text-sm font-medium text-slate-300 mb-1">Store</label>
@@ -233,14 +205,14 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
           
           <div className="flex justify-end gap-4 mt-8 border-t border-slate-700 pt-6">
             <button
-              onClick={() => { setKpiValues({}); setError(null); setIndexError(null); }}
+              onClick={() => { setKpiValues({}); setError(null); }}
               className="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
             >
               Clear Form
             </button>
             <button 
               onClick={handleSave}
-              disabled={isLoading || isFetching || !!indexError || !selectedStore || !selectedPeriodLabel}
+              disabled={isLoading || isFetching || !selectedStore || !selectedPeriodLabel}
               className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20"
             >
               {isLoading ? 'Saving...' : 'Save Data'}

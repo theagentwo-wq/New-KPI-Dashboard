@@ -469,17 +469,35 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
 export const getAggregatedPerformanceDataForPeriod = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
     if (!actualsCollection) throw new Error("Firebase not initialized.");
 
-    const weeklyDataSnapshots = await actualsCollection
+    // 1. Fetch all documents for the selected store.
+    // This avoids the need for a composite index and simplifies setup.
+    const storeDataSnapshot = await actualsCollection
         .where('storeId', '==', storeId)
-        .where('weekStartDate', '>=', period.startDate)
-        .where('weekStartDate', '<=', period.endDate)
         .get();
 
-    if (weeklyDataSnapshots.empty) {
-        return null; // No data found for this store/period
+    if (storeDataSnapshot.empty) {
+        return null;
     }
+    
+    // 2. Filter the documents by the period's date range on the client-side.
+    // This is efficient for the expected data volume (a few hundred records per store).
+    const weeklyData: PerformanceData[] = storeDataSnapshot.docs
+        .map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                weekStartDate: (data.weekStartDate as firebase.firestore.Timestamp).toDate()
+            } as StorePerformanceData;
+        })
+        .filter(item => 
+            item.weekStartDate >= period.startDate && 
+            item.weekStartDate <= period.endDate
+        )
+        .map(item => item.data);
 
-    const weeklyData: PerformanceData[] = weeklyDataSnapshots.docs.map(doc => doc.data().data as PerformanceData);
+    if (weeklyData.length === 0) {
+        return null; // No data found for this store/period after filtering
+    }
 
     const aggregatedData: PerformanceData = {};
     const kpiCounts: Partial<{ [key in Kpi]: number }> = {};
