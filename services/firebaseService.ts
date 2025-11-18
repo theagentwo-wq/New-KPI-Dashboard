@@ -404,6 +404,12 @@ export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: strin
     await db.collection('directors').doc(directorId).update({ photo: photoUrl });
 };
 
+export const updateDirectorContactInfo = async (directorId: string, contactInfo: { email: string; phone: string }): Promise<void> => {
+    if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('directors').doc(directorId).update(contactInfo);
+};
+
+
 // --- Manual Data Entry Function ---
 export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");

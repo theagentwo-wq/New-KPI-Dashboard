@@ -15,9 +15,10 @@ interface DirectorProfileModalProps {
   selectedKpi: Kpi;
   period: Period;
   onUpdatePhoto: (directorId: string, file: File) => Promise<string>;
+  onUpdateContactInfo: (directorId: string, contactInfo: { email: string; phone: string }) => Promise<void>;
 }
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onUpdatePhoto }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onUpdatePhoto, onUpdateContactInfo }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
@@ -25,13 +26,21 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+
   useEffect(() => {
     if (!isOpen) {
       setSnapshot('');
       setSanitizedHtml('');
       setUploadError(null);
+      setIsEditingContact(false);
+    } else if (director) {
+      setEditEmail(director.email);
+      setEditPhone(director.phone);
     }
-  }, [isOpen]);
+  }, [isOpen, director]);
 
   useEffect(() => {
     const renderMarkdown = async () => {
@@ -67,6 +76,12 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     } finally {
         setIsUploading(false);
     }
+  };
+
+  const handleSaveContact = async () => {
+    if (!director) return;
+    await onUpdateContactInfo(director.id, { email: editEmail, phone: editPhone });
+    setIsEditingContact(false);
   };
 
   if (!director) return null;
@@ -125,13 +140,37 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
           </div>
 
            <div>
-            <h4 className="text-lg font-bold text-slate-300 mb-2">Contact Information</h4>
-            <div className="text-sm space-y-1 text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-700">
-                <p><strong>Email:</strong> <a href={`mailto:${director.email}`} className="text-cyan-400 hover:underline">{director.email}</a></p>
-                <p><strong>Phone:</strong> <a href={`tel:${director.phone}`} className="text-cyan-400 hover:underline">{director.phone}</a></p>
-                <p><strong>Home Location:</strong> {director.homeLocation}</p>
+                <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-lg font-bold text-slate-300">Contact Information</h4>
+                    {!isEditingContact && (
+                         <button onClick={() => setIsEditingContact(true)} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 p-1 rounded-md hover:bg-slate-700">
+                            <Icon name="edit" className="w-3 h-3" /> Edit
+                        </button>
+                    )}
+                </div>
+                {isEditingContact ? (
+                     <div className="text-sm space-y-3 text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-700">
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1">Email Address</label>
+                            <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
+                        </div>
+                        <div>
+                             <label className="block text-xs text-slate-400 mb-1">Phone Number</label>
+                             <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
+                        </div>
+                         <div className="flex justify-end gap-2 pt-2">
+                            <button onClick={() => setIsEditingContact(false)} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
+                            <button onClick={handleSaveContact} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-sm space-y-1 text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-700">
+                        <p><strong>Email:</strong> <a href={`mailto:${director.email}`} className="text-cyan-400 hover:underline">{director.email}</a></p>
+                        <p><strong>Phone:</strong> <a href={`tel:${director.phone}`} className="text-cyan-400 hover:underline">{director.phone}</a></p>
+                        <p><strong>Home Location:</strong> {director.homeLocation}</p>
+                    </div>
+                )}
             </div>
-          </div>
 
           <div>
             <h4 className="text-lg font-bold text-slate-300 mb-2">Managed Locations</h4>

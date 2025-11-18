@@ -6,7 +6,7 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
@@ -88,6 +88,11 @@ const App: React.FC = () => {
         await updateDirectorPhotoUrl(directorId, photoUrl);
         setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, photo: photoUrl } : d));
         return photoUrl;
+    };
+
+    const handleUpdateDirectorContactInfo = async (directorId: string, contactInfo: { email: string; phone: string }) => {
+        await updateDirectorContactInfo(directorId, contactInfo);
+        setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, ...contactInfo } : d));
     };
 
     const handleUpdateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
@@ -193,6 +198,7 @@ const App: React.FC = () => {
                 selectedKpi={Kpi.Sales} 
                 period={getInitialPeriod()}
                 onUpdatePhoto={handleUpdateDirectorPhoto}
+                onUpdateContactInfo={handleUpdateDirectorContactInfo}
             />
 
         </div>
