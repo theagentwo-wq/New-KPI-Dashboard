@@ -1,16 +1,7 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Note } from '../../types';
-
-// FIX: Module-level initialization to permanently resolve TS2345 error.
-// The function will fail to load if the key is missing, providing a clear error
-// and guaranteeing to the compiler that `ai` is always valid.
-const geminiApiKey = process.env.GEMINI_API_KEY;
-if (!geminiApiKey) {
-    throw new Error('FATAL: AI Service Error: GEMINI_API_KEY is not configured on the server.');
-}
-const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
+import { ai } from '../../lib/ai-client'; // Import the safe, pre-initialized client
 
 export const handler = async (event: { httpMethod: string; body?: string }) => {
     const headers = {
