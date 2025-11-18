@@ -4,7 +4,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 // FIX: Add missing type imports to resolve 'Cannot find name' errors.
-import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget } from '../types';
+import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES } from '../constants';
 
 export type FirebaseStatus = 
@@ -20,6 +20,8 @@ let directorsCollection: firebase.firestore.CollectionReference<firebase.firesto
 let actualsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+
 
 let isInitialized = false;
 
@@ -57,6 +59,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         actualsCollection = db.collection('performance_actuals');
         budgetsCollection = db.collection('budgets');
         mappingsCollection = db.collection('data_mapping_templates');
+        goalsCollection = db.collection('goals');
         
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
@@ -147,7 +150,7 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
             const performanceData: PerformanceData = {};
             for (const header in template.mappings) {
                 const kpi = template.mappings[header];
-                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi in Kpi) {
+                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi !== 'Year' && kpi !== 'Month' && kpi in Kpi) {
                     let value = row[header];
                     if (typeof value === 'string') {
                         value = value.replace(/[\$,%]/g, '');
@@ -239,6 +242,34 @@ export const getBudgets = async (year: number): Promise<Budget[]> => {
     return snapshot.docs.map(doc => doc.data() as Budget);
 };
 
+export const updateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number): Promise<void> => {
+    if (!budgetsCollection) throw new Error("Firebase not initialized.");
+    const docId = `${storeId}_${year}_${month}`;
+    const docRef = budgetsCollection.doc(docId);
+    
+    const budgetData = {
+        storeId,
+        year,
+        month,
+        targets: { [kpi]: target }
+    };
+    
+    await docRef.set(budgetData, { merge: true });
+};
+
+// --- Goal Functions ---
+export const getGoals = async (): Promise<Goal[]> => {
+    if (!goalsCollection) return [];
+    const snapshot = await goalsCollection.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+};
+
+export const addGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {
+    if (!goalsCollection) throw new Error("Firebase not initialized.");
+    const newGoal = { directorId, quarter, year, kpi, target };
+    const docRef = await goalsCollection.add(newGoal);
+    return { id: docRef.id, ...newGoal };
+};
 
 // --- Existing Functions (Notes, Directors) ---
 export const getNotes = async (): Promise<Note[]> => {

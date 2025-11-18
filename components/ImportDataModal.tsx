@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { DataMappingTemplate } from '../types';

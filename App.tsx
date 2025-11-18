@@ -6,7 +6,7 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getDataMappingTemplates } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getDataMappingTemplates, getGoals, addGoal, updateBudget } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
@@ -39,18 +39,20 @@ const App: React.FC = () => {
     const fetchData = useCallback(async (period: Period) => {
         if (dbStatus.status === 'connected') {
             try {
-                const [pData, bData, nData, dData, tData] = await Promise.all([
+                const [pData, bData, nData, dData, tData, gData] = await Promise.all([
                     getPerformanceData(period.startDate, period.endDate),
                     getBudgets(period.startDate.getFullYear()),
                     getNotes(),
                     getDirectorProfiles(),
                     getDataMappingTemplates(),
+                    getGoals(),
                 ]);
                 setPerformanceData(pData);
                 setBudgets(bData);
                 setNotes(nData);
                 setDirectors(dData);
                 setMappingTemplates(tData);
+                setGoals(gData);
             } catch (error) {
                  console.error("Error fetching initial data from Firebase:", error);
                  const errorMessage = error instanceof Error ? error.message : String(error);
@@ -104,13 +106,29 @@ const App: React.FC = () => {
         return photoUrl;
     };
 
-    const handleUpdateBudget = (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
-        // This would involve a call to a firebaseService function to update the budget
-        console.log("Budget updated (client-side):", { storeId, year, month, kpi, target });
+    const handleUpdateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
+        await updateBudget(storeId, year, month, kpi, target);
+        setBudgets(prevBudgets => {
+            const existingBudgetIndex = prevBudgets.findIndex(b => b.storeId === storeId && b.year === year && b.month === month);
+            if (existingBudgetIndex > -1) {
+                const updatedBudgets = [...prevBudgets];
+                updatedBudgets[existingBudgetIndex] = {
+                    ...updatedBudgets[existingBudgetIndex],
+                    targets: {
+                        ...updatedBudgets[existingBudgetIndex].targets,
+                        [kpi]: target
+                    }
+                };
+                return updatedBudgets;
+            } else {
+                return [...prevBudgets, { storeId, year, month, targets: { [kpi]: target } }];
+            }
+        });
     };
-    const handleSetGoal = (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
-        // This would involve a call to a firebaseService function to set the goal
-         console.log("Goal set (client-side):", { directorId, quarter, year, kpi, target });
+
+    const handleSetGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
+        const newGoal = await addGoal(directorId, quarter, year, kpi, target);
+        setGoals(prevGoals => [...prevGoals, newGoal]);
     };
 
     const openProfileModal = (director: DirectorProfile) => {
@@ -159,7 +177,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
-                                setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
+                                setIsExecutiveSummaryOpen={setIsExecutiveSummaryOpen}
                             />
                         )}
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}

@@ -50,6 +50,8 @@ export interface DirectorProfile {
 }
 
 export interface Goal {
+  // FIX: Add id property to match Firestore document structure.
+  id: string;
   directorId: View;
   quarter: number; // 1-4
   year: number;

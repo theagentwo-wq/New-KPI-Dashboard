@@ -255,13 +255,13 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
                                             )}
                                         </td>
                                         <td className="px-2 py-3 text-center">{formatValue(storeData.comparison?.[kpi], kpi)}</td>
-                                        <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi], kpi)}`}>
+                                        <td className={`px-2 py-3 text-center font-bold ${getVarianceColor(storeData.variance[kpi] ?? NaN, kpi)}`}>
                                             <div className="flex items-center justify-center">
-                                                <span>{formatValue(storeData.variance[kpi], kpi)}</span>
+                                                <span>{formatValue(storeData.variance[kpi] ?? NaN, kpi)}</span>
                                                 <VarianceExplainer 
                                                     storeId={storeId}
                                                     kpi={kpi}
-                                                    variance={storeData.variance[kpi]}
+                                                    variance={storeData.variance[kpi] ?? NaN}
                                                     allKpis={storeData.actual}
                                                 />
                                             </div>
