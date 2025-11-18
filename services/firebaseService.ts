@@ -465,3 +465,51 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
 
     await batch.commit();
 };
+
+export const getAggregatedPerformanceDataForPeriod = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
+    if (!actualsCollection) throw new Error("Firebase not initialized.");
+
+    const weeklyDataSnapshots = await actualsCollection
+        .where('storeId', '==', storeId)
+        .where('weekStartDate', '>=', period.startDate)
+        .where('weekStartDate', '<=', period.endDate)
+        .get();
+
+    if (weeklyDataSnapshots.empty) {
+        return null; // No data found for this store/period
+    }
+
+    const weeklyData: PerformanceData[] = weeklyDataSnapshots.docs.map(doc => doc.data().data as PerformanceData);
+
+    const aggregatedData: PerformanceData = {};
+    const kpiCounts: Partial<{ [key in Kpi]: number }> = {};
+
+    weeklyData.forEach(week => {
+        for (const key in week) {
+            const kpi = key as Kpi;
+            const value = week[kpi];
+
+            if (value !== undefined && !isNaN(value)) {
+                if (aggregatedData[kpi] === undefined) {
+                    aggregatedData[kpi] = 0;
+                    kpiCounts[kpi] = 0;
+                }
+                aggregatedData[kpi]! += value;
+                kpiCounts[kpi]! += 1;
+            }
+        }
+    });
+
+    // Finalize aggregation (sum vs average)
+    for (const key in aggregatedData) {
+        const kpi = key as Kpi;
+        const kpiConfig = KPI_CONFIG[kpi];
+        const count = kpiCounts[kpi]!;
+
+        if (kpiConfig.format !== 'currency' && count > 0) {
+            aggregatedData[kpi]! /= count;
+        }
+    }
+
+    return aggregatedData;
+};
