@@ -11,6 +11,8 @@ interface DataMappingModalProps {
   parsedData: any[];
   onImportSuccess: () => void;
   initialMappings?: { [header: string]: string };
+  // FIX: Add weekStartDate to props to match the call in App.tsx and fix type error.
+  weekStartDate: string;
 }
 
 const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore')[] = [
@@ -20,7 +22,7 @@ const appKpis: (Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ign
   'ignore'
 ];
 
-export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, onImportSuccess, initialMappings }) => {
+export const DataMappingModal: React.FC<DataMappingModalProps> = ({ isOpen, onClose, headers, parsedData, onImportSuccess, initialMappings, weekStartDate }) => {
   const [mappings, setMappings] = useState<{ [header: string]: string }>({});
   const [templateName, setTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
