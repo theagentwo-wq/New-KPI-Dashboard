@@ -19,8 +19,8 @@ export const handler = async (event: { httpMethod: string; body?: string }) => {
     }
 
     try {
-        const ai = getAIClient(); // Initialize the AI client at runtime.
         const { action, payload } = JSON.parse(event.body || '{}');
+        const ai = getAIClient(); // Initialize the AI client at runtime.
 
         switch (action) {
             case 'getExecutiveSummary': {
