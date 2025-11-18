@@ -5,7 +5,7 @@ import { getQuadrantAnalysis } from '../services/geminiService';
 import { marked } from 'marked';
 import { Icon } from './Icon';
 // FIX: Import DataItem from types.ts
-import { Kpi, View, PerformanceData, DataItem } from '../types';
+import { Kpi, View, DataItem } from '../types';
 import { KPI_CONFIG } from '../constants';
 
 type ChartDataPoint = {
