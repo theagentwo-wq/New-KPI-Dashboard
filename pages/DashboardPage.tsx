@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Kpi, PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS } from '../constants';
 import { getInitialPeriod, getPreviousPeriod, getYoYPeriod } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';

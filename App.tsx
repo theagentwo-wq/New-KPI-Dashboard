@@ -177,7 +177,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
-                                setIsExecutiveSummaryOpen={setIsExecutiveSummaryOpen}
+                                setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
