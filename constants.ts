@@ -3,8 +3,8 @@ import { DirectorProfile, Kpi, NoteCategory, StoreDetails } from './types';
 export const DIRECTORS: DirectorProfile[] = [
   {
     id: 'Danny', name: 'Danny', lastName: 'Serafini',
-    email: 'd.serafini@tupelohoneycafe.com',
-    phone: '858-717-2925',
+    email: 'd.serafini@example.com',
+    phone: '555-0101',
     title: 'Area Director', 
     stores: ['Denver, CO', 'Las Colinas, TX', 'Omaha, NB', 'Lenexa, KS', 'Boise, ID', 'Frisco, TX', 'Des Moines, IA'],
     photo: 'https://i.postimg.cc/NGKXrRfv/DANNY.jpg',
@@ -13,8 +13,8 @@ export const DIRECTORS: DirectorProfile[] = [
   },
   {
     id: 'Heather', name: 'Heather', lastName: 'Roberts',
-    email: 'h.roberts@tupelohoneycafe.com',
-    phone: '865-454-1184',
+    email: 'h.roberts@example.com',
+    phone: '555-0102',
     title: 'Area Director', 
     stores: ['Knoxville, TN', 'Farragut, TN', 'Chattanooga, TN', 'Huntsville, AL', 'Downtown Asheville, NC', 'Gainesville, GA', 'Raleigh, NC'],
     photo: 'https://i.postimg.cc/zDyhRTD9/HEATHER.jpg',
@@ -23,8 +23,8 @@ export const DIRECTORS: DirectorProfile[] = [
   },
   {
     id: 'Ryan', name: 'Ryan', lastName: 'Bowen',
-    email: 'r.bowen@tupelohoneycafe.com',
-    phone: '703-209-7515',
+    email: 'r.bowen@example.com',
+    phone: '555-0103',
     title: 'Area Director', 
     stores: ['Indianapolis, IN', 'Grand Rapids, MI', 'Pittsburgh, PA', 'Franklin, TN', 'Milwaukee, WI', 'Columbus, OH'],
     photo: 'https://i.postimg.cc/ryD4t5FX/RYAN.jpg',
@@ -33,8 +33,8 @@ export const DIRECTORS: DirectorProfile[] = [
   },
   {
     id: 'Robert', name: 'Robert', lastName: 'Simms',
-    email: 'robert@tupelohoneycafe.com',
-    phone: '864-906-8070',
+    email: 'robert.simms@example.com',
+    phone: '555-0104',
     title: 'Area Director', 
     stores: ['Greenville, SC', 'Columbia, SC', 'Virginia Beach, VA', 'Charlotte, NC', 'South Asheville, NC', 'Myrtle Beach, SC', 'Arlington, VA'],
     photo: 'https://i.postimg.cc/RCWtnwCk/ROBERT.jpg',

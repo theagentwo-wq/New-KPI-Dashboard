@@ -169,11 +169,11 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
                     }
                     const numValue = parseFloat(value);
                     if (!isNaN(numValue)) {
-                        // For percentages, store them as decimals
-                        if(String(value).includes('%') || ['SOP', 'PrimeCost', 'FoodCost', 'VariableLabor'].includes(kpi)){
-                             performanceData[kpi as Kpi] = numValue / 100;
+                        const kpiConfig = KPI_CONFIG[kpi as Kpi];
+                        if (kpiConfig && kpiConfig.format === 'percent') {
+                            performanceData[kpi as Kpi] = numValue / 100;
                         } else {
-                             performanceData[kpi as Kpi] = numValue;
+                            performanceData[kpi as Kpi] = numValue;
                         }
                     }
                 }
@@ -266,10 +266,11 @@ export const batchImportBudgets = async (data: any[]): Promise<void> => {
                     }
                     const numValue = parseFloat(value);
                     if (!isNaN(numValue)) {
-                        if(String(value).includes('%') || ['SOP', 'PrimeCost', 'FoodCost', 'VariableLabor'].includes(key)){
-                             targets[key as Kpi] = numValue / 100;
+                        const kpiConfig = KPI_CONFIG[key as Kpi];
+                        if (kpiConfig && kpiConfig.format === 'percent') {
+                           targets[key as Kpi] = numValue / 100;
                         } else {
-                             targets[key as Kpi] = numValue;
+                           targets[key as Kpi] = numValue;
                         }
                     }
                 }
