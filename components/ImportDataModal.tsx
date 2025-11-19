@@ -141,7 +141,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   useEffect(() => { if (logContainerRef.current) { logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight; } }, [statusLog]);
   
   const processAndSetFiles = async (files: File[]) => {
-      const excelFile = files.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+      const excelFile = files.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.xlsm'));
       if (excelFile) {
         const reader = new FileReader();
         reader.onload = (e) => {
