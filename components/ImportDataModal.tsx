@@ -140,7 +140,10 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                 setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
 
             } catch (err) {
-                const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
+                    errorMsg = "The analysis of this large document timed out. Please try splitting the text into smaller sections (e.g., one year at a time) and import them separately.";
+                }
                 setErrors(prev => [...prev, `FAILED: ${file.name} - ${errorMsg}`]);
                 setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
             }
@@ -152,7 +155,10 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             await processAndImport(() => extractKpisFromText(stagedText), 'pasted text');
             setStatusLog(prev => [...prev, `  -> SUCCESS: Pasted text imported.`]);
         } catch(err) {
-            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+            let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+             if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
+                errorMsg = "The analysis of this large document timed out. Please try splitting the text into smaller sections (e.g., one year at a time) and import them separately.";
+            }
             setErrors(prev => [...prev, `FAILED: Pasted text - ${errorMsg}`]);
             setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
         }
