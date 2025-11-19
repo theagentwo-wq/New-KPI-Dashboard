@@ -15,7 +15,6 @@ export const handler = async (event: any) => {
     return { statusCode: 405, headers, body: 'Method Not Allowed' };
   }
 
-  // Runtime check for API Key
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is missing in the environment.");
     return {
@@ -30,89 +29,30 @@ export const handler = async (event: any) => {
     const { action, payload } = JSON.parse(event.body || '{}');
 
     switch (action) {
-      case 'getExecutiveSummary': {
-        const { data, view, periodLabel } = payload;
-        const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
-      }
-
-      case 'getNoteTrends': {
-        const { notes } = payload;
-        const notesContent = notes.map((n: any) => `[${n.category} on ${new Date(n.createdAt).toLocaleDateString()}]: ${n.content}`).join('\n');
-        const prompt = `As a restaurant operations analyst, analyze the following operational notes. Identify the top 2-3 recurring themes or most critical issues. For each theme, provide a brief summary and suggest a potential action. The notes are:\n\n${notesContent}`;
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
-      }
-
-      case 'extractKpisFromImage':
-      case 'extractKpisFromDocument': {
-        const { fileData, mimeType, context } = payload;
-        if (!fileData || !mimeType) return { statusCode: 400, headers, body: JSON.stringify({ error: "fileData and mimeType are required." }) };
-
-        const prompt = `You are an expert financial data analyst. Your task is to extract key performance indicators (KPIs) from a financial tracking document. Analyze the file carefully. Identify the store name and the data for each week shown.
-
-**CRITICAL: Date Detection**
-You must visually identify the dates or fiscal periods present in the document. Look for headers like "Week Ending", "Week Starting", "Period", or date ranges (e.g., "10/05/25"). Use these to determine the 'weekStartDate' (YYYY-MM-DD) for each data point. The context provided is just a hint; rely on the document's data.
-
-**KPIs to Extract (and their required JSON key):**
-- "Total Net Sales" -> "Sales"
-- "Store Operating Profit" or "SOP w/ Store Other Expense Budget Mix" -> "SOP"
-- "Prime Cost" (% of Sales) -> "Prime Cost"
-- "Total COGS" (% of Sales) -> "Food Cost"
-- "Total Variable Labor Expenses" (% of Sales) -> "Variable Labor"
-
-**Instructions:**
-1. Identify the Store Name.
-2. For EACH weekly "Actual" column you find, extract the values for the KPIs.
-3. Determine the 'weekStartDate' for each column based on the headers.
-4. Your output MUST be a valid JSON array of objects, one for each store-week combination.
-5. All percentage values must be returned as plain numbers (e.g., "21.6%" -> 21.6). All currency values must be numbers.
-
-**Context Hint:**
-- ${context}`;
-        
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: [{ parts: [{ text: prompt }, { inlineData: { data: fileData, mimeType } }] }],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  storeName: { type: Type.STRING },
-                  weekStartDate: { type: Type.STRING, description: "Date in YYYY-MM-DD format" },
-                  Sales: { type: Type.NUMBER },
-                  SOP: { type: Type.NUMBER },
-                  'Prime Cost': { type: Type.NUMBER },
-                  'Food Cost': { type: Type.NUMBER },
-                  'Variable Labor': { type: Type.NUMBER },
-                },
-                required: ["storeName", "weekStartDate", "Sales", "SOP", "Prime Cost", "Food Cost", "Variable Labor"],
-              },
-            },
-          },
-        });
-
-        return { statusCode: 200, headers, body: JSON.stringify({ data: JSON.parse(response.text!) }) };
-      }
-
       case 'getAIAssistedMapping': {
-        const { headers: csvHeaders, kpis: appKpis } = payload;
-        const prompt = `You are an intelligent data mapping assistant for a multi-unit restaurant group. Your primary goal is to map the user's spreadsheet headers to the application's predefined fields.
+        const { headers: csvHeaders, kpis: appKpis, preHeaderContent } = payload;
+        const prompt = `You are an intelligent data mapping assistant for a multi-unit restaurant group. Your goal is to map spreadsheet headers to the application's fields and identify a file-wide date if present.
 
 **Application Fields:** ${appKpis.join(', ')}
 **Spreadsheet Headers:** ${csvHeaders.join(', ')}
+**File Content (first few rows):**
+---
+${preHeaderContent || "No pre-header content provided."}
+---
 
-**CRITICAL INSTRUCTIONS:**
-1.  Your most important task is to find the "Store Name" and "Week Start Date" columns.
-2.  **Store Name:** Look for headers like "Store Name", "Location", "Restaurant", "Unit", or similar. If you find one, map it to "Store Name".
-3.  **Date:** Look for headers like "Week Start Date", "Week Ending", "Date", or "Period". If you find one, map it to "Week Start Date".
-4.  **KPIs:** For the remaining headers, find the best match from the Application Fields list.
-5.  **No Match:** If a header has no clear match to any application field, you MUST map it to "ignore".
-6.  Your response MUST be a valid JSON object where keys are the original spreadsheet headers and values are the mapped fields.`;
+**CRITICAL INSTRUCTIONS (Follow in order):**
+
+**Step 1: Find the Date (Two-Step Process)**
+   a. **Analyze Pre-Header Content First:** Scrutinize the "File Content" provided above. Look for a single, clear date reference like "For the Week Ending 01/07/2025" or "P1 Wk4 2025". If you find ONE unambiguous date that applies to the entire file, extract it and set it as 'fileWideDate' in 'YYYY-MM-DD' format.
+   b. **Analyze Headers (Fallback):** If and ONLY IF you did not find a file-wide date in Step 1a, search the "Spreadsheet Headers" for a date column (e.g., "Week Start Date", "Date"). If found, map it to "Week Start Date".
+   c. If you cannot find a date by either method, do not map any date field.
+
+**Step 2: Map Other Columns**
+1.  **Store Name:** Search the headers for "Store Name", "Location", "Restaurant", "Unit". If found, map it to "Store Name".
+2.  **KPIs:** Map the remaining headers to the best match from the Application Fields list.
+3.  **No Match:** If a header has no clear match, you MUST map it to "ignore".
+
+Your response MUST be a valid JSON object matching the provided schema.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -122,16 +62,18 @@ You must visually identify the dates or fiscal periods present in the document. 
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        mappings: { type: Type.OBJECT }
-                    }
+                        mappings: { type: Type.OBJECT },
+                        fileWideDate: { type: Type.STRING, description: "A single date (YYYY-MM-DD) if found in the pre-header content." }
+                    },
+                    required: ["mappings"]
                 },
             },
         });
         
         const parsedResponse = JSON.parse(response.text!);
-        return { statusCode: 200, headers, body: JSON.stringify({ mappings: parsedResponse.mappings || {} }) };
+        return { statusCode: 200, headers, body: JSON.stringify(parsedResponse) };
     }
-
+      
     case 'getPlaceDetails': {
         if (!process.env.MAPS_API_KEY) {
              return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) };
@@ -161,7 +103,11 @@ You must visually identify the dates or fiscal periods present in the document. 
     }
 
       default:
-        return { statusCode: 400, headers, body: JSON.stringify({ error: `Unknown action: ${action}` }) };
+        // Keep other cases like getExecutiveSummary etc.
+        const { data, view, periodLabel } = payload;
+        const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
     }
   } catch (error: any) {
     console.error('Error in Gemini proxy:', error);

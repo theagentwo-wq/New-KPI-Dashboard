@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, DataMappingTemplate } from '../types';
 
 export interface PlaceDetails {
     name: string;
@@ -6,11 +6,11 @@ export interface PlaceDetails {
     photoUrls: string[];
 }
 
-export interface ExtractedKpiData {
-    storeName: string;
-    weekStartDate: string;
-    [key: string]: number | string;
-}
+export type AIMappingResult = {
+    mappings: DataMappingTemplate['mappings'];
+    fileWideDate?: string; // Date in YYYY-MM-DD format if found
+};
+
 
 async function callAIApi(action: string, payload: any): Promise<any> {
     try {
@@ -34,23 +34,16 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const extractKpisFromImage = async (fileData: string, context: string): Promise<ExtractedKpiData[]> => {
-    const result = await callAIApi('extractKpisFromImage', { fileData, mimeType: 'image/png', context });
-    return result.data || [];
-};
-
-export const extractKpisFromDocument = async (fileData: string, mimeType: string, context: string): Promise<ExtractedKpiData[]> => {
-    const result = await callAIApi('extractKpisFromDocument', { fileData, mimeType, context });
-    return result.data || [];
-};
-
-export const getAIAssistedMapping = async (headers: string[], kpis: string[]): Promise<{ [header: string]: string }> => {
+export const getAIAssistedMapping = async (headers: string[], kpis: string[], preHeaderContent: string): Promise<AIMappingResult> => {
     try {
-        const result = await callAIApi('getAIAssistedMapping', { headers, kpis });
-        return result.mappings || {};
+        const result = await callAIApi('getAIAssistedMapping', { headers, kpis, preHeaderContent });
+        return {
+            mappings: result.mappings || {},
+            fileWideDate: result.fileWideDate
+        };
     } catch (error) {
         console.error("Error getting AI-assisted mapping:", error);
-        return {};
+        return { mappings: {} };
     }
 };
 

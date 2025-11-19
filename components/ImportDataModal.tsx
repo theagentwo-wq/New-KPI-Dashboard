@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { DataMappingTemplate, Kpi } from '../types';
+import { Kpi } from '../types';
 import { batchImportActuals, batchImportBudgets, batchImportStructuredActuals } from '../services/firebaseService';
-import { getAIAssistedMapping, extractKpisFromImage, extractKpisFromDocument } from '../services/geminiService';
+import { getAIAssistedMapping } from '../services/geminiService';
 import * as XLSX from 'xlsx';
 
 interface ImportDataModalProps {
@@ -12,12 +12,17 @@ interface ImportDataModalProps {
   onImportSuccess: () => void;
 }
 
-const parseCSV = (text: string): { headers: string[], data: any[] } => {
+// Enhanced parsing functions to extract pre-header content
+const parseCSV = (text: string): { headers: string[], data: any[], preHeaderContent: string } => {
     const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 1) return { headers: [], data: [] };
-    let headerIndex = lines.findIndex(line => line.split(',').some(h => h.trim() !== ''));
-    if (headerIndex === -1) return { headers: [], data: [] };
-    const headers = lines[headerIndex].split(',').map(h => h.trim());
+    if (lines.length < 1) return { headers: [], data: [], preHeaderContent: '' };
+    let headerIndex = lines.findIndex(line => line.split(',').some(h => h.trim() !== '' && h.length > 1));
+    if (headerIndex === -1) headerIndex = lines.length -1;
+    
+    const preHeaderLines = lines.slice(0, headerIndex);
+    const preHeaderContent = preHeaderLines.join('\n');
+    
+    const headers = lines[headerIndex]?.split(',').map(h => h.trim()) || [];
     const data = lines.slice(headerIndex + 1)
         .filter(line => line.trim() !== '' && line.split(',').some(v => v.trim() !== ''))
         .map(line => {
@@ -27,10 +32,10 @@ const parseCSV = (text: string): { headers: string[], data: any[] } => {
                 return obj;
             }, {} as { [key: string]: string });
         });
-    return { headers, data };
+    return { headers, data, preHeaderContent };
 };
 
-const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[] }> => {
+const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[], preHeaderContent: string }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -39,18 +44,23 @@ const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[
                 const workbook = XLSX.read(data, { type: 'array' });
                 let allData: any[] = [];
                 let unifiedHeaders: string[] = [];
+                let preHeaderContent = '';
 
-                workbook.SheetNames.forEach(sheetName => {
+                workbook.SheetNames.forEach((sheetName, sheetIndex) => {
                     const worksheet = workbook.Sheets[sheetName];
-                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
                     
                     if (json.length === 0) return;
 
-                    let headerIndex = json.findIndex(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''));
-                    if (headerIndex === -1) return;
+                    let headerIndex = json.findIndex(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim().length > 1));
+                     if (headerIndex === -1) headerIndex = json.length > 0 ? 0 : -1;
+
+                    // Capture pre-header content only from the first sheet
+                    if (sheetIndex === 0 && headerIndex > 0) {
+                        preHeaderContent = json.slice(0, headerIndex).map(row => row.join(', ')).join('\n');
+                    }
                     
-                    const headers = json[headerIndex].map(h => String(h).trim());
-                    // Use the headers from the first valid sheet as the master header list
+                    const headers = json[headerIndex]?.map(h => String(h).trim()) || [];
                     if (unifiedHeaders.length === 0 && headers.length > 0) {
                         unifiedHeaders = headers;
                     }
@@ -58,8 +68,8 @@ const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[
                     const sheetData = json.slice(headerIndex + 1)
                         .filter(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''))
                         .map(row => {
-                            return headers.reduce((obj, header, index) => {
-                                obj[header] = row[index] || '';
+                            return unifiedHeaders.reduce((obj, header, index) => {
+                                obj[header] = row[headers.indexOf(header)] || '';
                                 return obj;
                             }, {} as { [key: string]: any });
                         });
@@ -67,10 +77,10 @@ const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[
                     allData = allData.concat(sheetData);
                 });
 
-                if (allData.length === 0) {
-                     reject(new Error("No data rows found in any of the workbook's sheets."));
+                if (allData.length === 0 && unifiedHeaders.length === 0) {
+                     reject(new Error("No data or headers found in any of the workbook's sheets."));
                 } else {
-                     resolve({ headers: unifiedHeaders, data: allData });
+                     resolve({ headers: unifiedHeaders, data: allData, preHeaderContent });
                 }
             } catch (error) {
                 reject(error);
@@ -137,57 +147,29 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         const fileType = file.name.split('.').pop()?.toLowerCase() || '';
 
         try {
-            if (['xlsx', 'xlsm'].includes(fileType)) {
-                const { headers, data } = await parseExcelWorkbook(file);
-                if (data.length === 0) throw new Error("No data rows found in any sheet.");
+            if (['xlsx', 'xlsm', 'xls'].includes(fileType)) {
+                const { headers, data, preHeaderContent } = await parseExcelWorkbook(file);
                 const isBudget = headers.includes('Year') && headers.includes('Month');
                 if (isBudget) {
                      setStatusLog(prev => [...prev, `  -> Detected Budget format. Importing...`]);
                      await batchImportBudgets(data);
                 } else {
-                     setStatusLog(prev => [...prev, `  -> Asking AI to map columns...`]);
+                     setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
                      const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                     const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
-                     const adHocTemplate: DataMappingTemplate = {
-                        id: 'ad-hoc', name: `AI Map for ${file.name}`, headers,
-                        mappings: suggestedMappings as DataMappingTemplate['mappings'],
-                     };
+                     const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent);
                      setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                     await batchImportActuals(data, adHocTemplate, file.name);
+                     await batchImportActuals(data, aiMappingResult, file.name);
                 }
             } else if (fileType === 'csv') {
-                const { headers, data } = parseCSV(await file.text());
-                if (data.length === 0) throw new Error("No data rows found in CSV.");
-                setStatusLog(prev => [...prev, `  -> Asking AI to map columns...`]);
+                const { headers, data, preHeaderContent } = parseCSV(await file.text());
+                setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
                 const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
-                const adHocTemplate: DataMappingTemplate = {
-                    id: 'ad-hoc', name: `AI Map for ${file.name}`, headers,
-                    mappings: suggestedMappings as DataMappingTemplate['mappings'],
-                };
+                const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent);
                 setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                await batchImportActuals(data, adHocTemplate, file.name);
+                await batchImportActuals(data, aiMappingResult, file.name);
 
-            } else if (['png', 'jpg', 'jpeg', 'pdf', 'docx'].includes(fileType)) {
-                setStatusLog(prev => [...prev, `  -> Analyzing with AI Vision...`]);
-                const base64Data = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                  reader.onerror = (error) => reject(error);
-                  reader.readAsDataURL(file);
-                });
-                const context = `Identify week start dates from document text.`;
-                let extractedData;
-                if (['png', 'jpg', 'jpeg'].includes(fileType)) {
-                    extractedData = await extractKpisFromImage(base64Data, context);
-                } else {
-                    extractedData = await extractKpisFromDocument(base64Data, file.type, context);
-                }
-                if (!extractedData || extractedData.length === 0) throw new Error("AI could not extract valid data.");
-                setStatusLog(prev => [...prev, `  -> AI extracted ${extractedData.length} records. Importing...`]);
-                await batchImportStructuredActuals(extractedData);
             } else {
-                throw new Error(`Unsupported file type: .${fileType}`);
+                 throw new Error(`Unsupported file type: .${fileType}. Please use Excel, CSV, PDF, Word, or Image files.`);
             }
             setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
 
@@ -207,7 +189,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); };
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); handleFileDrop(e.dataTransfer.files); };
   
-  const acceptedFileTypes = ".csv, .xlsx, .xlsm, .png, .jpg, .jpeg, .pdf, .docx";
+  const acceptedFileTypes = ".csv, .xlsx, .xlsm, .xls";
 
   const isFinished = !isProcessing && progress.total > 0;
 
@@ -229,11 +211,16 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                 <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} multiple />
                 <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
                 {files.length > 0 ? (
-                    <p className="text-slate-200 text-lg">{files.length} file(s) selected</p>
+                    <div className="text-slate-200 text-sm">
+                      <p className="font-bold text-lg">{files.length} file(s) selected:</p>
+                      <ul className="mt-2 text-left max-h-24 overflow-y-auto custom-scrollbar list-disc pl-5">
+                        {files.map(f => <li key={f.name}>{f.name}</li>)}
+                      </ul>
+                    </div>
                 ) : (
                     <>
                     <p className="text-slate-300 font-medium text-lg">Drag & drop one or more files here</p>
-                    <p className="text-sm text-slate-500 mt-2">Supports Excel, CSV, Images, PDF, and Word</p>
+                    <p className="text-sm text-slate-500 mt-2">Supports Excel and CSV</p>
                     </>
                 )}
             </div>

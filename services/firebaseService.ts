@@ -9,6 +9,7 @@ import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, Pe
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 // FIX: Correct import path for ALL_PERIODS. It is defined in dateUtils.ts.
 import { ALL_PERIODS } from '../utils/dateUtils';
+import { AIMappingResult } from './geminiService';
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
@@ -77,57 +78,28 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     }
 };
 
-// --- Data Mapping Template Functions ---
-
-export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {
-    if (!mappingsCollection) throw new Error("Firebase not initialized.");
-    const docRef = await mappingsCollection.add({ ...template, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-    return { id: docRef.id, ...template };
-};
-
-export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
-    if (!mappingsCollection) return [];
-    const snapshot = await mappingsCollection.orderBy('name').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
-};
-
-export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {
-    if (!db) throw new Error("Firebase not initialized.");
-    await db.collection('data_mapping_templates').doc(templateId).delete();
-};
-
-// --- Data Import Functions ---
-
 const storeNameMap = ALL_STORES.reduce((acc, name) => {
     const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     acc[key] = name;
     
-    // Add mapping for short name (e.g., "Asheville Downtown")
     const shortName = name.split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
     if(!acc[shortName]) acc[shortName] = name;
 
     return acc;
 }, {} as Record<string, string>);
 
-// FIX: More robust name matching logic
 const cleanAndMatchStoreName = (rawName: string): string | null => {
     if (!rawName) return null;
     
-    // Try to match with a prefix like "01 - Asheville Downtown"
     const prefixMatch = rawName.match(/^\d+\s*-\s*(.*)/);
     const potentialName = prefixMatch ? prefixMatch[1].trim() : rawName.trim();
-
-    // Generate a clean key for matching
     const key = potentialName.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    // Direct match (e.g., 'ashevilledowntownnc' -> 'Downtown Asheville, NC')
     if (storeNameMap[key]) return storeNameMap[key];
     
-    // Short name match (e.g., 'ashevilledowntown' -> 'Downtown Asheville, NC')
     const shortKey = potentialName.split(',')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
     if(storeNameMap[shortKey]) return storeNameMap[shortKey];
 
-    // Final fallback: check if any of our keys are a substring of the input
     for (const mapKey in storeNameMap) {
         if(key.includes(mapKey)) return storeNameMap[mapKey];
     }
@@ -135,15 +107,16 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
-
-export const batchImportActuals = async (data: any[], template: DataMappingTemplate, fileName?: string): Promise<void> => {
+export const batchImportActuals = async (data: any[], aiResult: AIMappingResult, fileName?: string): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
-    const storeNameHeader = Object.keys(template.mappings).find(h => template.mappings[h] === 'Store Name');
-    const dateHeader = Object.keys(template.mappings).find(h => template.mappings[h] === 'Week Start Date');
+    const { mappings, fileWideDate } = aiResult;
     
-    if (!dateHeader) throw new Error("Mapping failed: AI could not identify a date column in the file.");
+    const storeNameHeader = Object.keys(mappings).find(h => mappings[h] === 'Store Name');
+    const dateHeader = Object.keys(mappings).find(h => mappings[h] === 'Week Start Date');
+    
+    if (!dateHeader && !fileWideDate) throw new Error("Mapping failed: AI could not identify a date in the file's content or columns.");
 
     let fileNameStoreId: string | null = null;
     if (!storeNameHeader && fileName) {
@@ -156,10 +129,9 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
 
     data.forEach(row => {
         const storeId = storeNameHeader ? cleanAndMatchStoreName(row[storeNameHeader]) : fileNameStoreId;
-        const rawDate = row[dateHeader];
+        const rawDate = fileWideDate || (dateHeader ? row[dateHeader] : null);
         
         if (storeId && rawDate) {
-            // Attempt to parse date. Supports standard formats via new Date()
             const weekStartDate = new Date(rawDate);
             if (isNaN(weekStartDate.getTime())) {
                  console.warn(`Invalid date found for store ${storeId}: ${rawDate}`);
@@ -167,9 +139,9 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
             }
 
             const performanceData: PerformanceData = {};
-            for (const header in template.mappings) {
-                const kpi = template.mappings[header];
-                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi !== 'Year' && kpi !== 'Month' && kpi in Kpi) {
+            for (const header in mappings) {
+                const kpi = mappings[header];
+                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi in Kpi) {
                     let value = row[header];
                     if (typeof value === 'string') {
                         value = value.replace(/[\$,%]/g, '');
@@ -193,61 +165,10 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
                     storeId,
                     weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
                     data: performanceData
-                }, { merge: true }); // Use merge:true to upsert
-            }
-        } else {
-             console.warn(`Could not match store name or date: "${storeNameHeader ? row[storeNameHeader] : 'from file name'}", "${rawDate}"`);
-        }
-    });
-
-    await batch.commit();
-};
-
-// FIX: Add missing 'batchImportStructuredActuals' function to handle importing data extracted by AI.
-export const batchImportStructuredActuals = async (data: any[]): Promise<void> => {
-    if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
-    const batch = db.batch();
-
-    data.forEach(row => {
-        const rawStoreName = row.storeName;
-        const storeId = cleanAndMatchStoreName(rawStoreName);
-        const weekStartDateStr = row.weekStartDate;
-
-        if (storeId && weekStartDateStr) {
-            const weekStartDate = new Date(`${weekStartDateStr}T12:00:00`);
-
-            const performanceData: PerformanceData = {};
-            
-            for (const key in row) {
-                if (Object.values(Kpi).includes(key as Kpi)) {
-                    let value = row[key];
-                    if (typeof value === 'string') {
-                        value = String(value).replace(/[\$,%]/g, '').trim();
-                    }
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                        const kpiConfig = KPI_CONFIG[key as Kpi];
-                        // AI returns percentages as numbers (e.g., 21.6), so convert to decimal
-                        if (kpiConfig.format === 'percent') {
-                            performanceData[key as Kpi] = numValue / 100;
-                        } else {
-                            performanceData[key as Kpi] = numValue;
-                        }
-                    }
-                }
-            }
-
-            if (Object.keys(performanceData).length > 0) {
-                const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
-                const docRef = actualsCollection!.doc(docId);
-                batch.set(docRef, {
-                    storeId,
-                    weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
-                    data: performanceData
                 }, { merge: true });
             }
         } else {
-            console.warn(`Could not match store name or missing date for AI-extracted row:`, row);
+             console.warn(`Could not match store name or date: "${storeNameHeader ? row[storeNameHeader] : 'from file name'}", "${rawDate}"`);
         }
     });
 
@@ -425,7 +346,6 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
         throw new Error("No KPI data provided to save.");
     }
     
-    // Find all the weeks that fall within the selected period
     const weeksInPeriod = ALL_PERIODS.filter(p => 
         p.type === 'Week' && 
         p.startDate >= period.startDate && 
@@ -439,7 +359,6 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
     const batch = db.batch();
     const weekCount = weeksInPeriod.length;
 
-    // Distribute the entered values across all weeks in the period
     weeksInPeriod.forEach(week => {
         const docId = `${storeId}_${week.startDate.toISOString().split('T')[0]}`;
         const docRef = actualsCollection!.doc(docId);
@@ -451,8 +370,6 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
             const value = data[kpi];
             if (value !== undefined) {
                 const kpiConfig = KPI_CONFIG[kpi];
-                // For currency KPIs, divide the total across the weeks.
-                // For percentage/number KPIs, apply the same value to each week.
                 if (kpiConfig.format === 'currency') {
                     dataForThisWeek[kpi] = value / weekCount;
                 } else {
@@ -476,8 +393,6 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
 export const getAggregatedPerformanceDataForPeriod = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
     if (!actualsCollection) throw new Error("Firebase not initialized.");
 
-    // 1. Fetch all documents for the selected store.
-    // This avoids the need for a composite index and simplifies setup.
     const storeDataSnapshot = await actualsCollection
         .where('storeId', '==', storeId)
         .get();
@@ -486,8 +401,6 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
         return null;
     }
     
-    // 2. Filter the documents by the period's date range on the client-side.
-    // This is efficient for the expected data volume (a few hundred records per store).
     const weeklyData: PerformanceData[] = storeDataSnapshot.docs
         .map(doc => {
             const data = doc.data();
@@ -503,7 +416,7 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
         .map(item => item.data);
 
     if (weeklyData.length === 0) {
-        return null; // No data found for this store/period after filtering
+        return null;
     }
 
     const aggregatedData: PerformanceData = {};
@@ -525,7 +438,6 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
         }
     });
 
-    // Finalize aggregation (sum vs average)
     for (const key in aggregatedData) {
         const kpi = key as Kpi;
         const kpiConfig = KPI_CONFIG[kpi];
@@ -537,4 +449,29 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     }
 
     return aggregatedData;
+};
+
+// This function is now obsolete but kept for potential future use or reference.
+export const batchImportStructuredActuals = async (_data: any[]): Promise<void> => {
+    console.warn("batchImportStructuredActuals is deprecated and should not be used.");
+    return Promise.resolve();
+};
+
+// Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.
+// They could be used for a future "manual mapping" feature.
+export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {
+    if (!mappingsCollection) throw new Error("Firebase not initialized.");
+    const docRef = await mappingsCollection.add({ ...template, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    return { id: docRef.id, ...template };
+};
+
+export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
+    if (!mappingsCollection) return [];
+    const snapshot = await mappingsCollection.orderBy('name').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
+};
+
+export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {
+    if (!db) throw new Error("Firebase not initialized.");
+    await db.collection('data_mapping_templates').doc(templateId).delete();
 };
