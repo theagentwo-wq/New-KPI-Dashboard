@@ -23,6 +23,16 @@ interface ExtractedData {
     isDynamicSheet?: boolean;
 }
 
+const processingMessages = [
+    'Submitting job to the AI analyst...',
+    'AI is reading the document structure...',
+    'Analyzing financial data and KPIs...',
+    'Identifying data types (Actuals vs. Budgets)...',
+    'Extracting row-level information...',
+    'Formatting results for verification...',
+    'This can take up to 2 minutes for complex files...'
+];
+
 const EditableCell: React.FC<{ value: string; onChange: (newValue: string) => void; isStore?: boolean; }> = ({ value, onChange, isStore = false }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentValue, setCurrentValue] = useState(value);
@@ -82,6 +92,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
+  const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const unsubscribesRef = useRef<(() => void)[]>([]);
@@ -104,6 +115,23 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   useEffect(() => { if (isOpen) resetState(); }, [isOpen]);
   useEffect(() => { if (logContainerRef.current) { logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight; } }, [statusLog]);
   
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (step === 'processing') {
+      setCurrentProcessingMessage(processingMessages[0]); // Reset to first message on start
+      interval = setInterval(() => {
+        setCurrentProcessingMessage(prev => {
+          const currentIndex = processingMessages.indexOf(prev);
+          return processingMessages[(currentIndex + 1) % processingMessages.length];
+        });
+      }, 3500); // Change message every 3.5 seconds
+    }
+    return () => {
+        if (interval) clearInterval(interval);
+    };
+  }, [step]);
+
+
   const processAndSetFiles = async (files: File[]) => {
       const excelFile = files.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.xlsm'));
       if (excelFile) {
@@ -168,8 +196,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
   
   const handleAnalyzePastedData = async () => {
-    // FIX: Cast the result of Object.entries to correctly type `text` as a string,
-    // resolving 'trim' and assignment errors.
     const jobs = (Object.entries(pastedStoreData) as [string, string][])
         .filter(([, text]) => text.trim())
         .map(([storeName, text]) => ({
@@ -474,6 +500,11 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             <div className="w-full bg-slate-700 rounded-full h-2.5">
               <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`, transition: 'width 0.5s ease-in-out' }}></div>
             </div>
+            {step === 'processing' && (
+                <div className="text-center p-2 min-h-[40px] flex items-center justify-center">
+                    <p className="text-slate-300 text-sm transition-opacity duration-500">{currentProcessingMessage}</p>
+                </div>
+            )}
             <div ref={logContainerRef} className="bg-slate-900 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto custom-scrollbar text-xs font-mono">
               {statusLog.map((log, i) => (
                 <p key={i} className={log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : 'text-slate-400'}>{log}</p>
