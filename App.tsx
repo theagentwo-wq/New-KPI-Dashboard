@@ -6,14 +6,15 @@ import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
 import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
 import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
 import { GoalSetter } from '@/components/GoalSetter.tsx';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob } from '@/services/firebaseService.ts';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob } from '@/services/firebaseService.ts';
 import { Sidebar } from '@/components/Sidebar.tsx';
 import { DashboardPage } from '@/pages/DashboardPage.tsx';
 import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
 import { ImportDataModal } from '@/components/ImportDataModal.tsx';
 import { DataEntryPage } from '@/pages/DataEntryPage.tsx';
-import { StrategyHubModal } from '@/components/StrategyHubModal.tsx';
+import { StrategyHubModal, ActiveAnalysisJob } from '@/components/StrategyHubModal.tsx';
 import { Icon } from '@/components/Icon.tsx';
+import { AnalysisStatusIndicator } from '@/components/AnalysisStatusIndicator.tsx';
 
 // --- Co-located ImportStatusIndicator Component to prevent build errors ---
 interface ImportStatusIndicatorProps {
@@ -114,13 +115,15 @@ const App: React.FC = () => {
 
     const [activeImportJob, setActiveImportJob] = useState<{
         id: string;
-        // FIX: Add 'pending' to the step type to match the job lifecycle and resolve TS error.
         step: 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';
         statusLog: string[];
         progress: { current: number; total: number };
         errors: string[];
         extractedData: any[];
     } | null>(null);
+    
+    const [activeAnalysisJob, setActiveAnalysisJob] = useState<ActiveAnalysisJob | null>(null);
+
 
     const fetchData = useCallback(async (period: Period) => {
         if (dbStatus.status === 'connected') {
@@ -198,6 +201,20 @@ const App: React.FC = () => {
 
         return () => unsubscribe();
     }, [activeImportJob?.id, activeImportJob?.step]);
+
+     useEffect(() => {
+        if (!activeAnalysisJob?.id) return;
+        if (activeAnalysisJob.status === 'complete' || activeAnalysisJob.status === 'error') return;
+
+        const unsubscribe = listenToAnalysisJob(activeAnalysisJob.id, (jobData) => {
+            if (jobData) {
+                // Keep previous data like fileName while updating status
+                setActiveAnalysisJob(prev => (prev && prev.id === jobData.id ? { ...prev, ...jobData } : prev));
+            }
+        });
+
+        return () => unsubscribe();
+    }, [activeAnalysisJob?.id, activeAnalysisJob?.status]);
 
 
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => {
@@ -299,6 +316,15 @@ const App: React.FC = () => {
             setImportDataOpen(true);
         }
     }
+    
+    const openStrategyHub = () => {
+        if (activeAnalysisJob) {
+            setStrategyHubOpen(true);
+        } else {
+            setActiveAnalysisJob(null);
+            setStrategyHubOpen(true);
+        }
+    }
 
     return (
         <div className="bg-slate-900 min-h-screen text-slate-200 flex">
@@ -313,7 +339,7 @@ const App: React.FC = () => {
                 onOpenProfile={openProfileModal}
                 onOpenAlerts={() => setIsAlertsModalOpen(true)}
                 onOpenDataEntry={openImportModal}
-                onOpenStrategyHub={() => setStrategyHubOpen(true)}
+                onOpenStrategyHub={openStrategyHub}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
                 onOpenExecutiveSummary={() => setExecutiveSummaryOpen(true)}
             />
@@ -342,7 +368,6 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
-                                // FIX: Corrected prop name from `setExecutiveSummaryOpen` to `setIsExecutiveSummaryOpen` to match the DashboardPageProps interface.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
@@ -373,7 +398,16 @@ const App: React.FC = () => {
             <StrategyHubModal
                 isOpen={isStrategyHubOpen}
                 onClose={() => setStrategyHubOpen(false)}
+                activeJob={activeAnalysisJob}
+                setActiveJob={setActiveAnalysisJob}
             />
+            {activeAnalysisJob && !isStrategyHubOpen && (
+                <AnalysisStatusIndicator
+                    job={activeAnalysisJob}
+                    onExpand={() => setStrategyHubOpen(true)}
+                    onDismiss={() => setActiveAnalysisJob(null)}
+                />
+            )}
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />
             <DirectorProfileModal 
                 isOpen={isProfileOpen} 
