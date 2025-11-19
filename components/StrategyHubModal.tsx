@@ -1,16 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { uploadFile, listenToAnalysisJob } from '../services/firebaseService';
+import { uploadFile } from '../services/firebaseService';
 import { startStrategicAnalysisJob, deleteImportFile } from '../services/geminiService';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
-import firebase from 'firebase/compat/app';
 
 // Define the shape of the job object, to be managed by App.tsx
 export interface ActiveAnalysisJob {
   id: string;
-  status: 'idle' | 'pending' | 'processing' | 'complete' | 'error';
+  status: 'idle' | 'pending' | 'processing' | 'complete' | 'error' | 'cancelled';
   result?: string; // This will hold the HTML result
   error?: string;
   fileName?: string;
@@ -21,13 +20,24 @@ interface StrategyHubModalProps {
   onClose: () => void;
   activeJob: ActiveAnalysisJob | null;
   setActiveJob: React.Dispatch<React.SetStateAction<ActiveAnalysisJob | null>>;
+  onCancel: () => void;
 }
 
-export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activeJob, setActiveJob }) => {
-  const [stagedFile, setStagedFile] = useState<File | null>(null);
-  const dropzoneRef = useRef<HTMLDivElement>(null);
-  const unsubscribeRef = useRef<firebase.Unsubscribe | null>(null);
+const processingMessages = [
+    'Submitting analysis job...',
+    'AI is reading the document structure...',
+    'Extracting key metrics and data points...',
+    'Identifying primary business questions...',
+    'Synthesizing strategic insights...',
+    'Compiling actionable recommendations...',
+    'This can take up to a minute for complex documents...'
+];
 
+export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activeJob, setActiveJob, onCancel }) => {
+  const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+  
   // Derive state from props
   const jobStatus = activeJob?.status || 'idle';
   const analysisHtml = jobStatus === 'complete' ? activeJob?.result || '' : '';
@@ -40,23 +50,34 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   
   const handleFullClose = () => {
     // Only reset the job if it's finished or errored.
-    if (jobStatus === 'complete' || jobStatus === 'error' || jobStatus === 'idle') {
+    if (jobStatus === 'complete' || jobStatus === 'error' || jobStatus === 'idle' || jobStatus === 'cancelled') {
       setActiveJob(null);
       resetLocalState();
     }
     onClose();
   };
+  
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (jobStatus === 'processing') {
+      setCurrentProcessingMessage(processingMessages[1]); // Start at a meaningful message
+      interval = setInterval(() => {
+        setCurrentProcessingMessage(prev => {
+          const currentIndex = processingMessages.indexOf(prev);
+          // Cycle through messages, but don't use the first one again
+          const nextIndex = (currentIndex === processingMessages.length - 1) ? 1 : currentIndex + 1;
+          return processingMessages[nextIndex];
+        });
+      }, 3500);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [jobStatus]);
 
   useEffect(() => {
     // When the modal is opened without an active job, reset local state.
     if (isOpen && !activeJob) {
       resetLocalState();
     }
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
   }, [isOpen, activeJob]);
 
   const handleFileSelect = async (files: FileList | null) => {
@@ -88,33 +109,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     return () => window.removeEventListener('paste', handlePaste);
   }, [isOpen, handlePaste]);
 
-  useEffect(() => {
-    if (activeJob?.id && (activeJob.status === 'pending' || activeJob.status === 'processing')) {
-      unsubscribeRef.current = listenToAnalysisJob(activeJob.id, async (jobData) => {
-        if (!jobData) return;
-        
-        setActiveJob(prev => {
-            if (!prev || prev.id !== jobData.id) return prev;
-            
-            const updatedJob = { ...prev, status: jobData.status, error: jobData.error };
-            
-            if (jobData.status === 'complete' && jobData.result) {
-                Promise.resolve(marked.parse(jobData.result)).then(html => {
-                     setActiveJob(j => j ? {...j, result: html as string, status: 'complete'} : null);
-                });
-                if (unsubscribeRef.current) unsubscribeRef.current();
-            } else if (jobData.status === 'error') {
-                if (unsubscribeRef.current) unsubscribeRef.current();
-            }
-            return updatedJob;
-        });
-      });
-    }
-    return () => {
-      if (unsubscribeRef.current) unsubscribeRef.current();
-    };
-  }, [activeJob?.id, activeJob?.status, setActiveJob]);
-
 
   const handleAnalyze = async () => {
     if (!stagedFile) return;
@@ -135,7 +129,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       });
       
       // Update parent state with real job ID
-      setActiveJob({ id: jobId, status: 'pending', fileName: stagedFile.name });
+      setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name });
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";
@@ -151,7 +145,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   const getLoadingMessage = () => {
       switch (jobStatus) {
           case 'pending': return 'Submitting analysis job...';
-          case 'processing': return 'AI analysis is in progress... This may take a moment.';
+          case 'processing': return currentProcessingMessage;
           default: return '';
       }
   }
@@ -206,7 +200,12 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   
   const renderFooter = () => {
     if (isLoading) {
-      return <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Run in Background</button>;
+      return (
+        <>
+            <button onClick={onCancel} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">Cancel Job</button>
+            <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Run in Background</button>
+        </>
+      );
     }
     
     if (jobStatus === 'complete' || jobStatus === 'error') {

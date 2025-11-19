@@ -7,15 +7,17 @@ interface AnalysisStatusIndicatorProps {
   job: ActiveAnalysisJob;
   onExpand: () => void;
   onDismiss: () => void;
+  onCancel: () => void;
 }
 
-export const AnalysisStatusIndicator: React.FC<AnalysisStatusIndicatorProps> = ({ job, onExpand, onDismiss }) => {
-    const isFinished = job.status === 'complete' || job.status === 'error';
+export const AnalysisStatusIndicator: React.FC<AnalysisStatusIndicatorProps> = ({ job, onExpand, onDismiss, onCancel }) => {
+    const isFinished = job.status === 'complete' || job.status === 'error' || job.status === 'cancelled';
     const hasErrors = job.status === 'error';
 
     let statusText = 'Analysis in progress...';
     if (isFinished) {
-        statusText = hasErrors ? 'Analysis failed' : 'Analysis complete';
+        if (job.status === 'cancelled') statusText = 'Analysis cancelled';
+        else statusText = hasErrors ? 'Analysis failed' : 'Analysis complete';
     }
 
     return (
@@ -48,11 +50,9 @@ export const AnalysisStatusIndicator: React.FC<AnalysisStatusIndicatorProps> = (
                             <button onClick={onExpand} className="p-1 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white text-sm font-semibold">
                                 Details
                             </button>
-                            {isFinished && (
-                                <button onClick={onDismiss} className="p-1 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white">
-                                    <Icon name="x" className="w-4 h-4" />
-                                </button>
-                            )}
+                            <button onClick={isFinished ? onDismiss : onCancel} className="p-1 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white">
+                                <Icon name="x" className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </div>

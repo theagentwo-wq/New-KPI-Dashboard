@@ -522,6 +522,14 @@ export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void
     });
 };
 
+export const cancelAnalysisJob = async (jobId: string): Promise<void> => {
+    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
+    // We don't truly stop the background function, but we mark it as cancelled
+    // so the frontend can stop listening and move on.
+    await updateAnalysisJob(jobId, { status: 'cancelled' });
+};
+
+
 // --- Import Job Functions ---
 export const createImportJob = async (payload: any): Promise<string> => {
     if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");

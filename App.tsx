@@ -6,7 +6,7 @@ import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
 import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
 import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
 import { GoalSetter } from '@/components/GoalSetter.tsx';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob } from '@/services/firebaseService.ts';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob } from '@/services/firebaseService.ts';
 import { Sidebar } from '@/components/Sidebar.tsx';
 import { DashboardPage } from '@/pages/DashboardPage.tsx';
 import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
@@ -204,7 +204,7 @@ const App: React.FC = () => {
 
      useEffect(() => {
         if (!activeAnalysisJob?.id) return;
-        if (activeAnalysisJob.status === 'complete' || activeAnalysisJob.status === 'error') return;
+        if (activeAnalysisJob.status === 'complete' || activeAnalysisJob.status === 'error' || activeAnalysisJob.status === 'cancelled') return;
 
         const unsubscribe = listenToAnalysisJob(activeAnalysisJob.id, (jobData) => {
             if (jobData) {
@@ -275,6 +275,19 @@ const App: React.FC = () => {
     const handleImportJobUpdate = useCallback((jobId: string, updates: Partial<typeof activeImportJob>) => {
         setActiveImportJob(prev => prev && prev.id === jobId ? { ...prev, ...updates } as typeof activeImportJob : prev);
     }, []);
+    
+    const handleCancelAnalysisJob = async () => {
+        if (!activeAnalysisJob?.id) return;
+        try {
+            // This will mark the job as 'cancelled' in the DB.
+            // The frontend will stop listening due to the useEffect dependency array.
+            await cancelAnalysisJob(activeAnalysisJob.id);
+        } catch (error) {
+            console.error("Failed to send cancel request for job:", error);
+            // Even if the DB update fails, clear it from the UI for a responsive feel.
+        }
+        setActiveAnalysisJob(null);
+    };
 
     const handleConfirmImport = async (verifiedData: any[]) => {
         if (!activeImportJob) return;
@@ -400,12 +413,14 @@ const App: React.FC = () => {
                 onClose={() => setStrategyHubOpen(false)}
                 activeJob={activeAnalysisJob}
                 setActiveJob={setActiveAnalysisJob}
+                onCancel={handleCancelAnalysisJob}
             />
             {activeAnalysisJob && !isStrategyHubOpen && (
                 <AnalysisStatusIndicator
                     job={activeAnalysisJob}
                     onExpand={() => setStrategyHubOpen(true)}
                     onDismiss={() => setActiveAnalysisJob(null)}
+                    onCancel={handleCancelAnalysisJob}
                 />
             )}
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />
