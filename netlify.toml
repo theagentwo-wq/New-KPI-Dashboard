@@ -1,20 +1,8 @@
-# Netlify build and functions configuration for the "Hardened Monorepo" architecture.
-# This is a static file and should not be modified by any build scripts.
+command = "npmrunbuild"
+publish = "dist"
+directory = "functions-dist"
+timeout = 25
 
-[build]
-  # The command to build the entire project (backend functions first, then frontend client).
-  command = "npm run build"
-  # The directory that contains the built frontend application.
-  publish = "dist"
-
-[functions]
-  # Tell Netlify where to find the FINAL, COMPILED serverless functions.
-  directory = "functions-dist"
-  # Set the default timeout for all synchronous serverless functions to 25 seconds.
-  timeout = 25
-
-# Define 'process-analysis-job' as a background function.
-# This allows it to run for up to 15 minutes, which is essential for the
-# asynchronous, long-running tasks in the AI Strategy Hub, preventing 502 errors.
 [functions."process-analysis-job"]
-  background = true
+background = true
+
