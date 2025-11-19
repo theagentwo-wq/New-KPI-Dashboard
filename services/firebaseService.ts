@@ -487,7 +487,6 @@ export const createAnalysisJob = async (payload: { fileUrl: string, filePath: st
     return docRef.id;
 };
 
-// FIX: Add and export updateAnalysisJob to allow background functions to update job status.
 export const updateAnalysisJob = async (jobId: string, data: any): Promise<void> => {
     if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
     await analysisJobsCollection.doc(jobId).update({
@@ -496,7 +495,7 @@ export const updateAnalysisJob = async (jobId: string, data: any): Promise<void>
     });
 };
 
-export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): firebase.Unsubscribe => {
+export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): (() => void) => {
     if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
     return analysisJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
         if (doc.exists) {

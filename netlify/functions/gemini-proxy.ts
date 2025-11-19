@@ -1,14 +1,10 @@
-// FIX: Resolve Buffer and stream errors for environments where Node.js types are not available to TypeScript.
 import { GoogleGenAI, Type } from "@google/genai";
 import fetch from 'node-fetch';
-// FIX: The invalid import 'netlify-functions-ts' has been removed.
 import { createAnalysisJob } from '../../services/firebaseService';
+import { Handler } from '@netlify/functions';
 
-// FIX: Declare Buffer as a global type to resolve TypeScript errors.
 declare var Buffer: any;
 
-// Helper to convert stream to buffer, needed for fetching file content
-// FIX: Use `any` for stream types to avoid dependency on Node.js type definitions.
 async function streamToBuffer(stream: any): Promise<any> {
     const chunks: any[] = [];
     return new Promise((resolve, reject) => {
@@ -18,7 +14,7 @@ async function streamToBuffer(stream: any): Promise<any> {
     });
 }
 
-export const handler = async (event: any, _context: any) => {
+export const handler: Handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -110,11 +106,10 @@ export const handler = async (event: any, _context: any) => {
       case 'startStrategicAnalysis': {
         const jobId = await createAnalysisJob(payload);
         
-        // FIX: Replaced the non-existent 'netlify.functions.invoke' with a standard fetch call
-        // to reliably trigger the background function.
         const origin = new URL(event.rawUrl).origin;
         const functionUrl = `${origin}/.netlify/functions/process-analysis-job`;
 
+        // Fire-and-forget invocation of the background function.
         fetch(functionUrl, {
             method: 'POST',
             body: JSON.stringify({ payload: { jobId } })

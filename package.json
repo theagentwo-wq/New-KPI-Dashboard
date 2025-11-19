@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/create-netlify-config.js && node scripts/validate-env.js && tsc -p tsconfig.functions.json && vite build",
+    "build": "npm run build:functions && npm run build:client",
+    "build:functions": "tsc -p tsconfig.functions.json",
+    "build:client": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -21,6 +23,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.6.0",
     "@tailwindcss/typography": "^0.5.13",
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.66",

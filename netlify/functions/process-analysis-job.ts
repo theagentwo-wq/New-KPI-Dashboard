@@ -1,10 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
-// FIX: The firebaseService was updated to export this function.
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
-// FIX: Add firebase compat imports to match usage in firebaseService and ensure consistency.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
+import { Handler } from '@netlify/functions';
 
 declare var Buffer: any;
 
@@ -17,14 +16,14 @@ async function streamToBuffer(stream: any): Promise<any> {
     });
 }
 
-// FIX: Removed unused getJobDetails function that was using mixed SDK versions.
+export const handler: Handler = async (event) => {
+    // This is a background function, so we don't return a response to the client.
+    // We handle errors by updating the job status in Firestore.
 
-export const handler = async (event: any) => {
-    // Initialize Firebase client within the function
     const status = await initializeFirebaseService();
-    if(status.status === 'error') {
+    if (status.status === 'error') {
         console.error("Firebase init failed in background function:", status.message);
-        // We can't easily update the job here, so we just log and exit.
+        // Can't update Firestore if it failed to init, so we just log and exit.
         return { statusCode: 500 };
     }
 
@@ -37,7 +36,7 @@ export const handler = async (event: any) => {
     let jobDetails: any = {};
 
     try {
-        // FIX: Use Firebase v8 compat syntax for consistency with the rest of the application.
+        // Use Firebase v8 compat syntax for consistency.
         const db = firebase.firestore();
         const docRef = db.collection("analysis_jobs").doc(jobId);
         const docSnap = await docRef.get();
@@ -51,7 +50,10 @@ export const handler = async (event: any) => {
 
         const { fileUrl, mimeType, fileName, filePath } = jobDetails;
         
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not configured on the server.");
+        }
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
         const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) throw new Error(`Failed to download file: ${fileUrl}`);
@@ -59,7 +61,6 @@ export const handler = async (event: any) => {
         const buffer = await streamToBuffer(fileResponse.body);
         const base64Data = buffer.toString('base64');
         
-        // FIX: Use a more detailed and effective prompt, consistent with the JS version.
         const prompt = `You are an expert business strategist and data analyst for a multi-unit restaurant group. Your task is to analyze the provided document and generate a concise, actionable strategic brief for an Area Director.
 
         DOCUMENT CONTEXT:
