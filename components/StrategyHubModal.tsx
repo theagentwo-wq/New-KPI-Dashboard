@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { uploadFile } from '../services/firebaseService';
 import { getStrategicAnalysis, deleteImportFile } from '../services/geminiService';
 import { marked } from 'marked';
+import { resizeImage } from '../utils/imageUtils';
 
 interface StrategyHubModalProps {
   isOpen: boolean;
@@ -32,9 +33,10 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     }
   }, [isOpen]);
 
-  const handleFileSelect = (files: FileList | null) => {
+  const handleFileSelect = async (files: FileList | null) => {
     if (files && files.length > 0) {
-      setFile(files[0]);
+      const resizedFile = await resizeImage(files[0]);
+      setFile(resizedFile);
       setAnalysisHtml('');
       setError(null);
     }
@@ -49,7 +51,8 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
         const blob = item.getAsFile();
         if (blob) {
           const pastedFile = new File([blob], "pasted-image.png", { type: blob.type });
-          setFile(pastedFile);
+          const resizedFile = await resizeImage(pastedFile);
+          setFile(resizedFile);
           setAnalysisHtml('');
           setError(null);
           return;

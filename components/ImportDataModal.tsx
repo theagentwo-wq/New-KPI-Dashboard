@@ -5,6 +5,7 @@ import { extractKpisFromDocument, extractKpisFromText, deleteImportFile } from '
 import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
+import { resizeImage } from '../utils/imageUtils';
 
 interface ImportDataModalProps {
   isOpen: boolean;
@@ -13,7 +14,6 @@ interface ImportDataModalProps {
   onImportBudget: (data: any[]) => void;
 }
 
-const MAX_IMAGE_WIDTH = 1500; // pixels
 const BATCH_SIZE = 5; // Process 5 sheets at a time to avoid overwhelming the serverless functions
 
 type ImportStep = 'upload' | 'guided-paste' | 'verify' | 'processing' | 'finished';
@@ -24,44 +24,6 @@ interface ExtractedData {
     sourceName: string;
     isDynamicSheet?: boolean;
 }
-
-const resizeImage = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-        if (!file.type.startsWith('image/')) {
-            resolve(file);
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                if (img.width <= MAX_IMAGE_WIDTH) {
-                    resolve(file);
-                    return;
-                }
-                const canvas = document.createElement('canvas');
-                const scaleFactor = MAX_IMAGE_WIDTH / img.width;
-                canvas.width = MAX_IMAGE_WIDTH;
-                canvas.height = img.height * scaleFactor;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return reject(new Error('Could not get canvas context'));
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                canvas.toBlob(
-                    (blob) => {
-                        if (!blob) return reject(new Error('Canvas toBlob failed'));
-                        const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
-                        const resizedFile = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
-                        resolve(resizedFile);
-                    }, 'image/jpeg', 0.9
-                );
-            };
-            img.onerror = reject;
-            img.src = event.target?.result as string;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-};
 
 const EditableCell: React.FC<{ value: string; onChange: (newValue: string) => void; isStore?: boolean; }> = ({ value, onChange, isStore = false }) => {
     const [isEditing, setIsEditing] = useState(false);
