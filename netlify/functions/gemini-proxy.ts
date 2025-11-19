@@ -128,7 +128,7 @@ export const handler = async (event: any) => {
         const base64Data = buffer.toString('base64');
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             contents: [
                 { text: `${universalPrompt}\n\nThe filename is "${fileName}".` },
                 { inlineData: { mimeType: mimeType, data: base64Data } }
@@ -147,7 +147,7 @@ export const handler = async (event: any) => {
         const text = await textResponse.text();
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             contents: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---`,
             config: { responseMimeType: "application/json", responseSchema: universalSchema },
         });
