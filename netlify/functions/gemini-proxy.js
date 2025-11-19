@@ -14,7 +14,7 @@ async function streamToBuffer(stream) {
     });
 }
 
-exports.handler = async (event, context) => {
+exports.handler = async (event, _context) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
