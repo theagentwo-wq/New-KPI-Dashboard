@@ -35,7 +35,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
 
     try {
         let firebaseConfig;
-        let rawValueForError;
 
         if (isServer) {
             // SERVER-SIDE: read directly from environment variables.
@@ -43,7 +42,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
             if (!configStr) {
                 throw new Error("FIREBASE_CLIENT_CONFIG environment variable is not set on the server.");
             }
-            rawValueForError = configStr;
             let cleanedConfigStr = configStr.trim();
             if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
                 cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
@@ -59,7 +57,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
                  throw err;
             }
             firebaseConfig = data;
-            rawValueForError = JSON.stringify(data);
         }
         
         if (Object.keys(firebaseConfig).length === 0) {
