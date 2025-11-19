@@ -33,25 +33,15 @@ export const startStrategicAnalysisJob = async (payload: { fileUrl: string, mime
     return result; 
 };
 
-export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[], isDynamicSheet?: boolean }> => {
+export const startImportJob = async (payload: any, jobType: 'document' | 'text'): Promise<{ jobId: string }> => {
     try {
-        const result = await callAIApi('extractKpisFromDocument', payload);
+        const result = await callAIApi('startImportJob', { ...payload, jobType });
         return result;
     } catch (error) {
-        console.error("Error extracting KPIs from document:", error);
+        console.error(`Error starting import job for ${jobType}:`, error);
         throw error;
     }
 };
-
-export const extractKpisFromText = async (payload: { fileUrl: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[], isDynamicSheet?: boolean }> => {
-    try {
-        const result = await callAIApi('extractKpisFromText', payload);
-        return result;
-    } catch (error) {
-        console.error("Error extracting KPIs from text:", error);
-        throw error;
-    }
-}
 
 export const deleteImportFile = async (filePath: string): Promise<void> => {
     try {

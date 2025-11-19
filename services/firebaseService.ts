@@ -1,4 +1,3 @@
-
 // FIX: All firebase imports are changed to use the v8 compat library with the correct namespaced syntax.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
@@ -23,6 +22,7 @@ let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore
 let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let analysisJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let importJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 
 
 let isInitialized = false;
@@ -61,6 +61,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         mappingsCollection = db.collection('data_mapping_templates');
         goalsCollection = db.collection('goals');
         analysisJobsCollection = db.collection('analysis_jobs');
+        importJobsCollection = db.collection('import_jobs');
         
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
@@ -496,6 +497,34 @@ export const updateAnalysisJob = async (jobId: string, data: any): Promise<void>
 export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): (() => void) => {
     if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
     return analysisJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
+        if (doc.exists) {
+            callback({ id: doc.id, ...doc.data() });
+        }
+    });
+};
+
+// --- Import Job Functions ---
+export const createImportJob = async (payload: any): Promise<string> => {
+    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
+    const docRef = await importJobsCollection.add({
+        ...payload,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+};
+
+export const updateImportJob = async (jobId: string, data: any): Promise<void> => {
+    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
+    await importJobsCollection.doc(jobId).update({
+        ...data,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+};
+
+export const listenToImportJob = (jobId: string, callback: (data: any) => void): (() => void) => {
+    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
+    return importJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
         if (doc.exists) {
             callback({ id: doc.id, ...doc.data() });
         }

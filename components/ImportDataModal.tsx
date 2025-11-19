@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { extractKpisFromDocument, extractKpisFromText, deleteImportFile } from '../services/geminiService';
-import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
+import { startImportJob, deleteImportFile } from '../services/geminiService';
+import { uploadFile, uploadTextAsFile, listenToImportJob } from '../services/firebaseService';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
 import { resizeImage } from '../utils/imageUtils';
@@ -84,6 +84,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const unsubscribesRef = useRef<(() => void)[]>([]);
 
   const resetState = () => {
     setStep('upload');
@@ -96,6 +97,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStatusLog([]);
     setErrors([]);
     setExtractedData([]);
+    unsubscribesRef.current.forEach(unsub => unsub());
+    unsubscribesRef.current = [];
   };
 
   useEffect(() => { if (isOpen) resetState(); }, [isOpen]);
@@ -119,7 +122,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         reader.readAsArrayBuffer(excelFile);
       } else {
         setStatusLog(['Optimizing images before upload...']);
-        const resizedFiles = await Promise.all(files.map(resizeImage));
+        const resizedFiles = await Promise.all(files.map(file => resizeImage(file)));
         setStagedFiles(resizedFiles);
         setStagedWorkbook(null);
         setStagedText('');
@@ -177,9 +180,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         setErrors(['Please paste data for at least one store to continue.']);
         return;
     }
-    setStep('processing');
-    setStatusLog([]);
-    setErrors([]);
     await runAnalysisJobs(jobs);
   };
 
@@ -227,67 +227,81 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
 
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
+    setStep('processing');
     setProgress({ current: 0, total: jobs.length });
     const allExtractedData: ExtractedData[] = [];
 
-    // Process jobs one by one sequentially to avoid concurrency limits
-    for (const [index, job] of jobs.entries()) {
-        const currentJobNum = index + 1;
-        let filePath: string | null = null;
+    await new Promise<void>(resolveAllJobs => {
+        let completedJobs = 0;
 
-        try {
-            let apiResult;
-            setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
-
-            if (job.type === 'file') {
-                setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
-                const uploadResult = await uploadFile(job.content as File);
-                ({ filePath } = uploadResult);
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
-            } else { // 'text-chunk'
-                setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
-                const uploadResult = await uploadTextAsFile(job.content as string, job.name);
-                ({ filePath } = uploadResult);
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
-                apiResult = await extractKpisFromText(uploadResult);
+        const handleJobCompletion = () => {
+            completedJobs++;
+            setProgress(prev => ({ ...prev, current: completedJobs }));
+            if (completedJobs === jobs.length) {
+                resolveAllJobs();
             }
+        };
 
-            if (!apiResult.dataType || !apiResult.data) {
-                throw new Error("AI analysis returned an unexpected format.");
-            }
-
-            const extractedResult: ExtractedData = {
-                ...apiResult,
-                sourceName: job.name,
-            };
-
-            setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
-            allExtractedData.push(extractedResult);
-
-        } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-            setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
-            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
-        } finally {
-            // Update progress regardless of success or failure
-            setProgress(prev => ({ ...prev, current: prev.current + 1 }));
-            if (filePath) {
-                await deleteImportFile(filePath);
-            }
+        if (jobs.length === 0) {
+            resolveAllJobs();
+            return;
         }
-    }
+        
+        jobs.forEach(async (job, index) => {
+            let filePath: string | null = null;
+            let jobId: string | null = null;
+            try {
+                setStatusLog(prev => [...prev, `[${index + 1}/${jobs.length}] Submitting job for '${job.name}'...`]);
+                
+                let uploadResult;
+                if (job.type === 'file') {
+                    uploadResult = await uploadFile(job.content as File);
+                    ({ jobId } = await startImportJob({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name }, 'document'));
+                } else {
+                    uploadResult = await uploadTextAsFile(job.content as string, job.name);
+                    ({ jobId } = await startImportJob(uploadResult, 'text'));
+                }
+                filePath = uploadResult.filePath;
+                
+                const unsubscribe = listenToImportJob(jobId!, (jobData) => {
+                    if (jobData.status === 'complete') {
+                        setStatusLog(prev => [...prev, `  -> SUCCESS: Job for '${job.name}' completed.`]);
+                        const extractedResult: ExtractedData = { ...jobData.result, sourceName: job.name };
+                        allExtractedData.push(extractedResult);
+                        unsubscribe();
+                        handleJobCompletion();
+                    } else if (jobData.status === 'error') {
+                        const errorMsg = jobData.error || 'Background job failed.';
+                        setStatusLog(prev => [...prev, `  -> ERROR: Job for '${job.name}' failed: ${errorMsg}`]);
+                        setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
+                        unsubscribe();
+                        handleJobCompletion();
+                    }
+                });
+                unsubscribesRef.current.push(unsubscribe);
+
+            } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : 'Failed to submit job.';
+                setStatusLog(prev => [...prev, `  -> ERROR: Could not submit job for '${job.name}': ${errorMsg}`]);
+                setErrors(prev => [...prev, `FAILED to submit job: ${job.name} - ${errorMsg}`]);
+                if (filePath) await deleteImportFile(filePath);
+                handleJobCompletion();
+            }
+        });
+    });
+
+    unsubscribesRef.current.forEach(unsub => unsub());
+    unsubscribesRef.current = [];
     
-    const isAnySheetDynamic = allExtractedData.some(d => d.isDynamicSheet);
-    if (isAnySheetDynamic) {
+    if (allExtractedData.some(d => d.isDynamicSheet)) {
         setStatusLog(prev => [...prev, "\nDynamic sheet detected! AI requires separate data for each store. Please use the Guided Paste workflow."]);
         setStep('guided-paste');
     } else if (allExtractedData.length > 0) {
-      setExtractedData(allExtractedData);
-      setStep('verify');
+        setExtractedData(allExtractedData);
+        setStep('verify');
     } else {
-      setStatusLog(prev => [...prev, `\nAnalysis Complete. No data was successfully extracted.`]);
-      setStep('finished');
+        setStatusLog(prev => [...prev, `\nAnalysis Complete. No data was successfully extracted.`]);
+        setStep('finished');
     }
   }
 

@@ -6,3 +6,6 @@ timeout = 25
 [functions."process-analysis-job"]
 background = true
 
+[functions."process-import-job"]
+background = true
+
