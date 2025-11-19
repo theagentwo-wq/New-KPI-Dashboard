@@ -13,7 +13,7 @@ import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { StrategyHubModal } from './components/StrategyHubModal';
-import { ImportStatusIndicator } from './components/importStatusIndicator';
+import { ImportStatusIndicator } from './components/ImportStatusIndicator';
 
 // Main App Component
 const App: React.FC = () => {
@@ -266,7 +266,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
-                                // FIX: Corrected the prop value to match the state setter function name.
+                                // FIX: Corrected prop name from `setExecutiveSummaryOpen` to `setIsExecutiveSummaryOpen` to match the DashboardPageProps interface.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
@@ -283,8 +283,8 @@ const App: React.FC = () => {
              <ImportDataModal 
                 isOpen={isImportDataOpen}
                 onClose={() => setImportDataOpen(false)}
-                activeJob={activeImportJob}
-                setActiveJob={setActiveImportJob}
+                activeJob={activeJob}
+                setActiveJob={setActiveJob}
                 onConfirmImport={handleConfirmImport}
             />
              {activeImportJob && !isImportDataOpen && (
