@@ -156,20 +156,25 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                 } else {
                      setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
                      const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                     const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent);
+                     const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent, file.name);
                      setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
                      await batchImportActuals(data, aiMappingResult, file.name);
                 }
             } else if (fileType === 'csv') {
                 const { headers, data, preHeaderContent } = parseCSV(await file.text());
-                setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
-                const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent);
-                setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                await batchImportActuals(data, aiMappingResult, file.name);
-
+                const isBudget = headers.includes('Year') && headers.includes('Month');
+                if (isBudget) {
+                     setStatusLog(prev => [...prev, `  -> Detected Budget format. Importing...`]);
+                     await batchImportBudgets(data);
+                } else {
+                    setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
+                    const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
+                    const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent, file.name);
+                    setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
+                    await batchImportActuals(data, aiMappingResult, file.name);
+                }
             } else {
-                 throw new Error(`Unsupported file type: .${fileType}. Please use Excel, CSV, PDF, Word, or Image files.`);
+                 throw new Error(`Unsupported file type: .${fileType}. Please use Excel or CSV files.`);
             }
             setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
 

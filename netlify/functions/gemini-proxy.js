@@ -30,11 +30,12 @@ exports.handler = async (event) => {
 
     switch (action) {
       case 'getAIAssistedMapping': {
-        const { headers: csvHeaders, kpis: appKpis, preHeaderContent } = payload;
+        const { headers: csvHeaders, kpis: appKpis, preHeaderContent, fileName } = payload;
         const prompt = `You are an intelligent data mapping assistant for a multi-unit restaurant group. Your goal is to map spreadsheet headers to the application's fields and identify a file-wide date if present.
 
 **Application Fields:** ${appKpis.join(', ')}
 **Spreadsheet Headers:** ${csvHeaders.join(', ')}
+**Filename:** ${fileName || "No filename provided."}
 **File Content (first few rows):**
 ---
 ${preHeaderContent || "No pre-header content provided."}
@@ -42,10 +43,11 @@ ${preHeaderContent || "No pre-header content provided."}
 
 **CRITICAL INSTRUCTIONS (Follow in order):**
 
-**Step 1: Find the Date (Two-Step Process)**
+**Step 1: Find the Date (Three-Step Process)**
    a. **Analyze Pre-Header Content First:** Scrutinize the "File Content" provided above. Look for a single, clear date reference like "For the Week Ending 01/07/2025" or "P1 Wk4 2025". If you find ONE unambiguous date that applies to the entire file, extract it and set it as 'fileWideDate' in 'YYYY-MM-DD' format.
    b. **Analyze Headers (Fallback):** If and ONLY IF you did not find a file-wide date in Step 1a, search the "Spreadsheet Headers" for a date column (e.g., "Week Start Date", "Date"). If found, map it to "Week Start Date".
-   c. If you cannot find a date by either method, do not map any date field.
+   c. **Analyze Filename (Final Fallback):** If and ONLY IF you have not found a date yet, analyze the **Filename** itself for a date reference (e.g., "Report for 2025.csv", "wk4_2025_data.xlsx"). If found, extract the date and set it as 'fileWideDate' in 'YYYY-MM-DD' format.
+   d. If you cannot find a date by any method, do not map any date field.
 
 **Step 2: Map Other Columns**
 1.  **Store Name:** Search the headers for "Store Name", "Location", "Restaurant", "Unit". If found, map it to "Store Name".

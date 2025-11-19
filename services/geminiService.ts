@@ -34,9 +34,9 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const getAIAssistedMapping = async (headers: string[], kpis: string[], preHeaderContent: string): Promise<AIMappingResult> => {
+export const getAIAssistedMapping = async (headers: string[], kpis: string[], preHeaderContent: string, fileName: string): Promise<AIMappingResult> => {
     try {
-        const result = await callAIApi('getAIAssistedMapping', { headers, kpis, preHeaderContent });
+        const result = await callAIApi('getAIAssistedMapping', { headers, kpis, preHeaderContent, fileName });
         return {
             mappings: result.mappings || {},
             fileWideDate: result.fileWideDate

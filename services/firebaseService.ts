@@ -116,7 +116,7 @@ export const batchImportActuals = async (data: any[], aiResult: AIMappingResult,
     const storeNameHeader = Object.keys(mappings).find(h => mappings[h] === 'Store Name');
     const dateHeader = Object.keys(mappings).find(h => mappings[h] === 'Week Start Date');
     
-    if (!dateHeader && !fileWideDate) throw new Error("Mapping failed: AI could not identify a date in the file's content or columns.");
+    if (!dateHeader && !fileWideDate) throw new Error("Mapping failed: AI could not identify a date in the file's content, columns, or filename.");
 
     let fileNameStoreId: string | null = null;
     if (!storeNameHeader && fileName) {
