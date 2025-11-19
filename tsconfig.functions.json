@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "functions-dist",
+    "noEmit": false,
+    "isolatedModules": false,
+    "allowImportingTsExtensions": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "preserve"
+  },
+  "include": [
+    "netlify/functions/**/*.ts",
+    "services/**/*.ts",
+    "utils/**/*.ts",
+    "types.ts",
+    "constants.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "functions-dist"
+  ]
+}
