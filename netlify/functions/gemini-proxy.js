@@ -73,16 +73,21 @@ exports.handler = async (event) => {
     const universalPrompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document.
     
     **CRITICAL INSTRUCTIONS:**
-    1.  **CLASSIFY DATA TYPE:** First, determine if the data represents 'Actuals' (historical, weekly performance data) or a 'Budget' (a forward-looking plan with monthly targets). Your primary clue is the time granularity (weekly vs. monthly) and keywords like "Budget", "Plan", "Actuals", "Report".
-    2.  **EXTRACT DATA:** Based on the classification, extract all relevant financial data.
+    1.  **DETECT DYNAMIC SHEETS:** First, examine the structure of the document. If you see text indicating a dropdown menu, a filter control, or instructions to select a store/entity to view its data, set the 'isDynamicSheet' flag to true. This is crucial. If it's just a static table of data for one or more entities without interactive elements, set 'isDynamicSheet' to false.
+    2.  **CLASSIFY DATA TYPE:** Next, determine if the data represents 'Actuals' (historical, weekly performance data) or a 'Budget' (a forward-looking plan with monthly targets). Your primary clue is the time granularity (weekly vs. monthly) and keywords like "Budget", "Plan", "Actuals", "Report".
+    3.  **EXTRACT DATA:** Based on the classification, extract all relevant financial data. If 'isDynamicSheet' is true, extract data for the currently visible store only.
         *   **If 'Actuals':** Extract the 'Store Name', 'Week Start Date' (calculate if a 'Week Ending' date is given, assuming weeks start on Monday), and all KPI values for each row.
         *   **If 'Budget':** Extract the 'Store Name', 'Year', 'Month', and all target KPI values.
-    3.  **HANDLE COMPLEX FILES:** The document may contain data for multiple stores and multiple time periods (e.g., a multi-year budget). Process all of them. Ignore any summary rows like "Total" or "Grand Total".
-    4.  **FORMAT OUTPUT:** Return a JSON object with two fields: 'dataType' (either "Actuals" or "Budget") and 'data' (an array of JSON objects strictly following the correct schema for that data type). Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
+    4.  **HANDLE COMPLEX FILES:** The document may contain data for multiple stores and multiple time periods (e.g., a multi-year budget). Process all of them. Ignore any summary rows like "Total" or "Grand Total".
+    5.  **FORMAT OUTPUT:** Return a JSON object with two fields: 'dataType' (either "Actuals" or "Budget") and 'data' (an array of JSON objects strictly following the correct schema for that data type). Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
     
     const universalSchema = {
         type: Type.OBJECT,
         properties: {
+            isDynamicSheet: { 
+                type: Type.BOOLEAN, 
+                description: "Set to true if the analyzed sheet contains interactive UI elements like a dropdown menu or filter that changes the data displayed (e.g., selecting a different store). Set to false if it's a static data table."
+            },
             dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] },
             data: {
                 type: Type.ARRAY,
@@ -91,7 +96,7 @@ exports.handler = async (event) => {
                 }
             }
         },
-        required: ["dataType", "data"]
+        required: ["dataType", "data", "isDynamicSheet"]
     };
 
     switch (action) {

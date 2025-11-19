@@ -15,12 +15,13 @@ interface ImportDataModalProps {
 
 const MAX_IMAGE_WIDTH = 1500; // pixels
 
-type ImportStep = 'upload' | 'verify' | 'processing' | 'finished';
+type ImportStep = 'upload' | 'guided-paste' | 'verify' | 'processing' | 'finished';
 
 interface ExtractedData {
     dataType: 'Actuals' | 'Budget';
     data: any[];
     sourceName: string;
+    isDynamicSheet?: boolean;
 }
 
 const resizeImage = (file: File): Promise<File> => {
@@ -115,6 +116,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [stagedText, setStagedText] = useState<string>('');
   const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const [pastedStoreData, setPastedStoreData] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -128,6 +130,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStagedText('');
     setStagedWorkbook(null);
     setSelectedSheets([]);
+    setPastedStoreData({});
     setProgress({ current: 0, total: 0 });
     setStatusLog([]);
     setErrors([]);
@@ -167,6 +170,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const handleFileDrop = (fileList: FileList) => { if (fileList && fileList.length > 0) processAndSetFiles(Array.from(fileList)); };
 
   const handlePaste = useCallback(async (event: ClipboardEvent) => {
+    if (step !== 'upload') return; // Only allow global paste on the upload step
     const items = event.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
@@ -188,7 +192,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             return;
         }
     }
-  }, []);
+  }, [step]);
 
   useEffect(() => {
     if (isOpen) window.addEventListener('paste', handlePaste);
@@ -197,6 +201,25 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   
   const handleToggleSheet = (sheetName: string) => {
     setSelectedSheets(prev => prev.includes(sheetName) ? prev.filter(s => s !== sheetName) : [...prev, sheetName]);
+  };
+  
+  const handleAnalyzePastedData = async () => {
+    const jobs = Object.entries(pastedStoreData)
+        .filter(([, text]) => text.trim())
+        .map(([storeName, text]) => ({
+            type: 'text-chunk' as const,
+            content: text,
+            name: `Pasted data for ${storeName}`
+        }));
+
+    if (jobs.length === 0) {
+        setErrors(['Please paste data for at least one store to continue.']);
+        return;
+    }
+    setStep('processing');
+    setStatusLog([]);
+    setErrors([]);
+    await runAnalysisJobs(jobs);
   };
 
   const handleAnalyze = async () => {
@@ -217,13 +240,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     if (hasFiles) {
         jobs = stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }));
     } else if (hasText) {
-        const yearRegex = /(\d{4} Weekly Sales Breakdown)/g;
-        const chunks = stagedText.split(yearRegex).filter(Boolean);
-        if (chunks.length > 1) {
-            for (let i = 0; i < chunks.length; i += 2) jobs.push({ type: 'text-chunk', content: chunks[i] + (chunks[i+1] || ''), name: chunks[i] });
-        } else {
-            jobs.push({ type: 'text-chunk', content: stagedText, name: 'Pasted text' });
-        }
+        jobs.push({ type: 'text-chunk', content: stagedText, name: 'Pasted text' });
     } else if (hasWorkbook) {
         const workbookFile = stagedWorkbook.file;
         const reader = new FileReader();
@@ -259,23 +276,25 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
         let filePath: string | null = null;
         try {
-            let result: { dataType: 'Actuals' | 'Budget', data: any[] };
+// FIX: The result from the API call lacks a `sourceName`, causing a type error.
+// The variable `result` is renamed to `apiResult` and is not strictly typed, allowing the subsequent spread operation to correctly form the `ExtractedData` object.
+            let apiResult;
             if (job.type === 'file') {
                 setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
                 const uploadResult = await uploadFile(job.content as File);
                 ({ filePath } = uploadResult);
                 setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                result = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
+                apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
             } else {
                 setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
                 const uploadResult = await uploadTextAsFile(job.content as string, job.name);
                 ({ filePath } = uploadResult);
                 setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
-                result = await extractKpisFromText(uploadResult);
+                apiResult = await extractKpisFromText(uploadResult);
             }
-            if (!result.dataType || !result.data) throw new Error("AI analysis returned an unexpected format.");
-            allExtractedData.push({ ...result, sourceName: job.name });
-            setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${result.data.length} rows of '${result.dataType}' data.`]);
+            if (!apiResult.dataType || !apiResult.data) throw new Error("AI analysis returned an unexpected format.");
+            allExtractedData.push({ ...apiResult, sourceName: job.name });
+            setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
             setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
@@ -285,7 +304,11 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         }
     }
     
-    if (allExtractedData.length > 0) {
+    const isAnySheetDynamic = allExtractedData.some(d => d.isDynamicSheet);
+    if (isAnySheetDynamic) {
+        setStatusLog(prev => [...prev, "\nDynamic sheet detected! AI requires separate data for each store. Please use the Guided Paste workflow."]);
+        setStep('guided-paste');
+    } else if (allExtractedData.length > 0) {
       setExtractedData(allExtractedData);
       setStep('verify');
     } else {
@@ -379,6 +402,36 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             </div>
           </>
         );
+      case 'guided-paste':
+        return (
+            <div className="space-y-4">
+                <div className="p-3 bg-slate-900/50 rounded-md border border-slate-700">
+                    <h3 className="text-md font-bold text-cyan-400 flex items-center gap-2">
+                        <Icon name="sparkles" className="w-5 h-5" />
+                        Guided Paste Required
+                    </h3>
+                    <p className="text-slate-300 text-sm mt-1">The AI detected a dynamic sheet that uses a dropdown. To ensure accuracy, please copy the data for each store from your spreadsheet and paste it into the corresponding box below.</p>
+                </div>
+                <div className="max-h-[50vh] overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                    {ALL_STORES.map(store => (
+                        <div key={store} className="bg-slate-800 p-3 rounded-md border border-slate-700">
+                           <div className="flex justify-between items-center">
+                             <label htmlFor={`paste-area-${store}`} className="font-semibold text-slate-200">{store}</label>
+                             {pastedStoreData[store] && <span className="text-xs text-green-400">Pasted ✓</span>}
+                           </div>
+                            <textarea
+                                id={`paste-area-${store}`}
+                                value={pastedStoreData[store] || ''}
+                                onChange={(e) => setPastedStoreData(prev => ({ ...prev, [store]: e.target.value }))}
+                                placeholder={`Paste data for ${store} here...`}
+                                rows={2}
+                                className="mt-2 w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white text-xs placeholder-slate-500 focus:ring-cyan-500 focus:border-cyan-500"
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
       case 'verify':
         return (
           <div className="space-y-4">
@@ -450,6 +503,15 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                     <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
                     <button onClick={handleAnalyze} disabled={isAnalyzeDisabled} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
                         Analyze
+                    </button>
+                </>
+              );
+          case 'guided-paste':
+              return (
+                 <>
+                    <button onClick={() => setStep('upload')} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Back</button>
+                    <button onClick={handleAnalyzePastedData} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md shadow-lg shadow-cyan-900/20">
+                       Analyze Pasted Data
                     </button>
                 </>
               );
