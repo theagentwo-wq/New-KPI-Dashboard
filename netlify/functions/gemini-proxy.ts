@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import fetch from 'node-fetch';
 import { createAnalysisJob } from '../../services/firebaseService';
@@ -14,7 +15,7 @@ async function streamToBuffer(stream: any): Promise<any> {
     });
 }
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event, _context) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',

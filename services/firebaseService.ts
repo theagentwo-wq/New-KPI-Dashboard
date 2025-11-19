@@ -1,3 +1,4 @@
+
 // FIX: All firebase imports are changed to use the v8 compat library to match the errors provided.
 // This requires rewriting all Firebase SDK calls to the v8 namespaced syntax.
 import firebase from 'firebase/compat/app';

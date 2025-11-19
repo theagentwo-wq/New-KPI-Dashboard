@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
@@ -16,7 +17,7 @@ async function streamToBuffer(stream: any): Promise<any> {
     });
 }
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event, _context) => {
     // This is a background function, so we don't return a response to the client.
     // We handle errors by updating the job status in Firestore.
 
@@ -102,7 +103,9 @@ export const handler: Handler = async (event) => {
         await updateAnalysisJob(jobId, { status: 'complete', result: response.text });
 
         // Clean up the file from Firebase Storage
-        await deleteFileByPath(filePath);
+        if (filePath) {
+            await deleteFileByPath(filePath);
+        }
 
         return { statusCode: 200 };
 
