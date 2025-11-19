@@ -132,33 +132,6 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify(parsedResponse) };
       }
 
-      case 'getPlaceDetails': {
-        if (!process.env.MAPS_API_KEY) {
-             return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) };
-        }
-        const mapsApiKey = process.env.MAPS_API_KEY;
-        const { address } = payload;
-        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
-        const findPlaceResponse = await fetch(findPlaceUrl);
-        if (!findPlaceResponse.ok) throw new Error(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
-        const findPlaceData = await findPlaceResponse.json();
-        if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not find a Google Maps location for "${address}". Details: ${findPlaceData.status}` }) };
-        }
-        const placeId = findPlaceData.candidates[0].place_id;
-
-        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${mapsApiKey}`;
-        const detailsResponse = await fetch(detailsUrl);
-        if (!detailsResponse.ok) throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
-        const detailsData = await detailsResponse.json();
-        if (detailsData.status !== 'OK') {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not fetch details. Details: ${detailsData.status}` }) };
-        }
-        const result = detailsData.result;
-        const photoUrls = (result.photos || []).slice(0, 10).map((p) => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${mapsApiKey}`);
-        return { statusCode: 200, headers, body: JSON.stringify({ data: { name: result.name, rating: result.rating, photoUrls } }) };
-    }
-
       default:
         // Fallback for other actions
         const { data, view, periodLabel } = payload;

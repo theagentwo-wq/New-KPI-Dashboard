@@ -17,24 +17,6 @@ async function streamToBuffer(stream: any): Promise<any> {
     });
 }
 
-// Type definitions for Google Maps API responses to ensure type safety
-interface FindPlaceResponse {
-  candidates?: { place_id: string }[];
-  status: string;
-  error_message?: string;
-}
-
-interface PlaceDetailsResponse {
-  result?: {
-    name: string;
-    rating: number;
-    photos?: { photo_reference: string }[];
-  };
-  status: string;
-  error_message?: string;
-}
-
-
 export const handler = async (event: any) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -156,38 +138,6 @@ export const handler = async (event: any) => {
         return { statusCode: 200, headers, body: JSON.stringify(parsedResponse) };
       }
       
-      case 'getPlaceDetails': {
-        if (!process.env.MAPS_API_KEY) {
-             return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) };
-        }
-        const mapsApiKey = process.env.MAPS_API_KEY;
-        const { address } = payload;
-        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
-        
-        const findPlaceResponse = await fetch(findPlaceUrl);
-        if (!findPlaceResponse.ok) throw new Error(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
-        
-        const findPlaceData = await findPlaceResponse.json() as FindPlaceResponse;
-
-        if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not find a Google Maps location for "${address}". Details: ${findPlaceData.status} - ${findPlaceData.error_message || 'No candidates found'}` }) };
-        }
-        const placeId = findPlaceData.candidates[0].place_id;
-
-        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${mapsApiKey}`;
-        const detailsResponse = await fetch(detailsUrl);
-        if (!detailsResponse.ok) throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
-        
-        const detailsData = await detailsResponse.json() as PlaceDetailsResponse;
-
-        if (detailsData.status !== 'OK' || !detailsData.result) {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not fetch details. Details: ${detailsData.status} - ${detailsData.error_message || 'No result found'}` }) };
-        }
-        const result = detailsData.result;
-        const photoUrls = (result.photos || []).slice(0, 10).map((p: any) => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${mapsApiKey}`);
-        return { statusCode: 200, headers, body: JSON.stringify({ data: { name: result.name, rating: result.rating, photoUrls } }) };
-    }
-
       default:
         const { data, view, periodLabel } = payload;
         const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;

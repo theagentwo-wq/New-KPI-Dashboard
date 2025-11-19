@@ -76,8 +76,27 @@ export const getMapsApiKey = async (): Promise<string> => {
 };
 
 export const getPlaceDetails = async (address: string): Promise<PlaceDetails> => {
-    const result = await callAIApi('getPlaceDetails', { address });
-    return result.data;
+    // REFACTOR: Call the new, dedicated maps-proxy for reliability.
+    try {
+        const response = await fetch('/.netlify/functions/maps-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address }),
+        });
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
+            console.error(`Maps Proxy Error (${response.status}):`, errorBody);
+            throw new Error(errorBody.error || `Request failed with status ${response.status}`);
+        }
+        const result = await response.json();
+        return result.data;
+    } catch (error) {
+        console.error(`Error calling Maps API proxy:`, error);
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('An unknown error occurred while contacting the mapping service.');
+    }
 };
 
 export const getExecutiveSummary = async (data: any, view: View, periodLabel: string): Promise<string> => {
