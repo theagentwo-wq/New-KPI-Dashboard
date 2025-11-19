@@ -14,6 +14,24 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     });
 }
 
+// Type definitions for Google Maps API responses to ensure type safety
+interface FindPlaceResponse {
+  candidates?: { place_id: string }[];
+  status: string;
+  error_message?: string;
+}
+
+interface PlaceDetailsResponse {
+  result?: {
+    name: string;
+    rating: number;
+    photos?: { photo_reference: string }[];
+  };
+  status: string;
+  error_message?: string;
+}
+
+
 export const handler = async (event: any) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -142,20 +160,25 @@ export const handler = async (event: any) => {
         const mapsApiKey = process.env.MAPS_API_KEY;
         const { address } = payload;
         const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
+        
         const findPlaceResponse = await fetch(findPlaceUrl);
         if (!findPlaceResponse.ok) throw new Error(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
-        const findPlaceData = await findPlaceResponse.json();
+        
+        const findPlaceData = await findPlaceResponse.json() as FindPlaceResponse;
+
         if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not find a Google Maps location for "${address}". Details: ${findPlaceData.status}` }) };
+            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not find a Google Maps location for "${address}". Details: ${findPlaceData.status} - ${findPlaceData.error_message || 'No candidates found'}` }) };
         }
         const placeId = findPlaceData.candidates[0].place_id;
 
         const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${mapsApiKey}`;
         const detailsResponse = await fetch(detailsUrl);
         if (!detailsResponse.ok) throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
-        const detailsData = await detailsResponse.json();
-        if (detailsData.status !== 'OK') {
-            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not fetch details. Details: ${detailsData.status}` }) };
+        
+        const detailsData = await detailsResponse.json() as PlaceDetailsResponse;
+
+        if (detailsData.status !== 'OK' || !detailsData.result) {
+            return { statusCode: 404, headers, body: JSON.stringify({ error: `Could not fetch details. Details: ${detailsData.status} - ${detailsData.error_message || 'No result found'}` }) };
         }
         const result = detailsData.result;
         const photoUrls = (result.photos || []).slice(0, 10).map((p: any) => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${mapsApiKey}`);
