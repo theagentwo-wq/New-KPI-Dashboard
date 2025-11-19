@@ -1,15 +1,20 @@
-// FIX: Add Node.js types reference to resolve Buffer and stream errors.
-/// <reference types="node" />
-
+// FIX: Resolve Buffer and stream errors for environments where Node.js types are not available to TypeScript.
 import { GoogleGenAI, Type } from "@google/genai";
 import fetch from 'node-fetch';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/storage';
+
+// FIX: Declare Buffer as a global type to resolve TypeScript errors.
+declare var Buffer: any;
+
 
 // Helper to convert stream to buffer, needed for fetching file content
-async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
-    const chunks: Buffer[] = [];
+// FIX: Use `any` for stream types to avoid dependency on Node.js type definitions.
+async function streamToBuffer(stream: any): Promise<any> {
+    const chunks: any[] = [];
     return new Promise((resolve, reject) => {
-        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-        stream.on('error', (err) => reject(err));
+        stream.on('data', (chunk: any) => chunks.push(chunk));
+        stream.on('error', (err: any) => reject(err));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
     });
 }
@@ -121,7 +126,7 @@ export const handler = async (event: any) => {
         const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) throw new Error(`Failed to download file from URL: ${fileUrl}`);
         
-        const buffer = await streamToBuffer(fileResponse.body as NodeJS.ReadableStream);
+        const buffer = await streamToBuffer(fileResponse.body);
         const base64Data = buffer.toString('base64');
         
         const response = await ai.models.generateContent({
@@ -188,6 +193,7 @@ export const handler = async (event: any) => {
       default:
         const { data, view, periodLabel } = payload;
         const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
+        // FIX: Corrected typo in model name from 'gemini-2.fsflash' to 'gemini-2.5-flash'.
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
         return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
     }

@@ -1,6 +1,6 @@
 # Operations KPI Dashboard
 
-This is a world-class, interactive, and visually polished Operations KPI Dashboard for the Tupelo Honey Cafe restaurant group. It provides a comprehensive suite of tools for tracking, budgeting, and analyzing key performance indicators, featuring several advanced AI-powered features using the Gemini API for deep analysis and forecasting.
+This is a world-class, interactive, and visually polished Operations KPI Dashboard for a multi-unit restaurant group. It provides a comprehensive suite of tools for tracking, budgeting, and analyzing key performance indicators, featuring several advanced AI-powered features using the Gemini API for deep analysis and forecasting.
 
 ## Tech Stack
 
@@ -11,7 +11,7 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Charts**: Recharts
 - **AI**: Google Gemini API (via Netlify Proxy)
 - **Maps**: Google Maps Platform (via Netlify Proxy)
-- **Database**: Google Firestore
+- **Database**: Google Firestore & Firebase Storage
 
 ## Local Setup (Foolproof Guide)
 
@@ -47,7 +47,7 @@ This is the most important step. All API keys are managed in a local environment
 2.  **Rename the file:** Rename this file to **`.env.local`**.
 3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
     *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
-    *   `MAPS_API_KEY`: **(New & Required)** Get this from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). See the "Google Maps API Key Guide" below.
+    *   `MAPS_API_KEY`: Get this from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). See the "Google Maps API Key Guide" below.
     *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
 
 ### 4. Run the Development Server
@@ -123,14 +123,7 @@ You must enable three specific APIs for all map features to work.
     *   **Places API** (for photos and ratings)
     *   **Geocoding API** (for finding locations accurately)
 
-### Step 3: Restrict Your API Key
-
-1.  Go back to the **[Credentials Page](https://console.cloud.google.com/apis/credentials)** and click the pencil icon to edit your Maps API key.
-2.  Under **"API restrictions"**, select **"Restrict key"**.
-3.  In the dropdown menu, find and select the three APIs you just enabled: **Maps Embed API**, **Places API**, and **Geocoding API**.
-4.  Click **"Save"**.
-
-### Step 4: Add the Key to Your Project
+### Step 3: Add the Key to Your Project
 
 -   **For Local Development:** Paste the key into your `.env.local` file for the `MAPS_API_KEY` variable.
 -   **For Deployment:** Paste the key into your Netlify site's environment variables with the key `MAPS_API_KEY`.
@@ -139,87 +132,67 @@ You must enable three specific APIs for all map features to work.
 
 ## Firebase Configuration Guide
 
-The most common point of failure is an incorrectly formatted `FIREBASE_CLIENT_CONFIG` variable. Follow these steps exactly.
+Follow these steps to configure your Firebase project correctly.
 
-### Step 1: Get Your Config Object
+### Step 1: Get Your Firebase Config Object
 
 1.  In the Firebase Console, go to **Project Settings > General**.
-2.  Scroll down to the **"Your apps"** card.
-3.  If you don't have an app, click the Web icon (`</>`) to create one.
-4.  In the app settings, find the **"SDK setup and configuration"** section and select **"Config"**.
-5.  You will see the `firebaseConfig` object. This is what you need.
-    ```javascript
-    const firebaseConfig = {
-      apiKey: "YOUR_FIREBASE_API_KEY",
-      authDomain: "your-project.firebaseapp.com",
-      projectId: "your-project",
-      // ... and so on
-    };
-    ```
+2.  Scroll down to the **"Your apps"** card. If you don't have one, create a new Web app (`</>`).
+3.  In the app settings, find the **"SDK setup and configuration"** section and select **"Config"**.
+4.  Copy the `firebaseConfig` object.
 
-### Step 2: Format the Config for Use
+### Step 2: Format the Config for Environment Variables
 
 1.  Copy the entire object, from the opening `{` to the closing `}`.
 2.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a **single, continuous line of text**.
-3.  This single line is the value you will paste into your `.env.local` file and your Netlify settings.
+3.  This single line is the value you will paste into your `.env.local` file and your Netlify settings for `FIREBASE_CLIENT_CONFIG`.
 
 #### ✅ Correct Final Format:
-`{"apiKey":"YOUR_FIREBASE_API_KEY","authDomain":"your-project.firebaseapp.com","projectId":"your-project","storageBucket":"your-project.appspot.com","messagingSenderId":"1234567890","appId":"1:12345..."}`
+`{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}`
 
-#### ❌ Common Mistakes to Avoid:
--   **Do not** wrap the final string in any quotes (`'` or `"`). Paste the raw `{"key":...}` object.
--   **Do not** include `const firebaseConfig =` or the final semicolon `;`.
--   Ensure there are no newlines or line breaks. It must be a single line.
--   Ensure there is no trailing comma after the last property inside the `{...}`.
+### Step 3: Update Firestore Security Rules (Required)
 
----
-
-## Troubleshooting
-
-### "Database Connection Failed" Error
-
-If you see an error in the Notes panel saying `The config value from your Netlify settings is invalid...`, it means the value for `FIREBASE_CLIENT_CONFIG` in your Netlify environment variables is not a valid JSON string. The error panel will show you the **exact problematic string** it received.
-
-**To fix this:**
-1.  Go to an online JSON validator, like [jsonlint.com](https://jsonlint.com).
-2.  Paste the string from the error panel into the validator. It will highlight the exact syntax error.
-3.  Correct the error, copy the valid single-line JSON, paste it into your Netlify `FIREBASE_CLIENT_CONFIG` variable, and redeploy.
-
-### "Successfully connected, but failed to fetch notes" Error
-
-If you see this error, your Firebase config is correct, but there's an issue reading from the database. The specific error message will tell you which of the two common problems below is the cause.
-
-#### 1. Error Message: "Permission denied..."
-
-This means your Firestore Security Rules are blocking the app. This is the **default, secure behavior** for a new database.
-
-**To Fix (for this demo project):**
+By default, your database is locked. For this demo app, we need to allow read/write operations.
 
 1.  Go to the **Firebase Console**.
 2.  Navigate to **Firestore Database > Rules**.
-3.  You will see rules that look like `allow read, write: if request.auth != null;`. This means only logged-in users can access the database.
-4.  For this project, which has no login system, you can open up access by replacing the existing rules with the following:
+3.  Replace the existing rules with the following:
     ```
     rules_version = '2';
     service cloud.firestore {
       match /databases/{database}/documents {
-        // Allow public read access to the 'notes' and 'directors' collections
-        match /{collectionId}/{documentId} {
-          allow read, write: if true; // Allows anyone to read/write, use for demo purposes only
+        match /{document=**} {
+          allow read, write: if true; // WARNING: Allows public access. For demo purposes only.
         }
       }
     }
     ```
-5.  Click **"Publish"**. Changes can take a minute to take effect. Refresh your app.
+4.  Click **"Publish"**.
 
-#### 2. Error Message: "A Firestore index is required..."
+### Step 4: Update Firebase Storage Security Rules (Required for Importer)
 
-This means Firestore needs you to create an index to handle the app's query for notes (which are sorted by date). The error message from the app will often include a **direct link to create the index**.
+The new data importer uploads files to Firebase Storage for analysis. We need to create a rule to allow this.
 
-**To Fix:**
+1.  Go to the **Firebase Console**.
+2.  Navigate to **Storage > Rules**.
+3.  Replace the existing rules with the following:
+    ```
+    rules_version = '2';
+    service firebase.storage {
+      match /b/{bucket}/o {
+        // Allow anyone to upload to the temporary 'imports' folder.
+        // Also allow the app to delete from this folder after processing.
+        match /imports/{allPaths=**} {
+          allow write, delete: if true;
+        }
 
-1.  **Click the link** provided in the error message in the app's UI.
-2.  The link will take you directly to the "Create Index" page in your Firebase console with all the fields pre-filled.
-3.  Click the **"Create"** button.
-4.  Index creation can take a few minutes. You can monitor its status in the "Indexes" tab.
-5.  Once the index is enabled, refresh your app. The notes will now load correctly.
+        // Secure other folders (like director photos, note attachments)
+        // by requiring user authentication for writes.
+        match /{path}/{allPaths=**} {
+          allow read;
+          allow write: if request.auth != null;
+        }
+      }
+    }
+    ```
+4.  Click **"Publish"**. Changes can take a minute. After this step, the data importer will be fully functional.

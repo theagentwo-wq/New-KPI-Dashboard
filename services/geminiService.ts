@@ -14,7 +14,7 @@ async function callAIApi(action: string, payload: any): Promise<any> {
             body: JSON.stringify({ action, payload }),
         });
         if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({ error: 'Proxy request failed' }));
+            const errorBody = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
             console.error(`API Proxy Error (${response.status}):`, errorBody);
             throw new Error(errorBody.error || `Request failed with status ${response.status}`);
         }
@@ -28,7 +28,7 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
         const result = await callAIApi('extractKpisFromDocument', payload);
         return result;
@@ -38,7 +38,7 @@ export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeTy
     }
 };
 
-export const extractKpisFromText = async (payload: { fileUrl: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromText = async (payload: { fileUrl: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
         const result = await callAIApi('extractKpisFromText', payload);
         return result;
@@ -47,6 +47,15 @@ export const extractKpisFromText = async (payload: { fileUrl: string }): Promise
         throw error;
     }
 }
+
+export const deleteImportFile = async (filePath: string): Promise<void> => {
+    try {
+        await callAIApi('deleteFile', { filePath });
+    } catch (error) {
+        console.warn(`Could not delete temporary import file: ${filePath}`, error);
+        // Do not re-throw, this is a non-critical cleanup step
+    }
+};
 
 export const getMapsApiKey = async (): Promise<string> => {
     try {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { extractKpisFromDocument, extractKpisFromText } from '../services/geminiService';
+import { extractKpisFromDocument, extractKpisFromText, deleteImportFile } from '../services/geminiService';
 import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 
 interface ImportDataModalProps {
@@ -98,9 +98,26 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStatusLog([]);
     setErrors([]);
 
-    const jobs = stagedFiles.length > 0 
-        ? stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }))
-        : [{ type: 'text', content: stagedText, name: 'Pasted text' }];
+    let jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[] = [];
+
+    if (stagedFiles.length > 0) {
+        jobs = stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }));
+    } else {
+        // "Intelligent Chunking" engine
+        setStatusLog(prev => [...prev, '[1/1] Pre-analyzing large text for chunking...']);
+        const yearRegex = /(\d{4} Weekly Sales Breakdown)/g;
+        const chunks = stagedText.split(yearRegex).filter(Boolean);
+        
+        if (chunks.length > 1) { // If we found year markers
+            for (let i = 0; i < chunks.length; i += 2) {
+                const header = chunks[i];
+                const content = chunks[i+1] || '';
+                jobs.push({ type: 'text-chunk', content: header + content, name: header });
+            }
+        } else { // No year markers, treat as a single job
+            jobs.push({ type: 'text-chunk', content: stagedText, name: 'Pasted text' });
+        }
+    }
 
     setProgress({ current: 0, total: jobs.length });
 
@@ -108,21 +125,28 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         const job = jobs[i];
         const currentJobNum = i + 1;
         setProgress({ current: currentJobNum, total: jobs.length });
-        setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Processing ${job.name}...`]);
-
+        setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Processing chunk: '${job.name}'...`]);
+        
+        let fileUrl: string | null = null;
+        let filePath: string | null = null;
+        
         try {
             let result: { dataType: 'Actuals' | 'Budget', data: any[] };
 
             if (job.type === 'file') {
                 setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
-                const fileUrl = await uploadFile(job.content as File);
+                const uploadResult = await uploadFile(job.content as File);
+                fileUrl = uploadResult.fileUrl;
+                filePath = uploadResult.filePath;
                 setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                result = await extractKpisFromDocument({ fileUrl, mimeType: (job.content as File).type, fileName: job.name });
-            } else { // text
-                setStatusLog(prev => [...prev, `  -> Uploading text to secure storage...`]);
-                const fileUrl = await uploadTextAsFile(job.content as string);
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text...`]);
-                result = await extractKpisFromText({ fileUrl });
+                result = await extractKpisFromDocument({ fileUrl, filePath, mimeType: (job.content as File).type, fileName: job.name });
+            } else { // text-chunk
+                setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
+                const uploadResult = await uploadTextAsFile(job.content as string, job.name);
+                fileUrl = uploadResult.fileUrl;
+                filePath = uploadResult.filePath;
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
+                result = await extractKpisFromText({ fileUrl, filePath });
             }
 
             if (!result.dataType || !result.data) {
@@ -132,18 +156,25 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             setStatusLog(prev => [...prev, `  -> AI classified data as '${result.dataType}'. Importing ${result.data.length} rows...`]);
 
             if (result.dataType === 'Actuals') {
-                onImportActuals(result.data);
+                await onImportActuals(result.data);
             } else if (result.dataType === 'Budget') {
-                onImportBudget(result.data);
+                await onImportBudget(result.data);
             } else {
                 throw new Error(`Unknown data type returned by AI: ${result.dataType}`);
             }
-            setStatusLog(prev => [...prev, `  -> SUCCESS: ${job.name} imported.`]);
+            setStatusLog(prev => [...prev, `  -> SUCCESS: '${job.name}' imported.`]);
 
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
             setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
             setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+            if (errorMsg.includes('permission')) {
+                setErrors(prev => [...prev, `CHECK: Ensure your Firebase Storage rules are configured correctly. See the README for instructions.`]);
+            }
+        } finally {
+            if(filePath) {
+                 await deleteImportFile(filePath);
+            }
         }
     }
 

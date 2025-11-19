@@ -25,7 +25,6 @@ let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore
 let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 
-
 let isInitialized = false;
 
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
@@ -106,23 +105,40 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
-export const uploadFile = async (file: File): Promise<string> => {
+export const uploadFile = async (file: File): Promise<{ fileUrl: string, filePath: string }> => {
     if (!storage) throw new Error("Firebase Storage not initialized.");
     const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${file.name}`;
-    const storageRef = storage.ref(`imports/${uniqueFileName}`);
+    const filePath = `imports/${uniqueFileName}`;
+    const storageRef = storage.ref(filePath);
     await storageRef.put(file);
-    return storageRef.getDownloadURL();
+    const fileUrl = await storageRef.getDownloadURL();
+    return { fileUrl, filePath };
 };
 
-export const uploadTextAsFile = async (text: string): Promise<string> => {
+export const uploadTextAsFile = async (text: string, chunkName: string): Promise<{ fileUrl: string, filePath: string }> => {
     if (!storage) throw new Error("Firebase Storage not initialized.");
     const blob = new Blob([text], { type: 'text/plain' });
-    const uniqueFileName = `${Date.now()}-pasted-text.txt`;
-    const storageRef = storage.ref(`imports/${uniqueFileName}`);
+    const uniqueFileName = `${Date.now()}-${chunkName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+    const filePath = `imports/${uniqueFileName}`;
+    const storageRef = storage.ref(filePath);
     await storageRef.put(blob);
-    return storageRef.getDownloadURL();
+    const fileUrl = await storageRef.getDownloadURL();
+    return { fileUrl, filePath };
 };
 
+export const deleteFileByPath = async (filePath: string): Promise<void> => {
+    if (!storage) {
+        console.warn("Firebase Storage not initialized, skipping file deletion.");
+        return;
+    }
+    try {
+        const storageRef = storage.ref(filePath);
+        await storageRef.delete();
+    } catch (error) {
+        console.error(`Failed to delete temporary file: ${filePath}`, error);
+        // Don't throw, as this is a non-critical cleanup step
+    }
+};
 
 export const batchImportActualsData = async (data: any[]): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
