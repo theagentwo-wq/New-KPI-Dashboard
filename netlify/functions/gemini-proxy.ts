@@ -1,8 +1,6 @@
 // FIX: Resolve Buffer and stream errors for environments where Node.js types are not available to TypeScript.
 import { GoogleGenAI, Type } from "@google/genai";
 import fetch from 'node-fetch';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/storage';
 
 // FIX: Declare Buffer as a global type to resolve TypeScript errors.
 declare var Buffer: any;
@@ -193,7 +191,7 @@ export const handler = async (event: any) => {
       default:
         const { data, view, periodLabel } = payload;
         const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
-        // FIX: Corrected typo in model name from 'gemini-2.fsflash' to 'gemini-2.5-flash'.
+        
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
         return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };
     }
