@@ -90,9 +90,9 @@ export const handler: Handler = async (event, _context) => {
 The brief must include:
 1.  **A Motivating Opener:** A short, positive opening to energize the team.
 2.  **Key Wins:** Highlight 1-2 specific KPIs where the store is performing well. Use the data to back it up.
-3.  **Area of Focus:** Identify 1-2 KPIs that need improvement. Frame this constructively as a team goal for the upcoming shift/week.
+3.  **Area of Focus:** Identify 1-2 KPIs that need improvement. Frame this constructively as a team goal.
 4.  **Team-Specific Action Item:** Provide one clear, actionable task relevant to the specified audience (${audience}).
-    *   For **FOH** (Front of House), focus on service, upselling, or guest experience (e.g., Avg. Reviews).
+    *   For **FOH** (Front of House), this MUST be a specific, tried-and-true sales contest (e.g., "First to Five," "Perfect Pair," "Review Roundup"). The contest must include a creative, non-monetary reward that teams genuinely enjoy (e.g., first pick of sections, a gift card to a local coffee shop, bragging rights with a trophy).
     *   For **BOH** (Back of House), focus on ticket times, food quality, or cost control (e.g., Food Cost, Prime Cost).
     *   For **Managers**, provide a higher-level focus area, like managing labor or improving overall profitability (e.g., SOP, Prime Cost).
 5.  **A Closing Message:** End with a positive and encouraging closing statement.
@@ -117,17 +117,25 @@ Your tone should be professional and constructive.`;
       }
       case 'getLocationMarketAnalysis': {
           const { location } = payload;
-          prompt = `You are a market analyst for a restaurant group. Provide a concise local market analysis for our restaurant located in ${location}. The analysis should be in Markdown format and include:
-- **Key Local Competitors:** Identify 3-4 direct or significant indirect competitors within a 2-mile radius. For each, briefly describe their concept.
-- **Local Demand Drivers:** What are the key attractions, businesses, or demographic factors in the immediate area that drive restaurant traffic (e.g., convention center, university, major corporate offices, high-income residential areas)?
-- **Upcoming Events:** Mention any notable upcoming public events in the area that could impact restaurant traffic in the next 30 days.`;
+          prompt = `You are a hyper-local market intelligence expert for a restaurant group. Provide a deep, granular-level local market analysis for our restaurant located in ${location}. Your goal is to uncover anything that could affect business. The analysis must be in Markdown format.
+
+Your analysis must include:
+1.  **Key Local Competitors:** Identify 3-4 direct or significant indirect competitors within a 2-mile radius. For each, briefly describe their concept and why they are relevant.
+2.  **Local Demand Drivers & Community Fabric:** What is the primary character of this neighborhood (e.g., office-heavy, nightlife hub, residential, tourist-focused)? What specific businesses, attractions, or demographics drive traffic and what does that mean for us?
+3.  **The Real Happenings (Next 30 Days):** Dive deep to find the "real happenings" and cool events beyond just official city calendars. Look for concerts (large and small), live music at local venues, farmers markets, art walks, recurring community gatherings, and anything that creates local foot traffic. List at least 3-5 specific, upcoming events with dates.`;
           const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
           responsePayload = { content: response.text };
           break;
       }
        case 'getMarketingIdeas': {
           const { location } = payload;
-          prompt = `You are a creative restaurant marketing strategist. Generate 3 unique, actionable, and localized marketing ideas for our Tupelo Honey Southern Kitchen in ${location}. The ideas should be in Markdown format, with each idea having a clear title and a brief description of the concept and execution. Focus on ideas that leverage local partnerships, events, or community characteristics.`;
+          prompt = `You are a savvy, generational marketing strategist with a deep understanding of what local communities want. Generate 3 unique and actionable marketing ideas for our Tupelo Honey Southern Kitchen in ${location}.
+
+Each idea must be in Markdown format and include:
+1.  **Idea Title:** A catchy name for the campaign.
+2.  **Concept:** A brief description of the idea, focusing on what makes it unique and appealing to the local community's cravings.
+3.  **Target Generation:** Identify a primary target generation (e.g., Gen Z, Millennial, Gen X) and explain *why* this concept resonates with their specific values and media habits.
+4.  **Guerrilla Tactic:** Include a specific, low-cost, high-impact **guerilla marketing tactic** to execute the idea and create authentic local buzz (e.g., a pop-up, a social media challenge, a hyper-local partnership).`;
           const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
           responsePayload = { content: response.text };
           break;
