@@ -1,7 +1,8 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
-import { createAnalysisJob, createImportJob } from '../../services/firebaseService';
+import { createAnalysisJob, createImportJob, initializeFirebaseService } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
 
 export const handler: Handler = async (event, _context) => {
@@ -15,6 +16,18 @@ export const handler: Handler = async (event, _context) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers };
   }
+  
+  // FIX: Initialize Firebase at the start of the function execution.
+  // This is the definitive fix for the "Firebase not initialized" error.
+  const status = await initializeFirebaseService();
+  if (status.status === 'error') {
+      return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: `Firebase initialization failed: ${status.message}` }),
+      };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: 'Method Not Allowed' };
   }
