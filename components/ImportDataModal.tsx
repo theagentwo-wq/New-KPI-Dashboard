@@ -36,13 +36,13 @@ interface ImportDataModalProps {
 
 
 const processingMessages = [
+    'Starting secure analysis... this may take up to 2 minutes for complex files...',
     'Submitting job to the AI analyst...',
     'AI is reading the document structure...',
     'Analyzing financial data and KPIs...',
     'Identifying data types (Actuals vs. Budgets)...',
     'Extracting row-level information...',
     'Formatting results for verification...',
-    'This can take up to 2 minutes for complex files...'
 ];
 
 const EditableCell: React.FC<{ value: string; onChange: (newValue: string) => void; isStore?: boolean; }> = ({ value, onChange, isStore = false }) => {
@@ -286,13 +286,13 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         return (
           <div className="space-y-3">
             <div className="flex justify-between items-center text-sm">
-              <p className="text-cyan-400 font-semibold">{step === 'processing' ? 'Processing...' : 'Finished'}</p>
+              <p className="text-cyan-400 font-semibold">{step === 'processing' || step === 'pending' ? 'Processing...' : 'Finished'}</p>
               <p className="text-slate-400">{activeJob.progress.current} / {activeJob.progress.total}</p>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-2.5">
               <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${activeJob.progress.total > 0 ? (activeJob.progress.current / activeJob.progress.total) * 100 : 0}%`, transition: 'width 0.5s ease-in-out' }}></div>
             </div>
-            {step === 'processing' && (<div className="text-center p-2 min-h-[40px] flex items-center justify-center"><p className="text-slate-300 text-sm transition-opacity duration-500">{currentProcessingMessage}</p></div>)}
+            {(step === 'processing' || step === 'pending') && (<div className="text-center p-2 min-h-[40px] flex items-center justify-center"><p className="text-slate-300 text-sm transition-opacity duration-500">{currentProcessingMessage}</p></div>)}
             <div ref={logContainerRef} className="bg-slate-900 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto custom-scrollbar text-xs font-mono">
               {activeJob.statusLog.map((log, i) => (<p key={i} className={log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : 'text-slate-400'}>{log}</p>))}
             </div>

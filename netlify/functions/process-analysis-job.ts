@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
@@ -94,7 +95,7 @@ export const handler: Handler = async (event, _context) => {
             ---`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-2.5-flash',
             contents: [
                 { text: prompt },
                 { inlineData: { mimeType, data: base64Data } }

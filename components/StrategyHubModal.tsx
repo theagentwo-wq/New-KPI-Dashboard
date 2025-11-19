@@ -24,13 +24,12 @@ interface StrategyHubModalProps {
 }
 
 const processingMessages = [
-    'Submitting analysis job...',
+    'Starting secure analysis... this may take up to 60-90 seconds for complex documents...',
     'AI is reading the document structure...',
     'Extracting key metrics and data points...',
     'Identifying primary business questions...',
     'Synthesizing strategic insights...',
     'Compiling actionable recommendations...',
-    'This can take up to a minute for complex documents...'
 ];
 
 export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activeJob, setActiveJob, onCancel }) => {
@@ -60,13 +59,11 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (jobStatus === 'processing') {
-      setCurrentProcessingMessage(processingMessages[1]); // Start at a meaningful message
+      setCurrentProcessingMessage(processingMessages[0]); // Start at the beginning
       interval = setInterval(() => {
         setCurrentProcessingMessage(prev => {
           const currentIndex = processingMessages.indexOf(prev);
-          // Cycle through messages, but don't use the first one again
-          const nextIndex = (currentIndex === processingMessages.length - 1) ? 1 : currentIndex + 1;
-          return processingMessages[nextIndex];
+          return processingMessages[(currentIndex + 1) % processingMessages.length];
         });
       }, 3500);
     }
