@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { DataMappingTemplate, Kpi } from '../types';
