@@ -109,6 +109,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         }
     };
 
+    const handleResetView = useCallback(() => {
+        setPeriodType('Week');
+        setCurrentPeriod(getInitialPeriod());
+        setComparisonMode('vs. Prior Period');
+    }, []);
+
     const isPrevPeriodDisabled = currentPeriodIndex <= 0;
     const isNextPeriodDisabled = currentPeriodIndex >= periodsForType.length - 1;
 
@@ -252,6 +258,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          onNextPeriod={handleNextPeriod}
                          isPrevPeriodDisabled={isPrevPeriodDisabled}
                          isNextPeriodDisabled={isNextPeriodDisabled}
+                         onResetView={handleResetView}
                     />
                     <NotesPanel 
                         allNotes={notes}
