@@ -125,7 +125,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         }
     };
 
-
     if (stagedFiles.length > 0) {
         setProgress({ current: 0, total: stagedFiles.length });
         for (let i = 0; i < stagedFiles.length; i++) {
@@ -149,18 +148,43 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             }
         }
     } else if (stagedText.trim()) {
-        setProgress({ current: 1, total: 1 });
-        setStatusLog(prev => [...prev, `[1/1] Processing pasted text...`]);
-        try {
-            await processAndImport(() => extractKpisFromText(stagedText), 'pasted text');
-            setStatusLog(prev => [...prev, `  -> SUCCESS: Pasted text imported.`]);
-        } catch(err) {
-            let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-             if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
-                errorMsg = "The analysis of this large document timed out. Please try splitting the text into smaller sections (e.g., one year at a time) and import them separately.";
+        setStatusLog(prev => [...prev, `[1/1] Pre-analyzing large text for chunking...`]);
+        
+        const chunkRegex = /(\d{4}\s+Weekly\s+Sales\s+Breakdown)/g;
+        const textParts = stagedText.split(chunkRegex).filter(Boolean);
+        
+        const jobs: { name: string; content: string }[] = [];
+        if (textParts.length <= 1) {
+            jobs.push({ name: 'Pasted text', content: stagedText });
+        } else {
+             for (let i = 0; i < textParts.length; i += 2) {
+                if (textParts[i] && textParts[i+1]) {
+                    jobs.push({ name: textParts[i].trim(), content: textParts[i] + textParts[i+1] });
+                } else if (textParts[i]) {
+                    jobs.push({ name: `Pasted Text (Part ${jobs.length + 1})`, content: textParts[i] });
+                }
             }
-            setErrors(prev => [...prev, `FAILED: Pasted text - ${errorMsg}`]);
-            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+        }
+
+        setProgress({ current: 0, total: jobs.length });
+
+        for (let i = 0; i < jobs.length; i++) {
+            const job = jobs[i];
+            const currentJobNum = i + 1;
+            setProgress({ current: currentJobNum, total: jobs.length });
+            setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Processing chunk: ${job.name}...`]);
+
+            try {
+                await processAndImport(() => extractKpisFromText(job.content), `chunk '${job.name}'`);
+                setStatusLog(prev => [...prev, `  -> SUCCESS: Chunk '${job.name}' imported.`]);
+            } catch(err) {
+                let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
+                    errorMsg = "The analysis for this chunk timed out. It might still be too large.";
+                }
+                setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
+                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+            }
         }
     }
 
@@ -220,7 +244,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                     <p className="text-slate-400">{progress.current} / {progress.total}</p>
                  </div>
                  <div className="w-full bg-slate-700 rounded-full h-2.5">
-                    <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${(progress.current / progress.total) * 100}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                    <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`, transition: 'width 0.5s ease-in-out' }}></div>
                 </div>
                 <div ref={logContainerRef} className="bg-slate-900 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto custom-scrollbar text-xs font-mono">
                     {statusLog.map((log, i) => (
