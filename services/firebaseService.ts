@@ -9,7 +9,6 @@ import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, Pe
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 // FIX: Correct import path for ALL_PERIODS. It is defined in dateUtils.ts.
 import { ALL_PERIODS } from '../utils/dateUtils';
-import { AIMappingResult } from './geminiService';
 
 export type FirebaseStatus = 
   | { status: 'initializing' }
@@ -107,29 +106,13 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
-export const batchImportActuals = async (data: any[], aiResult: AIMappingResult, fileName?: string): Promise<void> => {
+export const batchImportStructuredData = async (data: any[]): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
-    const { mappings, fileWideDate } = aiResult;
-    
-    const storeNameHeader = Object.keys(mappings).find(h => mappings[h] === 'Store Name');
-    const dateHeader = Object.keys(mappings).find(h => mappings[h] === 'Week Start Date');
-    
-    if (!dateHeader && !fileWideDate) throw new Error("Mapping failed: AI could not identify a date in the file's content, columns, or filename.");
-
-    let fileNameStoreId: string | null = null;
-    if (!storeNameHeader && fileName) {
-        fileNameStoreId = cleanAndMatchStoreName(fileName);
-    }
-    
-    if (!storeNameHeader && !fileNameStoreId) {
-        throw new Error("Mapping failed: AI could not find a 'Store Name' column, and the file name did not match a known store.");
-    }
-
     data.forEach(row => {
-        const storeId = storeNameHeader ? cleanAndMatchStoreName(row[storeNameHeader]) : fileNameStoreId;
-        const rawDate = fileWideDate || (dateHeader ? row[dateHeader] : null);
+        const storeId = cleanAndMatchStoreName(row['Store Name']);
+        const rawDate = row['Week Start Date'];
         
         if (storeId && rawDate) {
             const weekStartDate = new Date(rawDate);
@@ -139,20 +122,20 @@ export const batchImportActuals = async (data: any[], aiResult: AIMappingResult,
             }
 
             const performanceData: PerformanceData = {};
-            for (const header in mappings) {
-                const kpi = mappings[header];
-                if (kpi !== 'ignore' && kpi !== 'Store Name' && kpi !== 'Week Start Date' && kpi in Kpi) {
-                    let value = row[header];
+            for (const key in row) {
+                const kpi = key as Kpi;
+                if (kpi in Kpi) {
+                    let value = row[key];
                     if (typeof value === 'string') {
                         value = value.replace(/[\$,%]/g, '');
                     }
                     const numValue = parseFloat(value);
                     if (!isNaN(numValue)) {
-                        const kpiConfig = KPI_CONFIG[kpi as Kpi];
+                        const kpiConfig = KPI_CONFIG[kpi];
                         if (kpiConfig && kpiConfig.format === 'percent') {
-                            performanceData[kpi as Kpi] = numValue / 100;
+                            performanceData[kpi] = numValue / 100;
                         } else {
-                            performanceData[kpi as Kpi] = numValue;
+                            performanceData[kpi] = numValue;
                         }
                     }
                 }
@@ -168,47 +151,10 @@ export const batchImportActuals = async (data: any[], aiResult: AIMappingResult,
                 }, { merge: true });
             }
         } else {
-             console.warn(`Could not match store name or date: "${storeNameHeader ? row[storeNameHeader] : 'from file name'}", "${rawDate}"`);
+             console.warn(`AI output missing 'Store Name' or 'Week Start Date'. Row: ${JSON.stringify(row)}`);
         }
     });
 
-    await batch.commit();
-};
-
-export const batchImportBudgets = async (data: any[]): Promise<void> => {
-    if (!db || !budgetsCollection) throw new Error("Firebase not initialized.");
-    const batch = db.batch();
-
-    data.forEach(row => {
-        const storeId = cleanAndMatchStoreName(row['Store Name']);
-        const year = parseInt(row['Year']);
-        const month = parseInt(row['Month']);
-        
-        if (storeId && !isNaN(year) && !isNaN(month)) {
-            const targets: PerformanceData = {};
-             for (const key in row) {
-                if (key in Kpi) {
-                    let value = row[key];
-                    if (typeof value === 'string') {
-                        value = value.replace(/[\$,%]/g, '');
-                    }
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                        const kpiConfig = KPI_CONFIG[key as Kpi];
-                        if (kpiConfig && kpiConfig.format === 'percent') {
-                           targets[key as Kpi] = numValue / 100;
-                        } else {
-                           targets[key as Kpi] = numValue;
-                        }
-                    }
-                }
-            }
-            const docId = `${storeId}_${year}_${month}`;
-            const docRef = budgetsCollection!.doc(docId);
-            batch.set(docRef, { storeId, year, month, targets });
-        }
-    });
-    
     await batch.commit();
 };
 
@@ -449,12 +395,6 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     }
 
     return aggregatedData;
-};
-
-// This function is now obsolete but kept for potential future use or reference.
-export const batchImportStructuredActuals = async (_data: any[]): Promise<void> => {
-    console.warn("batchImportStructuredActuals is deprecated and should not be used.");
-    return Promise.resolve();
 };
 
 // Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.

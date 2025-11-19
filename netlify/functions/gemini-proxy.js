@@ -28,34 +28,74 @@ exports.handler = async (event) => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const { action, payload } = JSON.parse(event.body || '{}');
 
+    // Define the schema once, as it's shared
+    const kpiDataSchema = {
+      type: Type.OBJECT,
+      properties: {
+        "Store Name": { type: Type.STRING },
+        "Week Start Date": { type: Type.STRING, description: "The starting date of the week in YYYY-MM-DD format." },
+        "Sales": { type: Type.NUMBER },
+        "SOP": { type: Type.NUMBER, description: "Store Operating Profit as a percentage (e.g., 18.5 for 18.5%)" },
+        "Prime Cost": { type: Type.NUMBER, description: "As a percentage (e.g., 55.2 for 55.2%)" },
+        "Avg. Reviews": { type: Type.NUMBER },
+        "Food Cost": { type: Type.NUMBER, description: "As a percentage (e.g., 22.1 for 22.1%)" },
+        "Variable Labor": { type: Type.NUMBER, description: "As a percentage (e.g., 15.8 for 15.8%)" },
+        "Culinary Audit Score": { type: Type.NUMBER, description: "As a percentage (e.g., 95 for 95%)" },
+      },
+      required: ["Store Name", "Week Start Date"]
+    };
+
     switch (action) {
-      case 'getAIAssistedMapping': {
-        const { headers: csvHeaders, kpis: appKpis, preHeaderContent, fileName } = payload;
-        const prompt = `You are an intelligent data mapping assistant for a multi-unit restaurant group. Your goal is to map spreadsheet headers to the application's fields and identify a file-wide date if present.
+      case 'extractKpisFromDocument': {
+        const { fileData, fileName } = payload;
+        const prompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document (image or spreadsheet) with the filename "${fileName}".
+        
+        **CRITICAL INSTRUCTIONS:**
+        1.  **Analyze Holistically:** Read the entire document to understand its context. The date and store name might be in the title, headers, or columns.
+        2.  **Find Date:** Identify the correct week start date for the data. If a "week ending" date is given, calculate the corresponding week start date (assuming weeks start on Monday).
+        3.  **Extract Data:** Identify all rows of financial data. For each row, extract all available Key Performance Indicators (KPIs).
+        4.  **Handle Multi-Store Files:** If the document contains data for multiple stores in different rows or sections, create a separate JSON object for each store's data row.
+        5.  **Handle Single-Store Files:** If the document contains data for only one store (which might be identified in the filename or a title), apply that single store name to all data rows.
+        6.  **Format Output:** Return an array of JSON objects, where each object represents one row of data and strictly follows the provided schema. Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
 
-**Application Fields:** ${appKpis.join(', ')}
-**Spreadsheet Headers:** ${csvHeaders.join(', ')}
-**Filename:** ${fileName || "No filename provided."}
-**File Content (first few rows):**
----
-${preHeaderContent || "No pre-header content provided."}
----
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                { text: prompt },
+                { inlineData: { mimeType: fileData.mimeType, data: fileData.data } }
+            ],
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                      data: {
+                        type: Type.ARRAY,
+                        items: kpiDataSchema
+                      }
+                    }
+                },
+            },
+        });
+        
+        const parsedResponse = JSON.parse(response.text);
+        return { statusCode: 200, headers, body: JSON.stringify(parsedResponse) };
+      }
 
-**CRITICAL INSTRUCTIONS (Follow in order):**
+      case 'extractKpisFromText': {
+        const { text } = payload;
+        const prompt = `You are an expert financial analyst. Analyze the following block of unstructured text, which is likely copied from an email or document. 
+        
+        **CRITICAL INSTRUCTIONS:**
+        1.  **Find Context:** Read the entire text to find the store name(s) and the relevant week start date.
+        2.  **Extract KPIs:** For each store mentioned, extract all available Key Performance Indicator (KPI) values.
+        3.  **Structure Data:** Format the extracted information into an array of JSON objects, strictly following the provided schema.
 
-**Step 1: Find the Date (Three-Step Process)**
-   a. **Analyze Pre-Header Content First:** Scrutinize the "File Content" provided above. Look for a single, clear date reference like "For the Week Ending 01/07/2025" or "P1 Wk4 2025". If you find ONE unambiguous date that applies to the entire file, extract it and set it as 'fileWideDate' in 'YYYY-MM-DD' format.
-   b. **Analyze Headers (Fallback):** If and ONLY IF you did not find a file-wide date in Step 1a, search the "Spreadsheet Headers" for a date column (e.g., "Week Start Date", "Date"). If found, map it to "Week Start Date".
-   c. **Analyze Filename (Final Fallback):** If and ONLY IF you have not found a date yet, analyze the **Filename** itself for a date reference (e.g., "Report for 2025.csv", "wk4_2025_data.xlsx"). If found, extract the date and set it as 'fileWideDate' in 'YYYY-MM-DD' format.
-   d. If you cannot find a date by any method, do not map any date field.
-
-**Step 2: Map Other Columns**
-1.  **Store Name:** Search the headers for "Store Name", "Location", "Restaurant", "Unit". If found, map it to "Store Name".
-2.  **KPIs:** Map the remaining headers to the best match from the Application Fields list.
-3.  **No Match:** If a header has no clear match, you MUST map it to "ignore".
-
-Your response MUST be a valid JSON object matching the provided schema.`;
-
+        **Text to Analyze:**
+        ---
+        ${text}
+        ---`;
+        
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -64,24 +104,24 @@ Your response MUST be a valid JSON object matching the provided schema.`;
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        mappings: { type: Type.OBJECT },
-                        fileWideDate: { type: Type.STRING, description: "A single date (YYYY-MM-DD) if found in the pre-header content." }
-                    },
-                    required: ["mappings"]
+                      data: {
+                        type: Type.ARRAY,
+                        items: kpiDataSchema
+                      }
+                    }
                 },
             },
         });
         
         const parsedResponse = JSON.parse(response.text);
         return { statusCode: 200, headers, body: JSON.stringify(parsedResponse) };
-    }
+      }
 
-    case 'getPlaceDetails': {
+      case 'getPlaceDetails': {
         if (!process.env.MAPS_API_KEY) {
              return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) };
         }
         const mapsApiKey = process.env.MAPS_API_KEY;
-        
         const { address } = payload;
         const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
         const findPlaceResponse = await fetch(findPlaceUrl);

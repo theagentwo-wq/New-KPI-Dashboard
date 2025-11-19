@@ -1,10 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { Kpi } from '../types';
-import { batchImportActuals, batchImportBudgets } from '../services/firebaseService';
-import { getAIAssistedMapping } from '../services/geminiService';
-import * as XLSX from 'xlsx';
+import { batchImportStructuredData } from '../services/firebaseService';
+import { extractKpisFromDocument, extractKpisFromText } from '../services/geminiService';
 
 interface ImportDataModalProps {
   isOpen: boolean;
@@ -12,88 +10,18 @@ interface ImportDataModalProps {
   onImportSuccess: () => void;
 }
 
-// Enhanced parsing functions to extract pre-header content
-const parseCSV = (text: string): { headers: string[], data: any[], preHeaderContent: string } => {
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 1) return { headers: [], data: [], preHeaderContent: '' };
-    let headerIndex = lines.findIndex(line => line.split(',').some(h => h.trim() !== '' && h.length > 1));
-    if (headerIndex === -1) headerIndex = lines.length -1;
-    
-    const preHeaderLines = lines.slice(0, headerIndex);
-    const preHeaderContent = preHeaderLines.join('\n');
-    
-    const headers = lines[headerIndex]?.split(',').map(h => h.trim()) || [];
-    const data = lines.slice(headerIndex + 1)
-        .filter(line => line.trim() !== '' && line.split(',').some(v => v.trim() !== ''))
-        .map(line => {
-            const values = line.split(',');
-            return headers.reduce((obj, header, index) => {
-                obj[header] = values[index]?.trim() || '';
-                return obj;
-            }, {} as { [key: string]: string });
-        });
-    return { headers, data, preHeaderContent };
-};
-
-const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[], preHeaderContent: string }> => {
+const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = e.target?.result;
-                const workbook = XLSX.read(data, { type: 'array' });
-                let allData: any[] = [];
-                let unifiedHeaders: string[] = [];
-                let preHeaderContent = '';
-
-                workbook.SheetNames.forEach((sheetName, sheetIndex) => {
-                    const worksheet = workbook.Sheets[sheetName];
-                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                    
-                    if (json.length === 0) return;
-
-                    let headerIndex = json.findIndex(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim().length > 1));
-                     if (headerIndex === -1) headerIndex = json.length > 0 ? 0 : -1;
-
-                    // Capture pre-header content only from the first sheet
-                    if (sheetIndex === 0 && headerIndex > 0) {
-                        preHeaderContent = json.slice(0, headerIndex).map(row => row.join(', ')).join('\n');
-                    }
-                    
-                    const headers = json[headerIndex]?.map(h => String(h).trim()) || [];
-                    if (unifiedHeaders.length === 0 && headers.length > 0) {
-                        unifiedHeaders = headers;
-                    }
-                    
-                    const sheetData = json.slice(headerIndex + 1)
-                        .filter(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''))
-                        .map(row => {
-                            return unifiedHeaders.reduce((obj, header) => {
-                                obj[header] = row[headers.indexOf(header)] || '';
-                                return obj;
-                            }, {} as { [key: string]: any });
-                        });
-                    
-                    allData = allData.concat(sheetData);
-                });
-
-                if (allData.length === 0 && unifiedHeaders.length === 0) {
-                     reject(new Error("No data or headers found in any of the workbook's sheets."));
-                } else {
-                     resolve({ headers: unifiedHeaders, data: allData, preHeaderContent });
-                }
-            } catch (error) {
-                reject(error);
-            }
-        };
-        reader.onerror = (error) => reject(error);
-        reader.readAsArrayBuffer(file);
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = error => reject(error);
     });
 };
 
-
 export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportSuccess }) => {
-  const [files, setFiles] = useState<File[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [stagedText, setStagedText] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [statusLog, setStatusLog] = useState<string[]>([]);
@@ -102,7 +30,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const resetState = () => {
-    setFiles([]);
+    setStagedFiles([]);
+    setStagedText('');
     setIsProcessing(false);
     setProgress({ current: 0, total: 0 });
     setStatusLog([]);
@@ -121,66 +50,102 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
 
   const handleFileDrop = (fileList: FileList) => {
     if (fileList && fileList.length > 0) {
-      setFiles(Array.from(fileList));
+      setStagedFiles(Array.from(fileList));
+      setStagedText('');
       setStatusLog([]);
       setErrors([]);
     }
   };
 
+  const handlePaste = useCallback((event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    // Check for images first
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) {
+                setStagedFiles([new File([blob], "pasted-image.png", { type: blob.type })]);
+                setStagedText('');
+                setStatusLog([]);
+                setErrors([]);
+                return;
+            }
+        }
+    }
+
+    // Fallback to text
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'string') {
+            items[i].getAsString((text) => {
+                setStagedText(text);
+                setStagedFiles([]);
+                setStatusLog([]);
+                setErrors([]);
+            });
+            return;
+        }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+        window.addEventListener('paste', handlePaste);
+    }
+    return () => {
+        window.removeEventListener('paste', handlePaste);
+    };
+  }, [isOpen, handlePaste]);
+
   const handleImport = async () => {
-    if (files.length === 0) {
-      setErrors(['Please select at least one file to upload.']);
+    if (stagedFiles.length === 0 && !stagedText.trim()) {
+      setErrors(['Please select files, paste an image, or paste text to import.']);
       return;
     }
 
     setIsProcessing(true);
-    setProgress({ current: 0, total: files.length });
     setStatusLog([]);
     setErrors([]);
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const currentFileNum = i + 1;
-        setProgress({ current: currentFileNum, total: files.length });
-        setStatusLog(prev => [...prev, `[${currentFileNum}/${files.length}] Processing ${file.name}...`]);
+    if (stagedFiles.length > 0) {
+        setProgress({ current: 0, total: stagedFiles.length });
+        for (let i = 0; i < stagedFiles.length; i++) {
+            const file = stagedFiles[i];
+            const currentFileNum = i + 1;
+            setProgress({ current: currentFileNum, total: stagedFiles.length });
+            setStatusLog(prev => [...prev, `[${currentFileNum}/${stagedFiles.length}] Processing ${file.name}...`]);
 
-        const fileType = file.name.split('.').pop()?.toLowerCase() || '';
+            try {
+                setStatusLog(prev => [...prev, `  -> Reading and converting file to send to AI...`]);
+                const base64Data = await fileToBase64(file);
+                
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
+                const structuredData = await extractKpisFromDocument({ mimeType: file.type, data: base64Data }, file.name);
 
-        try {
-            if (['xlsx', 'xlsm', 'xls'].includes(fileType)) {
-                const { headers, data, preHeaderContent } = await parseExcelWorkbook(file);
-                const isBudget = headers.includes('Year') && headers.includes('Month');
-                if (isBudget) {
-                     setStatusLog(prev => [...prev, `  -> Detected Budget format. Importing...`]);
-                     await batchImportBudgets(data);
-                } else {
-                     setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
-                     const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                     const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent, file.name);
-                     setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                     await batchImportActuals(data, aiMappingResult, file.name);
-                }
-            } else if (fileType === 'csv') {
-                const { headers, data, preHeaderContent } = parseCSV(await file.text());
-                const isBudget = headers.includes('Year') && headers.includes('Month');
-                if (isBudget) {
-                     setStatusLog(prev => [...prev, `  -> Detected Budget format. Importing...`]);
-                     await batchImportBudgets(data);
-                } else {
-                    setStatusLog(prev => [...prev, `  -> Asking AI to map columns and find date...`]);
-                    const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
-                    const aiMappingResult = await getAIAssistedMapping(headers, appKpis, preHeaderContent, file.name);
-                    setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                    await batchImportActuals(data, aiMappingResult, file.name);
-                }
-            } else {
-                 throw new Error(`Unsupported file type: .${fileType}. Please use Excel or CSV files.`);
+                setStatusLog(prev => [...prev, `  -> AI analysis complete. Importing ${structuredData.length} rows...`]);
+                await batchImportStructuredData(structuredData);
+                setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
+
+            } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                setErrors(prev => [...prev, `FAILED: ${file.name} - ${errorMsg}`]);
+                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
             }
-            setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
+        }
+    } else if (stagedText.trim()) {
+        setProgress({ current: 1, total: 1 });
+        setStatusLog(prev => [...prev, `[1/1] Processing pasted text...`]);
+        try {
+            setStatusLog(prev => [...prev, `  -> Asking AI to analyze text...`]);
+            const structuredData = await extractKpisFromText(stagedText);
 
-        } catch (err) {
+            setStatusLog(prev => [...prev, `  -> AI analysis complete. Importing ${structuredData.length} rows...`]);
+            await batchImportStructuredData(structuredData);
+            setStatusLog(prev => [...prev, `  -> SUCCESS: Pasted text imported.`]);
+        } catch(err) {
             const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-            setErrors(prev => [...prev, `FAILED: ${file.name} - ${errorMsg}`]);
+            setErrors(prev => [...prev, `FAILED: Pasted text - ${errorMsg}`]);
             setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
         }
     }
@@ -194,8 +159,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); };
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); handleFileDrop(e.dataTransfer.files); };
   
-  const acceptedFileTypes = ".csv, .xlsx, .xlsm, .xls";
-
+  const acceptedFileTypes = ".csv, .xlsx, .xlsm, .xls, .png, .jpg, .jpeg";
   const isFinished = !isProcessing && progress.total > 0;
 
   return (
@@ -203,7 +167,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       <div className="space-y-4">
         {!isProcessing && !isFinished && (
              <p className="text-slate-300 text-sm">
-                Upload any Weekly Actuals or Annual Budget file. The system will automatically detect the file type, dates, and data structure, even across multiple tabs in an Excel workbook.
+                Upload spreadsheets, images, or paste text. The AI will act as a financial analyst to read, understand, and import the data automatically.
             </p>
         )}
        
@@ -215,17 +179,22 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             >
                 <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} multiple />
                 <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
-                {files.length > 0 ? (
+                {stagedFiles.length > 0 ? (
                     <div className="text-slate-200 text-sm">
-                      <p className="font-bold text-lg">{files.length} file(s) selected:</p>
+                      <p className="font-bold text-lg">{stagedFiles.length} file(s) selected:</p>
                       <ul className="mt-2 text-left max-h-24 overflow-y-auto custom-scrollbar list-disc pl-5">
-                        {files.map(f => <li key={f.name}>{f.name}</li>)}
+                        {stagedFiles.map(f => <li key={f.name}>{f.name}</li>)}
                       </ul>
+                    </div>
+                ) : stagedText ? (
+                    <div className="text-slate-200 text-sm">
+                      <p className="font-bold text-lg">Pasted text ready for import</p>
+                      <p className="text-xs text-slate-400">({stagedText.length} characters)</p>
                     </div>
                 ) : (
                     <>
-                    <p className="text-slate-300 font-medium text-lg">Drag & drop one or more files here</p>
-                    <p className="text-sm text-slate-500 mt-2">Supports Excel and CSV</p>
+                    <p className="text-slate-300 font-medium text-lg">Drag & drop files, click to browse, or paste an image/text</p>
+                    <p className="text-sm text-slate-500 mt-2">Supports Excel, CSV, PNG, JPG</p>
                     </>
                 )}
             </div>
@@ -265,8 +234,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
           ) : (
             <>
                 <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
-                <button onClick={handleImport} disabled={isProcessing || files.length === 0} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
-                    {isProcessing ? 'Processing...' : `Import ${files.length} File(s)`}
+                <button onClick={handleImport} disabled={isProcessing || (stagedFiles.length === 0 && !stagedText.trim())} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
+                    {isProcessing ? 'Processing...' : `Import`}
                 </button>
             </>
           )}

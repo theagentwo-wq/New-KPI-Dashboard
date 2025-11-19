@@ -1,16 +1,11 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, DataMappingTemplate } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note } from '../types';
+import { marked } from 'marked';
 
 export interface PlaceDetails {
     name: string;
     rating: number;
     photoUrls: string[];
 }
-
-export type AIMappingResult = {
-    mappings: DataMappingTemplate['mappings'];
-    fileWideDate?: string; // Date in YYYY-MM-DD format if found
-};
-
 
 async function callAIApi(action: string, payload: any): Promise<any> {
     try {
@@ -34,18 +29,25 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const getAIAssistedMapping = async (headers: string[], kpis: string[], preHeaderContent: string, fileName: string): Promise<AIMappingResult> => {
+export const extractKpisFromDocument = async (fileData: { mimeType: string, data: string }, fileName: string): Promise<any[]> => {
     try {
-        const result = await callAIApi('getAIAssistedMapping', { headers, kpis, preHeaderContent, fileName });
-        return {
-            mappings: result.mappings || {},
-            fileWideDate: result.fileWideDate
-        };
+        const result = await callAIApi('extractKpisFromDocument', { fileData, fileName });
+        return result.data || [];
     } catch (error) {
-        console.error("Error getting AI-assisted mapping:", error);
-        return { mappings: {} };
+        console.error("Error extracting KPIs from document:", error);
+        throw error;
     }
 };
+
+export const extractKpisFromText = async (text: string): Promise<any[]> => {
+    try {
+        const result = await callAIApi('extractKpisFromText', { text });
+        return result.data || [];
+    } catch (error) {
+        console.error("Error extracting KPIs from text:", error);
+        throw error;
+    }
+}
 
 export const getMapsApiKey = async (): Promise<string> => {
     try {
