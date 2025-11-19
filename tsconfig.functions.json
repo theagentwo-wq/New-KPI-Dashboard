@@ -8,7 +8,10 @@
     "allowImportingTsExtensions": false,
     "module": "commonjs",
     "moduleResolution": "node",
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
   },
   "include": [
     "netlify/functions/**/*.ts",
