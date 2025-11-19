@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { extractKpisFromDocument, extractKpisFromText } from '../services/geminiService';
+import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 
 interface ImportDataModalProps {
   isOpen: boolean;
@@ -9,15 +10,6 @@ interface ImportDataModalProps {
   onImportActuals: (data: any[]) => void;
   onImportBudget: (data: any[]) => void;
 }
-
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = error => reject(error);
-    });
-};
 
 export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportActuals, onImportBudget }) => {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
@@ -106,85 +98,52 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStatusLog([]);
     setErrors([]);
 
-    const processAndImport = async (processor: () => Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }>, sourceName: string) => {
-        setStatusLog(prev => [...prev, `  -> Asking AI to analyze ${sourceName}...`]);
-        const result = await processor();
+    const jobs = stagedFiles.length > 0 
+        ? stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }))
+        : [{ type: 'text', content: stagedText, name: 'Pasted text' }];
 
-        if (!result.dataType || !result.data) {
-            throw new Error("AI analysis returned an unexpected format.");
-        }
+    setProgress({ current: 0, total: jobs.length });
 
-        setStatusLog(prev => [...prev, `  -> AI classified data as '${result.dataType}'. Importing ${result.data.length} rows...`]);
+    for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        const currentJobNum = i + 1;
+        setProgress({ current: currentJobNum, total: jobs.length });
+        setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Processing ${job.name}...`]);
 
-        if (result.dataType === 'Actuals') {
-            onImportActuals(result.data);
-        } else if (result.dataType === 'Budget') {
-            onImportBudget(result.data);
-        } else {
-            throw new Error(`Unknown data type returned by AI: ${result.dataType}`);
-        }
-    };
+        try {
+            let result: { dataType: 'Actuals' | 'Budget', data: any[] };
 
-    if (stagedFiles.length > 0) {
-        setProgress({ current: 0, total: stagedFiles.length });
-        for (let i = 0; i < stagedFiles.length; i++) {
-            const file = stagedFiles[i];
-            const currentFileNum = i + 1;
-            setProgress({ current: currentFileNum, total: stagedFiles.length });
-            setStatusLog(prev => [...prev, `[${currentFileNum}/${stagedFiles.length}] Processing ${file.name}...`]);
-
-            try {
-                const base64Data = await fileToBase64(file);
-                await processAndImport(() => extractKpisFromDocument({ mimeType: file.type, data: base64Data }, file.name), `document ${file.name}`);
-                setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
-
-            } catch (err) {
-                let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-                if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
-                    errorMsg = "The analysis of this large document timed out. Please try splitting the text into smaller sections (e.g., one year at a time) and import them separately.";
-                }
-                setErrors(prev => [...prev, `FAILED: ${file.name} - ${errorMsg}`]);
-                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+            if (job.type === 'file') {
+                setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
+                const fileUrl = await uploadFile(job.content as File);
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
+                result = await extractKpisFromDocument({ fileUrl, mimeType: (job.content as File).type, fileName: job.name });
+            } else { // text
+                setStatusLog(prev => [...prev, `  -> Uploading text to secure storage...`]);
+                const fileUrl = await uploadTextAsFile(job.content as string);
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text...`]);
+                result = await extractKpisFromText({ fileUrl });
             }
-        }
-    } else if (stagedText.trim()) {
-        setStatusLog(prev => [...prev, `[1/1] Pre-analyzing large text for chunking...`]);
-        
-        const chunkRegex = /(\d{4}\s+Weekly\s+Sales\s+Breakdown)/g;
-        const textParts = stagedText.split(chunkRegex).filter(Boolean);
-        
-        const jobs: { name: string; content: string }[] = [];
-        if (textParts.length <= 1) {
-            jobs.push({ name: 'Pasted text', content: stagedText });
-        } else {
-             for (let i = 0; i < textParts.length; i += 2) {
-                if (textParts[i] && textParts[i+1]) {
-                    jobs.push({ name: textParts[i].trim(), content: textParts[i] + textParts[i+1] });
-                } else if (textParts[i]) {
-                    jobs.push({ name: `Pasted Text (Part ${jobs.length + 1})`, content: textParts[i] });
-                }
+
+            if (!result.dataType || !result.data) {
+                throw new Error("AI analysis returned an unexpected format.");
             }
-        }
 
-        setProgress({ current: 0, total: jobs.length });
+            setStatusLog(prev => [...prev, `  -> AI classified data as '${result.dataType}'. Importing ${result.data.length} rows...`]);
 
-        for (let i = 0; i < jobs.length; i++) {
-            const job = jobs[i];
-            const currentJobNum = i + 1;
-            setProgress({ current: currentJobNum, total: jobs.length });
-            setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Processing chunk: ${job.name}...`]);
-
-            try {
-                await processAndImport(() => extractKpisFromText(job.content), `chunk '${job.name}'`);
-                setStatusLog(prev => [...prev, `  -> SUCCESS: Chunk '${job.name}' imported.`]);
-            } catch(err) {
-                let errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-                if (errorMsg.toLowerCase().includes('timeout') || errorMsg.includes('504')) {
-                    errorMsg = "The analysis for this chunk timed out. It might still be too large.";
-                }
-                setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
-                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+            if (result.dataType === 'Actuals') {
+                onImportActuals(result.data);
+            } else if (result.dataType === 'Budget') {
+                onImportBudget(result.data);
+            } else {
+                throw new Error(`Unknown data type returned by AI: ${result.dataType}`);
             }
+            setStatusLog(prev => [...prev, `  -> SUCCESS: ${job.name} imported.`]);
+
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+            setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
+            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
         }
     }
 
@@ -197,7 +156,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); handleFileDrop(e.dataTransfer.files); };
   
   const acceptedFileTypes = ".csv, .xlsx, .xlsm, .xls, .png, .jpg, .jpeg";
-  const isFinished = !isProcessing && progress.total > 0;
+  const isFinished = !isProcessing && (statusLog.length > 0 || errors.length > 0);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Universal Data Hub">

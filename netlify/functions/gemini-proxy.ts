@@ -1,4 +1,18 @@
+// FIX: Add Node.js types reference to resolve Buffer and stream errors.
+/// <reference types="node" />
+
 import { GoogleGenAI, Type } from "@google/genai";
+import fetch from 'node-fetch';
+
+// Helper to convert stream to buffer, needed for fetching file content
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('error', (err) => reject(err));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+}
 
 export const handler = async (event: any) => {
   const headers = {
@@ -85,12 +99,18 @@ export const handler = async (event: any) => {
 
     switch (action) {
       case 'extractKpisFromDocument': {
-        const { fileData, fileName } = payload;
+        const { fileUrl, mimeType, fileName } = payload;
+        const fileResponse = await fetch(fileUrl);
+        if (!fileResponse.ok) throw new Error(`Failed to download file from URL: ${fileUrl}`);
+        
+        const buffer = await streamToBuffer(fileResponse.body as NodeJS.ReadableStream);
+        const base64Data = buffer.toString('base64');
+        
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [
                 { text: `${universalPrompt}\n\nThe filename is "${fileName}".` },
-                { inlineData: { mimeType: fileData.mimeType, data: fileData.data } }
+                { inlineData: { mimeType: mimeType, data: base64Data } }
             ],
             config: { responseMimeType: "application/json", responseSchema: universalSchema },
         });
@@ -100,7 +120,11 @@ export const handler = async (event: any) => {
       }
 
       case 'extractKpisFromText': {
-        const { text } = payload;
+        const { fileUrl } = payload;
+        const textResponse = await fetch(fileUrl);
+        if(!textResponse.ok) throw new Error(`Failed to download text from URL: ${fileUrl}`);
+        const text = await textResponse.text();
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---`,
@@ -112,7 +136,6 @@ export const handler = async (event: any) => {
       }
       
       case 'getPlaceDetails': {
-        // This case remains unchanged, but is included for completeness.
         if (!process.env.MAPS_API_KEY) {
              return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) };
         }

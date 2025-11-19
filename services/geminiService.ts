@@ -22,15 +22,15 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     } catch (error) {
         console.error(`Error calling AI API proxy for action "${action}":`, error);
         if (error instanceof Error) {
-            throw new Error(error.message);
+            throw error;
         }
         throw new Error('An unknown error occurred while contacting the AI service.');
     }
 }
 
-export const extractKpisFromDocument = async (fileData: { mimeType: string, data: string }, fileName: string): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
-        const result = await callAIApi('extractKpisFromDocument', { fileData, fileName });
+        const result = await callAIApi('extractKpisFromDocument', payload);
         return result;
     } catch (error) {
         console.error("Error extracting KPIs from document:", error);
@@ -38,9 +38,9 @@ export const extractKpisFromDocument = async (fileData: { mimeType: string, data
     }
 };
 
-export const extractKpisFromText = async (text: string): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromText = async (payload: { fileUrl: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
-        const result = await callAIApi('extractKpisFromText', { text });
+        const result = await callAIApi('extractKpisFromText', payload);
         return result;
     } catch (error) {
         console.error("Error extracting KPIs from text:", error);

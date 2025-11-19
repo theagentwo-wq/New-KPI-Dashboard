@@ -106,6 +106,24 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
+export const uploadFile = async (file: File): Promise<string> => {
+    if (!storage) throw new Error("Firebase Storage not initialized.");
+    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${file.name}`;
+    const storageRef = storage.ref(`imports/${uniqueFileName}`);
+    await storageRef.put(file);
+    return storageRef.getDownloadURL();
+};
+
+export const uploadTextAsFile = async (text: string): Promise<string> => {
+    if (!storage) throw new Error("Firebase Storage not initialized.");
+    const blob = new Blob([text], { type: 'text/plain' });
+    const uniqueFileName = `${Date.now()}-pasted-text.txt`;
+    const storageRef = storage.ref(`imports/${uniqueFileName}`);
+    await storageRef.put(blob);
+    return storageRef.getDownloadURL();
+};
+
+
 export const batchImportActualsData = async (data: any[]): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();

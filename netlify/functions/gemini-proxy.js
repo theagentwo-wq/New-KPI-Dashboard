@@ -1,4 +1,15 @@
 const { GoogleGenAI, Type } = require("@google/genai");
+const fetch = require('node-fetch');
+
+// Helper to convert stream to buffer for Node.js environment
+async function streamToBuffer(stream) {
+    const chunks = [];
+    return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('error', (err) => reject(err));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -85,12 +96,18 @@ exports.handler = async (event) => {
 
     switch (action) {
       case 'extractKpisFromDocument': {
-        const { fileData, fileName } = payload;
+        const { fileUrl, mimeType, fileName } = payload;
+        const fileResponse = await fetch(fileUrl);
+        if (!fileResponse.ok) throw new Error(`Failed to download file from URL: ${fileUrl}`);
+        
+        const buffer = await streamToBuffer(fileResponse.body);
+        const base64Data = buffer.toString('base64');
+        
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [
                 { text: `${universalPrompt}\n\nThe filename is "${fileName}".` },
-                { inlineData: { mimeType: fileData.mimeType, data: fileData.data } }
+                { inlineData: { mimeType: mimeType, data: base64Data } }
             ],
             config: { responseMimeType: "application/json", responseSchema: universalSchema },
         });
@@ -100,7 +117,11 @@ exports.handler = async (event) => {
       }
 
       case 'extractKpisFromText': {
-        const { text } = payload;
+        const { fileUrl } = payload;
+        const textResponse = await fetch(fileUrl);
+        if(!textResponse.ok) throw new Error(`Failed to download text from URL: ${fileUrl}`);
+        const text = await textResponse.text();
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---`,
