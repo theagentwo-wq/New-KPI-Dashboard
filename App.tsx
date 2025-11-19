@@ -13,7 +13,7 @@ import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { StrategyHubModal } from './components/StrategyHubModal';
-import { ImportStatusIndicator } from './components/ImportStatusIndicator';
+import { ImportStatusIndicator } from './components/importStatusIndicator';
 
 // Main App Component
 const App: React.FC = () => {
@@ -266,6 +266,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
+                                // FIX: Corrected the prop value to match the state setter function name.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
