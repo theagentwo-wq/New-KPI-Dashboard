@@ -14,8 +14,6 @@ interface ImportDataModalProps {
   onImportBudget: (data: any[]) => void;
 }
 
-const BATCH_SIZE = 5; // Process 5 sheets at a time to avoid overwhelming the serverless functions
-
 type ImportStep = 'upload' | 'guided-paste' | 'verify' | 'processing' | 'finished';
 
 interface ExtractedData {
@@ -232,65 +230,52 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setProgress({ current: 0, total: jobs.length });
     const allExtractedData: ExtractedData[] = [];
 
-    for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
-        const batch = jobs.slice(i, i + BATCH_SIZE);
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(jobs.length / BATCH_SIZE);
-        
-        setStatusLog(prev => [...prev, `Processing batch ${batchNum} of ${totalBatches} (sheets ${i + 1} to ${Math.min(i + BATCH_SIZE, jobs.length)})...`]);
+    // Process jobs one by one sequentially to avoid concurrency limits
+    for (const [index, job] of jobs.entries()) {
+        const currentJobNum = index + 1;
+        let filePath: string | null = null;
 
-        const batchPromises = batch.map(async (job, indexInBatch) => {
-            const jobIndex = i + indexInBatch;
-            const currentJobNum = jobIndex + 1;
-            
-            let filePath: string | null = null;
-            try {
-                let apiResult;
-                setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
-                if (job.type === 'file') {
-                    setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
-                    const uploadResult = await uploadFile(job.content as File);
-                    ({ filePath } = uploadResult);
-                    setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                    apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
-                } else {
-                    setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
-                    const uploadResult = await uploadTextAsFile(job.content as string, job.name);
-                    ({ filePath } = uploadResult);
-                    setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
-                    apiResult = await extractKpisFromText(uploadResult);
-                }
+        try {
+            let apiResult;
+            setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
 
-                if (!apiResult.dataType || !apiResult.data) {
-                    throw new Error("AI analysis returned an unexpected format.");
-                }
-                
-                // FIX: Use a temporary variable for the API result, then add the sourceName.
-                // This resolves a TypeScript error where `apiResult` doesn't have `sourceName` but is assigned to a variable that requires it.
-                const extractedResult: ExtractedData = {
-                  ...apiResult,
-                  sourceName: job.name,
-                };
-                
-                setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
-                setProgress(prev => ({ ...prev, current: prev.current + 1 }));
-                return extractedResult;
-
-            } catch (err) {
-                const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-                setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
-                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
-                setProgress(prev => ({ ...prev, current: prev.current + 1 }));
-                return null;
-            } finally {
-                if (filePath) await deleteImportFile(filePath);
+            if (job.type === 'file') {
+                setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
+                const uploadResult = await uploadFile(job.content as File);
+                ({ filePath } = uploadResult);
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
+                apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
+            } else { // 'text-chunk'
+                setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
+                const uploadResult = await uploadTextAsFile(job.content as string, job.name);
+                ({ filePath } = uploadResult);
+                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
+                apiResult = await extractKpisFromText(uploadResult);
             }
-        });
-        
-        const results = await Promise.all(batchPromises);
-        results.forEach(res => {
-            if (res) allExtractedData.push(res);
-        });
+
+            if (!apiResult.dataType || !apiResult.data) {
+                throw new Error("AI analysis returned an unexpected format.");
+            }
+
+            const extractedResult: ExtractedData = {
+                ...apiResult,
+                sourceName: job.name,
+            };
+
+            setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
+            allExtractedData.push(extractedResult);
+
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+            setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
+            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+        } finally {
+            // Update progress regardless of success or failure
+            setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+            if (filePath) {
+                await deleteImportFile(filePath);
+            }
+        }
     }
     
     const isAnySheetDynamic = allExtractedData.some(d => d.isDynamicSheet);
@@ -363,7 +348,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                     <p className="text-xs text-slate-400 mb-2">Select sheets to analyze:</p>
                     <div className="max-h-24 overflow-y-auto custom-scrollbar space-y-1 p-2 bg-slate-900/50 rounded-md">
                         {stagedWorkbook.sheets.map(sheet => (
-                            <label key={sheet} className="flex items-center space-x-2 cursor-pointer">
+                            <label key={sheet} className="flex items-center space-x-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                                 <input type="checkbox" checked={selectedSheets.includes(sheet)} onChange={() => handleToggleSheet(sheet)} className="form-checkbox h-4 w-4 bg-slate-700 border-slate-600 text-cyan-500 rounded focus:ring-cyan-500"/>
                                 <span>{sheet}</span>
                             </label>
