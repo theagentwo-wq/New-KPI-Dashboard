@@ -27,21 +27,43 @@ let importJobsCollection: firebase.firestore.CollectionReference<firebase.firest
 
 let isInitialized = false;
 
+// Helper to determine if we are in a server-side (Node) environment
+const isServer = typeof window === 'undefined';
+
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (isInitialized) return { status: 'connected' };
 
     try {
-        const response = await fetch('/.netlify/functions/firebase-config-proxy');
-        if (!response.ok) {
-             const errorBody = await response.json();
-             const err = new Error(errorBody.error || 'Failed to fetch Firebase config');
-             (err as any).cause = errorBody.rawValue;
-             throw err;
+        let firebaseConfig;
+        let rawValueForError;
+
+        if (isServer) {
+            // SERVER-SIDE: read directly from environment variables.
+            const configStr = process.env.FIREBASE_CLIENT_CONFIG;
+            if (!configStr) {
+                throw new Error("FIREBASE_CLIENT_CONFIG environment variable is not set on the server.");
+            }
+            rawValueForError = configStr;
+            let cleanedConfigStr = configStr.trim();
+            if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
+                cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
+            }
+            firebaseConfig = JSON.parse(cleanedConfigStr);
+        } else {
+            // CLIENT-SIDE: fetch from the secure proxy.
+            const response = await fetch('/.netlify/functions/firebase-config-proxy');
+            const data = await response.json();
+            if (!response.ok) {
+                 const err = new Error(data.error || 'Failed to fetch Firebase config');
+                 (err as any).cause = data.rawValue;
+                 throw err;
+            }
+            firebaseConfig = data;
+            rawValueForError = JSON.stringify(data);
         }
-        const firebaseConfig = await response.json();
         
         if (Object.keys(firebaseConfig).length === 0) {
-             const err = new Error("Received empty Firebase config from proxy. Ensure FIREBASE_CLIENT_CONFIG is set in Netlify.");
+             const err = new Error("Received empty Firebase config. Ensure FIREBASE_CLIENT_CONFIG is set correctly.");
              (err as any).cause = JSON.stringify(firebaseConfig);
              throw err;
         }
@@ -72,8 +94,8 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         isInitialized = false;
         return { 
             status: 'error', 
-            message: `The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`,
-            rawValue: error.cause || 'Could not retrieve raw value from server.'
+            message: `Firebase initialization failed: The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`,
+            rawValue: error.cause || (isServer ? process.env.FIREBASE_CLIENT_CONFIG : 'Could not retrieve raw value from client.')
         };
     }
 };
