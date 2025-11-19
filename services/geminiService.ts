@@ -104,17 +104,53 @@ export const getNoteTrends = async (notes: Note[]): Promise<string> => {
     return result.content || "Could not analyze note trends.";
 };
 
-// --- Placeholder/Stub Functions ---
-// FIX: Prefixed unused parameters with '_' to resolve TS6133 errors and allow deployment.
-export const getInsights = async (_data: any, _view: View, _periodLabel: string, _query: string, _userLocation?: { latitude: number; longitude: number } | null): Promise<string> => { return "AI Insights are not implemented in this version."; };
-export const getTrendAnalysis = async (_historicalData: { periodLabel: string; data: PerformanceData }[], _view: View): Promise<string> => { return "Trend Analysis is not implemented in this version."; };
-export const getDirectorPerformanceSnapshot = async (_directorName: string, _periodLabel: string, _directorData: any): Promise<string> => { return "Director Snapshot is not implemented in this version."; };
-export const getAnomalyDetections = async (_allStoresData: any, _periodLabel: string): Promise<Anomaly[]> => { return []; };
-export const generateHuddleBrief = async (_location: string, _storeData: any, _audience: string): Promise<string> => { return "Huddle Brief generation is not implemented in this version."; };
-export const runWhatIfScenario = async (_data: any, _userPrompt: string): Promise<{ analysis: string, args?: any }> => { return { analysis: "Scenario Modeling is not implemented in this version." }; };
-export const getSalesForecast = async (_location: string, _weatherForecast: DailyForecast[]): Promise<ForecastDataPoint[]> => { return []; };
-export const getReviewSummary = async (_location: string): Promise<string> => { return "Review Summary is not implemented in this version."; };
-export const getVarianceAnalysis = async (_location: string, _kpi: Kpi, _variance: number, _allKpis: PerformanceData): Promise<string> => { return "Variance Analysis is not implemented in this version."; };
-export const getQuadrantAnalysis = async (_data: any[], _periodLabel: string, _kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => { return "Quadrant Analysis is not implemented in this version."; };
-export const getLocationMarketAnalysis = async (_location: string): Promise<string> => { return "Market Analysis is not implemented in this version."; };
-export const getMarketingIdeas = async (_location: string, _userLocation?: { latitude: number; longitude: number } | null): Promise<string> => { return "Marketing Ideas feature is not implemented in this version."; };
+// --- Full AI Implementations ---
+
+export const getInsights = async (data: any, view: View, periodLabel: string, query: string, userLocation?: { latitude: number; longitude: number } | null): Promise<string> => {
+    const result = await callAIApi('getInsights', { data, view, periodLabel, query, userLocation });
+    return result.content || "AI could not process this request.";
+};
+export const getTrendAnalysis = async (historicalData: { periodLabel: string; data: PerformanceData }[], view: View): Promise<string> => {
+    const result = await callAIApi('getTrendAnalysis', { historicalData, view });
+    return result.content || "Could not generate trend analysis.";
+};
+export const getDirectorPerformanceSnapshot = async (directorName: string, periodLabel: string, directorData: any): Promise<string> => {
+    const result = await callAIApi('getDirectorPerformanceSnapshot', { directorName, periodLabel, directorData });
+    return result.content || "Could not generate director snapshot.";
+};
+export const getAnomalyDetections = async (allStoresData: any, periodLabel: string): Promise<Anomaly[]> => {
+    const result = await callAIApi('getAnomalyDetections', { allStoresData, periodLabel });
+    return result.anomalies || [];
+};
+export const generateHuddleBrief = async (location: string, storeData: any, audience: string): Promise<string> => {
+    const result = await callAIApi('generateHuddleBrief', { location, storeData, audience });
+    return result.content || "Could not generate huddle brief.";
+};
+export const runWhatIfScenario = async (data: any, userPrompt: string): Promise<{ analysis: string, args?: any }> => {
+    const result = await callAIApi('runWhatIfScenario', { data, userPrompt });
+    return result || { analysis: "Could not model this scenario." };
+};
+export const getSalesForecast = async (location: string, weatherForecast: DailyForecast[]): Promise<ForecastDataPoint[]> => {
+    const result = await callAIApi('getSalesForecast', { location, weatherForecast });
+    return result.forecast || [];
+};
+export const getReviewSummary = async (location: string): Promise<string> => {
+    const result = await callAIApi('getReviewSummary', { location });
+    return result.content || "Could not generate review summary.";
+};
+export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
+    const result = await callAIApi('getVarianceAnalysis', { location, kpi, variance, allKpis });
+    return result.content || "Could not analyze variance.";
+};
+export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
+    const result = await callAIApi('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
+    return result.content || "Could not generate quadrant analysis.";
+};
+export const getLocationMarketAnalysis = async (location: string): Promise<string> => {
+    const result = await callAIApi('getLocationMarketAnalysis', { location });
+    return result.content || "Could not generate market analysis.";
+};
+export const getMarketingIdeas = async (location: string, userLocation?: { latitude: number; longitude: number } | null): Promise<string> => {
+    const result = await callAIApi('getMarketingIdeas', { location, userLocation });
+    return result.content || "Could not generate marketing ideas.";
+};
