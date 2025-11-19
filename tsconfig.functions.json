@@ -6,8 +6,8 @@
     "noEmit": false,
     "isolatedModules": false,
     "allowImportingTsExtensions": false,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "jsx": "preserve"
   },
   "include": [

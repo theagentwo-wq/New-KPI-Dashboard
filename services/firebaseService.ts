@@ -1,14 +1,11 @@
 
-// FIX: All firebase imports are changed to use the v8 compat library to match the errors provided.
-// This requires rewriting all Firebase SDK calls to the v8 namespaced syntax.
+// FIX: All firebase imports are changed to use the v8 compat library with the correct namespaced syntax.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
-// FIX: Add missing type imports to resolve 'Cannot find name' errors.
+
 import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period } from '../types';
-// FIX: Add KPI_CONFIG import for use in new batchImportStructuredActuals function
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
-// FIX: Correct import path for ALL_PERIODS. It is defined in dateUtils.ts.
 import { ALL_PERIODS } from '../utils/dateUtils';
 
 export type FirebaseStatus = 
