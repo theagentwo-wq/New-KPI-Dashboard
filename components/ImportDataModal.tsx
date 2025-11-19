@@ -14,6 +14,7 @@ interface ImportDataModalProps {
 }
 
 const MAX_IMAGE_WIDTH = 1500; // pixels
+const BATCH_SIZE = 5; // Process 5 sheets at a time to avoid overwhelming the serverless functions
 
 type ImportStep = 'upload' | 'guided-paste' | 'verify' | 'processing' | 'finished';
 
@@ -58,7 +59,6 @@ const resizeImage = (file: File): Promise<File> => {
             img.src = event.target?.result as string;
         };
         reader.onerror = reject;
-        // FIX: Corrected typo from readAsURL to readAsDataURL.
         reader.readAsDataURL(file);
     });
 };
@@ -270,37 +270,65 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setProgress({ current: 0, total: jobs.length });
     const allExtractedData: ExtractedData[] = [];
 
-    for (let i = 0; i < jobs.length; i++) {
-        const job = jobs[i];
-        const currentJobNum = i + 1;
-        setProgress({ current: currentJobNum, total: jobs.length });
-        setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
-        let filePath: string | null = null;
-        try {
-            let apiResult;
-            if (job.type === 'file') {
-                setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
-                const uploadResult = await uploadFile(job.content as File);
-                ({ filePath } = uploadResult);
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
-            } else {
-                setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
-                const uploadResult = await uploadTextAsFile(job.content as string, job.name);
-                ({ filePath } = uploadResult);
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
-                apiResult = await extractKpisFromText(uploadResult);
+    for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
+        const batch = jobs.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(jobs.length / BATCH_SIZE);
+        
+        setStatusLog(prev => [...prev, `Processing batch ${batchNum} of ${totalBatches} (sheets ${i + 1} to ${Math.min(i + BATCH_SIZE, jobs.length)})...`]);
+
+        const batchPromises = batch.map(async (job, indexInBatch) => {
+            const jobIndex = i + indexInBatch;
+            const currentJobNum = jobIndex + 1;
+            
+            let filePath: string | null = null;
+            try {
+                let apiResult;
+                setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
+                if (job.type === 'file') {
+                    setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
+                    const uploadResult = await uploadFile(job.content as File);
+                    ({ filePath } = uploadResult);
+                    setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
+                    apiResult = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
+                } else {
+                    setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
+                    const uploadResult = await uploadTextAsFile(job.content as string, job.name);
+                    ({ filePath } = uploadResult);
+                    setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
+                    apiResult = await extractKpisFromText(uploadResult);
+                }
+
+                if (!apiResult.dataType || !apiResult.data) {
+                    throw new Error("AI analysis returned an unexpected format.");
+                }
+                
+                // FIX: Use a temporary variable for the API result, then add the sourceName.
+                // This resolves a TypeScript error where `apiResult` doesn't have `sourceName` but is assigned to a variable that requires it.
+                const extractedResult: ExtractedData = {
+                  ...apiResult,
+                  sourceName: job.name,
+                };
+                
+                setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
+                setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+                return extractedResult;
+
+            } catch (err) {
+                const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
+                setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+                setProgress(prev => ({ ...prev, current: prev.current + 1 }));
+                return null;
+            } finally {
+                if (filePath) await deleteImportFile(filePath);
             }
-            if (!apiResult.dataType || !apiResult.data) throw new Error("AI analysis returned an unexpected format.");
-            allExtractedData.push({ ...apiResult, sourceName: job.name });
-            setStatusLog(prev => [...prev, `  -> SUCCESS: AI found ${apiResult.data.length} rows of '${apiResult.dataType}' data.`]);
-        } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-            setErrors(prev => [...prev, `FAILED: ${job.name} - ${errorMsg}`]);
-            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
-        } finally {
-            if (filePath) await deleteImportFile(filePath);
-        }
+        });
+        
+        const results = await Promise.all(batchPromises);
+        results.forEach(res => {
+            if (res) allExtractedData.push(res);
+        });
     }
     
     const isAnySheetDynamic = allExtractedData.some(d => d.isDynamicSheet);
