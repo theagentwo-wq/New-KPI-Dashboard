@@ -1,7 +1,7 @@
-# Increase the timeout for all serverless functions to 90 seconds.
+# Increase the timeout for all serverless functions to 60 seconds.
 # This prevents timeouts when the AI needs more time to analyze large documents.
 [functions]
-  timeout = 90
+  timeout = 60
 
 # Configure Netlify's secret scanner to prevent false positives.
 # This ignores known, non-sensitive key patterns in the Firebase SDK.
