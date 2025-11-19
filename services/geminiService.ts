@@ -28,6 +28,11 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
+export const getStrategicAnalysis = async (fileUrl: string, mimeType: string, fileName: string): Promise<string> => {
+    const result = await callAIApi('getStrategicAnalysis', { fileUrl, mimeType, fileName });
+    return result.content || "Could not generate strategic analysis.";
+};
+
 export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
         const result = await callAIApi('extractKpisFromDocument', payload);

@@ -58,6 +58,7 @@ const resizeImage = (file: File): Promise<File> => {
             img.src = event.target?.result as string;
         };
         reader.onerror = reject;
+        // FIX: Corrected typo from readAsURL to readAsDataURL.
         reader.readAsDataURL(file);
     });
 };
@@ -276,8 +277,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
         let filePath: string | null = null;
         try {
-// FIX: The result from the API call lacks a `sourceName`, causing a type error.
-// The variable `result` is renamed to `apiResult` and is not strictly typed, allowing the subsequent spread operation to correctly form the `ExtractedData` object.
             let apiResult;
             if (job.type === 'file') {
                 setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);

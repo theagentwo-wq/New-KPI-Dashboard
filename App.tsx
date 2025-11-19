@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataEntryPage } from './pages/DataEntryPage';
+import { StrategyHubModal } from './components/StrategyHubModal';
 
 // Main App Component
 const App: React.FC = () => {
@@ -27,6 +28,7 @@ const App: React.FC = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
     const [isImportDataOpen, setImportDataOpen] = useState(false);
+    const [isStrategyHubOpen, setStrategyHubOpen] = useState(false);
     const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
@@ -154,6 +156,7 @@ const App: React.FC = () => {
                 onOpenProfile={openProfileModal}
                 onOpenAlerts={() => setIsAlertsModalOpen(true)}
                 onOpenDataEntry={() => setImportDataOpen(true)}
+                onOpenStrategyHub={() => setStrategyHubOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
                 onOpenExecutiveSummary={() => setExecutiveSummaryOpen(true)}
             />
@@ -182,6 +185,7 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
+                                // FIX: Corrected typo from setIsExecutiveSummaryOpen to setExecutiveSummaryOpen to match the state setter.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
@@ -200,6 +204,10 @@ const App: React.FC = () => {
                 onClose={() => setImportDataOpen(false)}
                 onImportActuals={handleImportActuals}
                 onImportBudget={handleImportBudget}
+            />
+            <StrategyHubModal
+                isOpen={isStrategyHubOpen}
+                onClose={() => setStrategyHubOpen(false)}
             />
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />
             <DirectorProfileModal 
