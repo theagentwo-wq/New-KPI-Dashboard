@@ -6,7 +6,7 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
@@ -126,6 +126,16 @@ const App: React.FC = () => {
         await fetchData(getInitialPeriod());
     };
 
+    const handleImportActuals = async (data: any[]) => {
+        await batchImportActualsData(data);
+        fetchData(getInitialPeriod());
+    };
+
+    const handleImportBudget = async (data: any[]) => {
+        await batchImportBudgetData(data);
+        fetchData(getInitialPeriod());
+    };
+
     const openProfileModal = (director: DirectorProfile) => {
         setSelectedDirector(director);
         setProfileOpen(true);
@@ -188,7 +198,8 @@ const App: React.FC = () => {
              <ImportDataModal 
                 isOpen={isImportDataOpen}
                 onClose={() => setImportDataOpen(false)}
-                onImportSuccess={() => fetchData(getInitialPeriod())}
+                onImportActuals={handleImportActuals}
+                onImportBudget={handleImportBudget}
             />
             <ScenarioModeler isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} data={{}} />
             <DirectorProfileModal 

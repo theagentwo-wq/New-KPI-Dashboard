@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { batchImportStructuredData } from '../services/firebaseService';
 import { extractKpisFromDocument, extractKpisFromText } from '../services/geminiService';
 
 interface ImportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImportSuccess: () => void;
+  onImportActuals: (data: any[]) => void;
+  onImportBudget: (data: any[]) => void;
 }
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -19,7 +19,7 @@ const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
-export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportSuccess }) => {
+export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportActuals, onImportBudget }) => {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedText, setStagedText] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -61,7 +61,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     const items = event.clipboardData?.items;
     if (!items) return;
 
-    // Check for images first
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
             const blob = items[i].getAsFile();
@@ -75,7 +74,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         }
     }
 
-    // Fallback to text
     for (let i = 0; i < items.length; i++) {
         if (items[i].kind === 'string') {
             items[i].getAsString((text) => {
@@ -107,6 +105,28 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setIsProcessing(true);
     setStatusLog([]);
     setErrors([]);
+    let importSuccess = false;
+
+    const processAndImport = async (processor: () => Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }>, sourceName: string) => {
+        setStatusLog(prev => [...prev, `  -> Asking AI to analyze ${sourceName}...`]);
+        const result = await processor();
+
+        if (!result.dataType || !result.data) {
+            throw new Error("AI analysis returned an unexpected format.");
+        }
+
+        setStatusLog(prev => [...prev, `  -> AI classified data as '${result.dataType}'. Importing ${result.data.length} rows...`]);
+
+        if (result.dataType === 'Actuals') {
+            onImportActuals(result.data);
+        } else if (result.dataType === 'Budget') {
+            onImportBudget(result.data);
+        } else {
+            throw new Error(`Unknown data type returned by AI: ${result.dataType}`);
+        }
+        importSuccess = true;
+    };
+
 
     if (stagedFiles.length > 0) {
         setProgress({ current: 0, total: stagedFiles.length });
@@ -117,14 +137,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             setStatusLog(prev => [...prev, `[${currentFileNum}/${stagedFiles.length}] Processing ${file.name}...`]);
 
             try {
-                setStatusLog(prev => [...prev, `  -> Reading and converting file to send to AI...`]);
                 const base64Data = await fileToBase64(file);
-                
-                setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                const structuredData = await extractKpisFromDocument({ mimeType: file.type, data: base64Data }, file.name);
-
-                setStatusLog(prev => [...prev, `  -> AI analysis complete. Importing ${structuredData.length} rows...`]);
-                await batchImportStructuredData(structuredData);
+                await processAndImport(() => extractKpisFromDocument({ mimeType: file.type, data: base64Data }, file.name), `document ${file.name}`);
                 setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
 
             } catch (err) {
@@ -137,11 +151,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         setProgress({ current: 1, total: 1 });
         setStatusLog(prev => [...prev, `[1/1] Processing pasted text...`]);
         try {
-            setStatusLog(prev => [...prev, `  -> Asking AI to analyze text...`]);
-            const structuredData = await extractKpisFromText(stagedText);
-
-            setStatusLog(prev => [...prev, `  -> AI analysis complete. Importing ${structuredData.length} rows...`]);
-            await batchImportStructuredData(structuredData);
+            await processAndImport(() => extractKpisFromText(stagedText), 'pasted text');
             setStatusLog(prev => [...prev, `  -> SUCCESS: Pasted text imported.`]);
         } catch(err) {
             const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -152,7 +162,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
 
     setStatusLog(prev => [...prev, `\nImport Complete.`]);
     setIsProcessing(false);
-    onImportSuccess();
   };
 
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.add('border-cyan-500', 'bg-slate-700'); };
@@ -167,7 +176,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       <div className="space-y-4">
         {!isProcessing && !isFinished && (
              <p className="text-slate-300 text-sm">
-                Upload spreadsheets, images, or paste text. The AI will act as a financial analyst to read, understand, and import the data automatically.
+                Upload spreadsheets (Actuals or Budgets), images, or paste text. The AI will act as a financial analyst to classify, read, and import the data automatically.
             </p>
         )}
        

@@ -29,20 +29,20 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const extractKpisFromDocument = async (fileData: { mimeType: string, data: string }, fileName: string): Promise<any[]> => {
+export const extractKpisFromDocument = async (fileData: { mimeType: string, data: string }, fileName: string): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
         const result = await callAIApi('extractKpisFromDocument', { fileData, fileName });
-        return result.data || [];
+        return result;
     } catch (error) {
         console.error("Error extracting KPIs from document:", error);
         throw error;
     }
 };
 
-export const extractKpisFromText = async (text: string): Promise<any[]> => {
+export const extractKpisFromText = async (text: string): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
     try {
         const result = await callAIApi('extractKpisFromText', { text });
-        return result.data || [];
+        return result;
     } catch (error) {
         console.error("Error extracting KPIs from text:", error);
         throw error;

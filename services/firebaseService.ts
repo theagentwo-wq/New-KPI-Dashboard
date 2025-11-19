@@ -106,7 +106,7 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
-export const batchImportStructuredData = async (data: any[]): Promise<void> => {
+export const batchImportActualsData = async (data: any[]): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
@@ -151,10 +151,52 @@ export const batchImportStructuredData = async (data: any[]): Promise<void> => {
                 }, { merge: true });
             }
         } else {
-             console.warn(`AI output missing 'Store Name' or 'Week Start Date'. Row: ${JSON.stringify(row)}`);
+             console.warn(`AI output for Actuals missing 'Store Name' or 'Week Start Date'. Row: ${JSON.stringify(row)}`);
         }
     });
 
+    await batch.commit();
+};
+
+export const batchImportBudgetData = async (data: any[]): Promise<void> => {
+    if (!db || !budgetsCollection) throw new Error("Firebase not initialized.");
+    const batch = db.batch();
+
+    data.forEach(row => {
+        const storeId = cleanAndMatchStoreName(row['Store Name']);
+        const year = parseInt(row['Year']);
+        const month = parseInt(row['Month']);
+        
+        if (storeId && !isNaN(year) && !isNaN(month)) {
+            const targets: PerformanceData = {};
+            for (const key in row) {
+                const kpi = key as Kpi;
+                if (kpi in Kpi) {
+                     let value = row[key];
+                    if (typeof value === 'string') {
+                        value = value.replace(/[\$,%]/g, '');
+                    }
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                        const kpiConfig = KPI_CONFIG[kpi];
+                        if (kpiConfig && kpiConfig.format === 'percent') {
+                            targets[kpi] = numValue / 100;
+                        } else {
+                            targets[kpi] = numValue;
+                        }
+                    }
+                }
+            }
+             if (Object.keys(targets).length > 0) {
+                const docId = `${storeId}_${year}_${month}`;
+                const docRef = budgetsCollection!.doc(docId);
+                batch.set(docRef, { storeId, year, month, targets }, { merge: true });
+            }
+        } else {
+             console.warn(`AI output for Budget missing 'Store Name', 'Year', or 'Month'. Row: ${JSON.stringify(row)}`);
+        }
+    });
+    
     await batch.commit();
 };
 

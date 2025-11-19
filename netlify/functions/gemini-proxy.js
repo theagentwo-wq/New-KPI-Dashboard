@@ -28,12 +28,7 @@ exports.handler = async (event) => {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const { action, payload } = JSON.parse(event.body || '{}');
 
-    // Define the schema once, as it's shared
-    const kpiDataSchema = {
-      type: Type.OBJECT,
-      properties: {
-        "Store Name": { type: Type.STRING },
-        "Week Start Date": { type: Type.STRING, description: "The starting date of the week in YYYY-MM-DD format." },
+    const kpiProperties = {
         "Sales": { type: Type.NUMBER },
         "SOP": { type: Type.NUMBER, description: "Store Operating Profit as a percentage (e.g., 18.5 for 18.5%)" },
         "Prime Cost": { type: Type.NUMBER, description: "As a percentage (e.g., 55.2 for 55.2%)" },
@@ -41,41 +36,63 @@ exports.handler = async (event) => {
         "Food Cost": { type: Type.NUMBER, description: "As a percentage (e.g., 22.1 for 22.1%)" },
         "Variable Labor": { type: Type.NUMBER, description: "As a percentage (e.g., 15.8 for 15.8%)" },
         "Culinary Audit Score": { type: Type.NUMBER, description: "As a percentage (e.g., 95 for 95%)" },
-      },
-      required: ["Store Name", "Week Start Date"]
+    };
+
+    const actualsDataSchema = {
+        type: Type.OBJECT,
+        properties: {
+            "Store Name": { type: Type.STRING },
+            "Week Start Date": { type: Type.STRING, description: "The starting date of the week in YYYY-MM-DD format." },
+            ...kpiProperties
+        },
+        required: ["Store Name", "Week Start Date"]
+    };
+
+    const budgetDataSchema = {
+        type: Type.OBJECT,
+        properties: {
+            "Store Name": { type: Type.STRING },
+            "Year": { type: Type.NUMBER, description: "The fiscal year (e.g., 2025)"},
+            "Month": { type: Type.NUMBER, description: "The fiscal month number (1-12)"},
+            ...kpiProperties
+        },
+        required: ["Store Name", "Year", "Month"]
+    };
+    
+    const universalPrompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document.
+    
+    **CRITICAL INSTRUCTIONS:**
+    1.  **CLASSIFY DATA TYPE:** First, determine if the data represents 'Actuals' (historical, weekly performance data) or a 'Budget' (a forward-looking plan with monthly targets). Your primary clue is the time granularity (weekly vs. monthly) and keywords like "Budget", "Plan", "Actuals", "Report".
+    2.  **EXTRACT DATA:** Based on the classification, extract all relevant financial data.
+        *   **If 'Actuals':** Extract the 'Store Name', 'Week Start Date' (calculate if a 'Week Ending' date is given, assuming weeks start on Monday), and all KPI values for each row.
+        *   **If 'Budget':** Extract the 'Store Name', 'Year', 'Month', and all target KPI values.
+    3.  **HANDLE COMPLEX FILES:** The document may contain data for multiple stores and multiple time periods (e.g., a multi-year budget). Process all of them. Ignore any summary rows like "Total" or "Grand Total".
+    4.  **FORMAT OUTPUT:** Return a JSON object with two fields: 'dataType' (either "Actuals" or "Budget") and 'data' (an array of JSON objects strictly following the correct schema for that data type). Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
+    
+    const universalSchema = {
+        type: Type.OBJECT,
+        properties: {
+            dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] },
+            data: {
+                type: Type.ARRAY,
+                items: {
+                    oneOf: [actualsDataSchema, budgetDataSchema]
+                }
+            }
+        },
+        required: ["dataType", "data"]
     };
 
     switch (action) {
       case 'extractKpisFromDocument': {
         const { fileData, fileName } = payload;
-        const prompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document (image or spreadsheet) with the filename "${fileName}".
-        
-        **CRITICAL INSTRUCTIONS:**
-        1.  **Analyze Holistically:** Read the entire document to understand its context. The date and store name might be in the title, headers, or columns.
-        2.  **Find Date:** Identify the correct week start date for the data. If a "week ending" date is given, calculate the corresponding week start date (assuming weeks start on Monday).
-        3.  **Extract Data:** Identify all rows of financial data. For each row, extract all available Key Performance Indicators (KPIs).
-        4.  **Handle Multi-Store Files:** If the document contains data for multiple stores in different rows or sections, create a separate JSON object for each store's data row.
-        5.  **Handle Single-Store Files:** If the document contains data for only one store (which might be identified in the filename or a title), apply that single store name to all data rows.
-        6.  **Format Output:** Return an array of JSON objects, where each object represents one row of data and strictly follows the provided schema. Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
-
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [
-                { text: prompt },
+                { text: `${universalPrompt}\n\nThe filename is "${fileName}".` },
                 { inlineData: { mimeType: fileData.mimeType, data: fileData.data } }
             ],
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                      data: {
-                        type: Type.ARRAY,
-                        items: kpiDataSchema
-                      }
-                    }
-                },
-            },
+            config: { responseMimeType: "application/json", responseSchema: universalSchema },
         });
         
         const parsedResponse = JSON.parse(response.text);
@@ -84,33 +101,10 @@ exports.handler = async (event) => {
 
       case 'extractKpisFromText': {
         const { text } = payload;
-        const prompt = `You are an expert financial analyst. Analyze the following block of unstructured text, which is likely copied from an email or document. 
-        
-        **CRITICAL INSTRUCTIONS:**
-        1.  **Find Context:** Read the entire text to find the store name(s) and the relevant week start date.
-        2.  **Extract KPIs:** For each store mentioned, extract all available Key Performance Indicator (KPI) values.
-        3.  **Structure Data:** Format the extracted information into an array of JSON objects, strictly following the provided schema.
-
-        **Text to Analyze:**
-        ---
-        ${text}
-        ---`;
-        
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                      data: {
-                        type: Type.ARRAY,
-                        items: kpiDataSchema
-                      }
-                    }
-                },
-            },
+            contents: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---`,
+            config: { responseMimeType: "application/json", responseSchema: universalSchema },
         });
         
         const parsedResponse = JSON.parse(response.text);
