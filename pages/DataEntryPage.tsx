@@ -19,11 +19,11 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
   const [error, setError] = useState<string | null>(null);
 
   const availablePeriods = useMemo(() => {
-    return ALL_PERIODS.filter(p => p.type === periodType);
+    return ALL_PERIODS.filter((p: Period) => p.type === periodType);
   }, [periodType]);
 
   useEffect(() => {
-    if (availablePeriods.length > 0 && !availablePeriods.find(p => p.label === selectedPeriodLabel)) {
+    if (availablePeriods.length > 0 && !availablePeriods.find((p: Period) => p.label === selectedPeriodLabel)) {
       setSelectedPeriodLabel(availablePeriods[0].label);
     } else if (availablePeriods.length === 0) {
       setSelectedPeriodLabel('');
@@ -153,7 +153,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
                   onChange={e => setSelectedStore(e.target.value)}
                   className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50"
                 >
-                  {ALL_STORES.map(store => <option key={store} value={store}>{store}</option>)}
+                  {ALL_STORES.map((store: string) => <option key={store} value={store}>{store}</option>)}
                 </select>
               </div>
               <div>
@@ -164,7 +164,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
                   onChange={e => setPeriodType(e.target.value as any)}
                   className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50"
                 >
-                  {periodTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                  {periodTypes.map((type: 'Week' | 'Month' | 'Quarter' | 'Year') => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
               <div>
@@ -175,7 +175,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
                   onChange={e => setSelectedPeriodLabel(e.target.value)}
                   className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50"
                 >
-                  {availablePeriods.map(p => <option key={p.label} value={p.label}>{p.label}</option>)}
+                  {availablePeriods.map((p: Period) => <option key={p.label} value={p.label}>{p.label}</option>)}
                 </select>
               </div>
             </div>
@@ -185,7 +185,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
                 {isFetching ? 'Loading Existing Data...' : 'Enter KPI Values'}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ALL_KPIS.map(kpi => (
+                {ALL_KPIS.map((kpi: Kpi) => (
                   <div key={kpi}>
                     <label htmlFor={`kpi-${kpi}`} className="block text-sm font-medium text-slate-400">{kpi}</label>
                     <input

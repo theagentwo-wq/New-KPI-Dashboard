@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, DirectorProfile } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS } from '../constants';
 import { getInitialPeriod, getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
@@ -82,19 +82,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     
     useEffect(() => {
         const today = new Date();
-        const relevantPeriods = ALL_PERIODS.filter(p => p.type === periodType);
-        const newPeriod = relevantPeriods.find(p => today >= p.startDate && today <= p.endDate) || relevantPeriods[relevantPeriods.length - 1];
+        const relevantPeriods = ALL_PERIODS.filter((p: Period) => p.type === periodType);
+        const newPeriod = relevantPeriods.find((p: Period) => today >= p.startDate && today <= p.endDate) || relevantPeriods[relevantPeriods.length - 1];
         if (newPeriod) {
             setCurrentPeriod(newPeriod);
         }
     }, [periodType]);
 
     const periodsForType = useMemo(() => {
-        return ALL_PERIODS.filter(p => p.type === periodType);
+        return ALL_PERIODS.filter((p: Period) => p.type === periodType);
     }, [periodType]);
 
     const currentPeriodIndex = useMemo(() => {
-        return periodsForType.findIndex(p => p.label === currentPeriod.label);
+        return periodsForType.findIndex((p: Period) => p.label === currentPeriod.label);
     }, [periodsForType, currentPeriod]);
 
     const handlePreviousPeriod = () => {
@@ -127,7 +127,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
     const directorStores = useMemo(() => {
         if (currentView === 'Total Company') return ALL_STORES;
-        return DIRECTORS.find(d => d.id === currentView)?.stores || [];
+        return DIRECTORS.find((d: DirectorProfile) => d.id === currentView)?.stores || [];
     }, [currentView]);
 
     const processDataForTable = useCallback((
@@ -147,10 +147,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             if (mode === 'vs. Budget') {
                 const month = period.startDate.getUTCMonth() + 1; // 1-12
                 const year = period.startDate.getUTCFullYear();
-                const budget = budgetData.find(b => b.storeId === storeId && b.year === year && b.month === month);
+                const budget = budgetData.find((b: Budget) => b.storeId === storeId && b.year === year && b.month === month);
                 comparison = budget?.targets;
             } else {
-                const comparisonStore = comparisonStoreData.find(c => c.storeId === storeId);
+                const comparisonStore = comparisonStoreData.find((c: StorePerformanceData) => c.storeId === storeId);
                 comparison = comparisonStore?.data;
             }
 
@@ -185,7 +185,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
     const directorAggregates = useMemo(() => { 
         const directorData: { [key: string]: DataItem} = {};
-        DIRECTORS.forEach(d => {
+        DIRECTORS.forEach((d: DirectorProfile) => {
             const directorStoreIds = d.stores;
             const directorStoreData = directorStoreIds.reduce((acc, storeId) => {
                 if(allStoresProcessedData[storeId]) {

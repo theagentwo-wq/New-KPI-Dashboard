@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Note, NoteCategory, View, Period } from '../types';
+import { Note, NoteCategory, View, Period, DirectorProfile } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
@@ -46,7 +46,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find(p => p.type === 'Month')!, [mainDashboardPeriod]);
+  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'Month')!, [mainDashboardPeriod]);
   const [notesPeriod, setNotesPeriod] = useState<Period>(initialMonthlyPeriod);
 
   const defaultScope = JSON.stringify({ view: currentView });
@@ -87,7 +87,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setFilterCategory('All'); // Reset filter when view changes
   }, [currentView]);
 
-  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter(p => p.type === 'Month'), []);
+  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'Month'), []);
 
   const handlePrevPeriod = () => {
     const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
@@ -142,14 +142,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     const options: { label: string, value: string }[] = [];
     if (currentView === 'Total Company') {
       options.push({ label: "Total Company Notes", value: JSON.stringify({ view: 'Total Company' }) });
-      DIRECTORS.forEach(d => {
+      DIRECTORS.forEach((d: DirectorProfile) => {
         options.push({ label: `Notes for ${d.name}'s Region`, value: JSON.stringify({ view: d.id }) });
       });
     } else {
       const director = DIRECTORS.find(d => d.id === currentView);
       if (director) {
         options.push({ label: `Notes for ${director.name}'s Region`, value: JSON.stringify({ view: director.id }) });
-        director.stores.forEach(store => {
+        director.stores.forEach((store: string) => {
           options.push({ label: store, value: JSON.stringify({ view: director.id, storeId: store }) });
         });
       }
@@ -161,15 +161,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     if (!notesPeriod) return [];
     const scope = JSON.parse(selectedScope);
     return allNotes
-        .filter(note => 
+        .filter((note: Note) => 
             note.monthlyPeriodLabel === notesPeriod.label &&
             note.view === scope.view &&
             (note.storeId || undefined) === scope.storeId
         )
-        .filter(note => 
+        .filter((note: Note) => 
             filterCategory === 'All' || note.category === filterCategory
         )
-        .filter(note => 
+        .filter((note: Note) => 
             note.content.toLowerCase().includes(searchTerm.toLowerCase())
         );
   }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
@@ -239,7 +239,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 <p>No notes for this selection.</p>
            </div>
         ) : (
-          filteredNotes.map(note => (
+          filteredNotes.map((note: Note) => (
             <motion.div 
               key={note.id} 
               layout
@@ -331,7 +331,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 onChange={(e) => setSelectedScope(e.target.value)}
                 className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
                 >
-                {noteScopeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                {noteScopeOptions.map((opt: { label: string, value: string }) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
             <DiagnosticErrorPanel />
         </div>
@@ -346,7 +346,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
             />
             <div className="flex flex-wrap items-center gap-2">
-                {allNoteCategories.map(cat => {
+                {allNoteCategories.map((cat: 'All' | NoteCategory) => {
                     if (cat === 'All') {
                         return (
                             <button

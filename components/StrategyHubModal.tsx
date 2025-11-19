@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { uploadFile } from '../services/firebaseService';
-import { getStrategicAnalysis, deleteImportFile } from '../services/geminiService';
+import { uploadFile, listenToAnalysisJob } from '../services/firebaseService';
+import { startStrategicAnalysisJob, deleteImportFile } from '../services/geminiService';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
+import firebase from 'firebase/compat/app';
 
 interface StrategyHubModalProps {
   isOpen: boolean;
@@ -13,24 +14,35 @@ interface StrategyHubModalProps {
 
 export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'processing' | 'complete' | 'error'>('idle');
   const [analysisHtml, setAnalysisHtml] = useState('');
   const [error, setError] = useState<string | null>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
+  const unsubscribeRef = useRef<firebase.Unsubscribe | null>(null);
 
   const resetState = () => {
     setFile(null);
-    setIsLoading(false);
-    setLoadingMessage('');
+    setJobId(null);
+    setJobStatus('idle');
     setAnalysisHtml('');
     setError(null);
+    if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+    }
   };
 
   useEffect(() => {
     if (isOpen) {
       resetState();
     }
+    return () => {
+      // Ensure listener is cleaned up when modal is force-closed
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
   }, [isOpen]);
 
   const handleFileSelect = async (files: FileList | null) => {
@@ -62,13 +74,35 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && jobStatus === 'idle') {
       window.addEventListener('paste', handlePaste);
     }
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [isOpen, handlePaste]);
+  }, [isOpen, jobStatus, handlePaste]);
+
+  useEffect(() => {
+    if (jobId) {
+      unsubscribeRef.current = listenToAnalysisJob(jobId, (jobData) => {
+        if (!jobData) return;
+        setJobStatus(jobData.status);
+        if (jobData.status === 'complete') {
+          setError(null);
+          // FIX: marked.parse can return a string or a promise.
+          // Wrap with Promise.resolve to handle both cases consistently.
+          Promise.resolve(marked.parse(jobData.result || '')).then(html => setAnalysisHtml(html as string));
+          if (unsubscribeRef.current) unsubscribeRef.current();
+        } else if (jobData.status === 'error') {
+          setError(`Analysis failed: ${jobData.error || 'An unknown error occurred in the background job.'}`);
+          if (unsubscribeRef.current) unsubscribeRef.current();
+        }
+      });
+    }
+    return () => {
+      if (unsubscribeRef.current) unsubscribeRef.current();
+    };
+  }, [jobId]);
 
   const handleAnalyze = async () => {
     if (!file) {
@@ -76,33 +110,29 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       return;
     }
 
-    setIsLoading(true);
+    setJobStatus('pending');
     setError(null);
     setAnalysisHtml('');
     let filePath: string | null = null;
 
     try {
-      setLoadingMessage("Uploading to secure storage...");
       const uploadResult = await uploadFile(file);
       filePath = uploadResult.filePath;
-
-      setLoadingMessage("Analyzing document with AI...");
-      const result = await getStrategicAnalysis(uploadResult.fileUrl, file.type, file.name);
       
-      setLoadingMessage("Formatting results...");
-      const html = await marked.parse(result);
-      setAnalysisHtml(html);
+      const { jobId } = await startStrategicAnalysisJob({
+        ...uploadResult,
+        mimeType: file.type,
+        fileName: file.name
+      });
+      setJobId(jobId);
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";
       setError(`Analysis failed: ${errorMsg}`);
+      setJobStatus('error');
       console.error(err);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
       if (filePath) {
-        // Clean up the temporary file in the background
-        await deleteImportFile(filePath);
+        await deleteImportFile(filePath); // Cleanup on initial failure
       }
     }
   };
@@ -111,6 +141,16 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); };
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); handleFileSelect(e.dataTransfer.files); };
 
+  const isLoading = jobStatus === 'pending' || jobStatus === 'processing';
+  
+  const getLoadingMessage = () => {
+      switch (jobStatus) {
+          case 'pending': return 'Submitting analysis job...';
+          case 'processing': return 'AI analysis is in progress... This may take a moment.';
+          default: return '';
+      }
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="AI Strategy Hub" size="large">
       <div className="space-y-4">
@@ -118,7 +158,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
           Upload any document (e.g., a PDF of event sales, an image of a report, a marketing plan) and the AI will generate a strategic brief with key insights and recommendations.
         </p>
         
-        {!analysisHtml && !isLoading && (
+        {jobStatus !== 'complete' && !isLoading && (
           <div
             ref={dropzoneRef}
             onDragOver={onDragOver}
@@ -150,7 +190,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
               <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
               <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
             </div>
-            <p className="text-slate-400 mt-3">{loadingMessage}</p>
+            <p className="text-slate-400 mt-3">{getLoadingMessage()}</p>
           </div>
         )}
 

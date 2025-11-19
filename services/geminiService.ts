@@ -28,12 +28,12 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const getStrategicAnalysis = async (fileUrl: string, mimeType: string, fileName: string): Promise<string> => {
-    const result = await callAIApi('getStrategicAnalysis', { fileUrl, mimeType, fileName });
-    return result.content || "Could not generate strategic analysis.";
+export const startStrategicAnalysisJob = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ jobId: string }> => {
+    const result = await callAIApi('startStrategicAnalysis', payload);
+    return result; 
 };
 
-export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[], isDynamicSheet?: boolean }> => {
     try {
         const result = await callAIApi('extractKpisFromDocument', payload);
         return result;
@@ -43,7 +43,7 @@ export const extractKpisFromDocument = async (payload: { fileUrl: string, mimeTy
     }
 };
 
-export const extractKpisFromText = async (payload: { fileUrl: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }> => {
+export const extractKpisFromText = async (payload: { fileUrl: string, filePath: string }): Promise<{ dataType: 'Actuals' | 'Budget', data: any[], isDynamicSheet?: boolean }> => {
     try {
         const result = await callAIApi('extractKpisFromText', payload);
         return result;

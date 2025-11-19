@@ -24,6 +24,8 @@ let actualsCollection: firebase.firestore.CollectionReference<firebase.firestore
 let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let analysisJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+
 
 let isInitialized = false;
 
@@ -60,6 +62,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         budgetsCollection = db.collection('budgets');
         mappingsCollection = db.collection('data_mapping_templates');
         goalsCollection = db.collection('goals');
+        analysisJobsCollection = db.collection('analysis_jobs');
         
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
@@ -76,7 +79,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     }
 };
 
-const storeNameMap = ALL_STORES.reduce((acc, name) => {
+const storeNameMap = ALL_STORES.reduce((acc: Record<string, string>, name: string) => {
     const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     acc[key] = name;
     
@@ -144,7 +147,7 @@ export const batchImportActualsData = async (data: any[]): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
-    data.forEach(row => {
+    data.forEach((row: any) => {
         const storeId = cleanAndMatchStoreName(row['Store Name']);
         const rawDate = row['Week Start Date'];
         
@@ -196,7 +199,7 @@ export const batchImportBudgetData = async (data: any[]): Promise<void> => {
     if (!db || !budgetsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
-    data.forEach(row => {
+    data.forEach((row: any) => {
         const storeId = cleanAndMatchStoreName(row['Store Name']);
         const year = parseInt(row['Year']);
         const month = parseInt(row['Month']);
@@ -240,7 +243,7 @@ export const getPerformanceData = async (startDate: Date, endDate: Date): Promis
     if (!actualsCollection) return [];
     const q = actualsCollection.where('weekStartDate', '>=', startDate).where('weekStartDate', '<=', endDate);
     const snapshot = await q.get();
-    return snapshot.docs.map(doc => {
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => {
         const data = doc.data();
         return {
             ...data,
@@ -253,7 +256,7 @@ export const getBudgets = async (year: number): Promise<Budget[]> => {
     if (!budgetsCollection) return [];
     const q = budgetsCollection.where('year', '==', year);
     const snapshot = await q.get();
-    return snapshot.docs.map(doc => doc.data() as Budget);
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => doc.data() as Budget);
 };
 
 export const updateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number): Promise<void> => {
@@ -275,7 +278,7 @@ export const updateBudget = async (storeId: string, year: number, month: number,
 export const getGoals = async (): Promise<Goal[]> => {
     if (!goalsCollection) return [];
     const snapshot = await goalsCollection.get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Goal));
 };
 
 export const addGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {
@@ -290,7 +293,7 @@ export const getNotes = async (): Promise<Note[]> => {
     if (!notesCollection) return [];
     const q = notesCollection.orderBy('createdAt', 'desc');
     const snapshot = await q.get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString() } as Note));
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString() } as Note));
 };
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
@@ -332,11 +335,11 @@ export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
         const snapshot = await directorsCollection.get();
         if (snapshot.empty) {
             const batch = db.batch();
-            fallbackDirectors.forEach(director => batch.set(directorsCollection!.doc(director.id), director));
+            fallbackDirectors.forEach((director: DirectorProfile) => batch.set(directorsCollection!.doc(director.id), director));
             await batch.commit();
             return fallbackDirectors;
         }
-        return snapshot.docs.map(doc => doc.data() as DirectorProfile);
+        return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => doc.data() as DirectorProfile);
     } catch (e) {
         return fallbackDirectors;
     }
@@ -368,7 +371,7 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
         throw new Error("No KPI data provided to save.");
     }
     
-    const weeksInPeriod = ALL_PERIODS.filter(p => 
+    const weeksInPeriod = ALL_PERIODS.filter((p: Period) => 
         p.type === 'Week' && 
         p.startDate >= period.startDate && 
         p.endDate <= period.endDate
@@ -381,7 +384,7 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
     const batch = db.batch();
     const weekCount = weeksInPeriod.length;
 
-    weeksInPeriod.forEach(week => {
+    weeksInPeriod.forEach((week: Period) => {
         const docId = `${storeId}_${week.startDate.toISOString().split('T')[0]}`;
         const docRef = actualsCollection!.doc(docId);
         
@@ -424,18 +427,18 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     }
     
     const weeklyData: PerformanceData[] = storeDataSnapshot.docs
-        .map(doc => {
+        .map((doc: firebase.firestore.QueryDocumentSnapshot) => {
             const data = doc.data();
             return {
                 ...data,
                 weekStartDate: (data.weekStartDate as firebase.firestore.Timestamp).toDate()
             } as StorePerformanceData;
         })
-        .filter(item => 
+        .filter((item: StorePerformanceData) => 
             item.weekStartDate >= period.startDate && 
             item.weekStartDate <= period.endDate
         )
-        .map(item => item.data);
+        .map((item: StorePerformanceData) => item.data);
 
     if (weeklyData.length === 0) {
         return null;
@@ -444,7 +447,7 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     const aggregatedData: PerformanceData = {};
     const kpiCounts: Partial<{ [key in Kpi]: number }> = {};
 
-    weeklyData.forEach(week => {
+    weeklyData.forEach((week: PerformanceData) => {
         for (const key in week) {
             const kpi = key as Kpi;
             const value = week[kpi];
@@ -473,6 +476,35 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     return aggregatedData;
 };
 
+// --- Analysis Job Functions ---
+export const createAnalysisJob = async (payload: { fileUrl: string, filePath: string, mimeType: string, fileName: string }): Promise<string> => {
+    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
+    const docRef = await analysisJobsCollection.add({
+        ...payload,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+};
+
+// FIX: Add and export updateAnalysisJob to allow background functions to update job status.
+export const updateAnalysisJob = async (jobId: string, data: any): Promise<void> => {
+    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
+    await analysisJobsCollection.doc(jobId).update({
+        ...data,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+};
+
+export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): firebase.Unsubscribe => {
+    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
+    return analysisJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
+        if (doc.exists) {
+            callback({ id: doc.id, ...doc.data() });
+        }
+    });
+};
+
 // Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.
 // They could be used for a future "manual mapping" feature.
 export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {
@@ -484,7 +516,7 @@ export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate
 export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
     if (!mappingsCollection) return [];
     const snapshot = await mappingsCollection.orderBy('name').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
 };
 
 export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {

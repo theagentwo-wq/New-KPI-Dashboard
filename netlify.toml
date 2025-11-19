@@ -1,10 +1,12 @@
-# Increase the timeout for all serverless functions to 90 seconds.
-# This uses a wildcard to apply the setting to each function individually,
-# resolving a parser issue with the global [functions] block.
-[functions."*"]
-  timeout = 90
+# Netlify configuration for timeouts and background functions
 
-# Configure Netlify's secret scanner to prevent false positives.
-# This ignores known, non-sensitive key patterns in the Firebase SDK.
-[build.environment]
-  SECRETS_SCAN_IGNORE = "node_modules/@firebase/app/dist/app-public.d.ts,node_modules/@firebase/app/dist/app.d.ts"
+# Set the default timeout for all synchronous serverless functions to 25 seconds.
+# This provides a buffer for long-running AI analysis tasks in the Universal Data Hub.
+[functions]
+  timeout = 25
+
+# Define 'process-analysis-job' as a background function.
+# This allows it to run for up to 15 minutes, which is essential for the
+# asynchronous, long-running tasks in the AI Strategy Hub.
+[functions."process-analysis-job"]
+  background = true
