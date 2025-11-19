@@ -68,7 +68,7 @@ const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[
                     const sheetData = json.slice(headerIndex + 1)
                         .filter(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''))
                         .map(row => {
-                            return unifiedHeaders.reduce((obj, header, index) => {
+                            return unifiedHeaders.reduce((obj, header) => {
                                 obj[header] = row[headers.indexOf(header)] || '';
                                 return obj;
                             }, {} as { [key: string]: any });
