@@ -6,13 +6,14 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { GoalSetter } from './components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData } from './services/firebaseService';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob } from './services/firebaseService';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { StrategyHubModal } from './components/StrategyHubModal';
+import { ImportStatusIndicator } from './components/ImportStatusIndicator';
 
 // Main App Component
 const App: React.FC = () => {
@@ -34,6 +35,16 @@ const App: React.FC = () => {
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [isExecutiveSummaryOpen, setExecutiveSummaryOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | undefined>(undefined);
+
+    const [activeImportJob, setActiveImportJob] = useState<{
+        id: string;
+        // FIX: Add 'pending' to the step type to match the job lifecycle and resolve TS error.
+        step: 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';
+        statusLog: string[];
+        progress: { current: number; total: number };
+        errors: string[];
+        extractedData: any[];
+    } | null>(null);
 
     const fetchData = useCallback(async (period: Period) => {
         if (dbStatus.status === 'connected') {
@@ -71,6 +82,47 @@ const App: React.FC = () => {
             fetchData(getInitialPeriod());
         }
     }, [dbStatus.status, fetchData]);
+
+    useEffect(() => {
+        if (!activeImportJob?.id || (activeImportJob.step !== 'processing' && activeImportJob.step !== 'pending')) return;
+
+        const unsubscribe = listenToImportJob(activeImportJob.id, (jobData) => {
+            if (!jobData) return;
+
+            setActiveImportJob(prev => {
+                if (!prev) return null;
+                // Avoid log duplication, but allow status updates
+                const newLog = [...prev.statusLog];
+                const newStatus = `  -> Job status updated: ${jobData.status}`;
+                if (!newLog.includes(newStatus)) {
+                    newLog.push(newStatus);
+                }
+
+                if (jobData.status === 'complete' || jobData.status === 'error') {
+                    const finalStep = jobData.status === 'complete' ? (jobData.result?.isDynamicSheet ? 'guided-paste' : 'verify') : 'error';
+                    
+                    if (finalStep === 'guided-paste') {
+                         newLog.push("\nDynamic sheet detected! AI requires separate data for each store. Please use the Guided Paste workflow.");
+                         setImportDataOpen(true); // Re-open modal for guided paste
+                    }
+                    
+                    return {
+                        ...prev,
+                        step: finalStep,
+                        statusLog: newLog,
+                        progress: { ...prev.progress, current: prev.progress.total }, // Mark progress as complete
+                        extractedData: jobData.result?.isDynamicSheet ? [] : [jobData.result],
+                        errors: jobData.error ? [...prev.errors, jobData.error] : prev.errors,
+                    };
+                }
+                // For intermediate processing steps, just update the log
+                return { ...prev, statusLog: newLog };
+            });
+        });
+
+        return () => unsubscribe();
+    }, [activeImportJob?.id, activeImportJob?.step]);
+
 
     const addNoteHandler = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => {
         const newNote = await addNoteToDb(monthlyPeriodLabel, category, content, scope, imageDataUrl);
@@ -124,24 +176,53 @@ const App: React.FC = () => {
 
     const handleSaveDataForPeriod = async (storeId: string, period: Period, data: PerformanceData) => {
         await savePerformanceDataForPeriod(storeId, period, data);
-        // Re-fetch data to reflect changes immediately on the dashboard
         await fetchData(getInitialPeriod());
     };
 
-    const handleImportActuals = async (data: any[]) => {
-        await batchImportActualsData(data);
-        fetchData(getInitialPeriod());
-    };
+    const handleImportJobUpdate = useCallback((jobId: string, updates: Partial<typeof activeImportJob>) => {
+        setActiveImportJob(prev => prev && prev.id === jobId ? { ...prev, ...updates } as typeof activeImportJob : prev);
+    }, []);
 
-    const handleImportBudget = async (data: any[]) => {
-        await batchImportBudgetData(data);
-        fetchData(getInitialPeriod());
+    const handleConfirmImport = async (verifiedData: any[]) => {
+        if (!activeImportJob) return;
+
+        handleImportJobUpdate(activeImportJob.id, { step: 'processing', statusLog: [...activeImportJob.statusLog, 'Beginning final import...'] });
+        
+        let hasErrors = false;
+        const newLogs = [...activeImportJob.statusLog];
+
+        for (const item of verifiedData) {
+            newLogs.push(`Importing '${item.dataType}' from '${item.sourceName}'...`);
+            try {
+                if (item.dataType === 'Actuals') await batchImportActualsData(item.data);
+                else if (item.dataType === 'Budget') await batchImportBudgetData(item.data);
+                newLogs.push(`  -> SUCCESS: Imported ${item.data.length} rows.`);
+            } catch (err) {
+                hasErrors = true;
+                const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+                newLogs.push(`  -> ERROR: ${errorMsg}`);
+                handleImportJobUpdate(activeImportJob.id, { errors: [...activeImportJob.errors, `IMPORT FAILED: ${item.sourceName} - ${errorMsg}`] });
+            }
+        }
+        
+        newLogs.push('\nImport Complete.');
+        handleImportJobUpdate(activeImportJob.id, { step: 'finished', statusLog: newLogs });
+        fetchData(getInitialPeriod()); // Refresh dashboard data
     };
 
     const openProfileModal = (director: DirectorProfile) => {
         setSelectedDirector(director);
         setProfileOpen(true);
     };
+
+    const openImportModal = () => {
+        if (activeImportJob) {
+            setImportDataOpen(true);
+        } else {
+            setActiveImportJob(null);
+            setImportDataOpen(true);
+        }
+    }
 
     return (
         <div className="bg-slate-900 min-h-screen text-slate-200 flex">
@@ -155,7 +236,7 @@ const App: React.FC = () => {
                 directors={directors}
                 onOpenProfile={openProfileModal}
                 onOpenAlerts={() => setIsAlertsModalOpen(true)}
-                onOpenDataEntry={() => setImportDataOpen(true)}
+                onOpenDataEntry={openImportModal}
                 onOpenStrategyHub={() => setStrategyHubOpen(true)}
                 onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
                 onOpenExecutiveSummary={() => setExecutiveSummaryOpen(true)}
@@ -185,7 +266,6 @@ const App: React.FC = () => {
                                 isAlertsModalOpen={isAlertsModalOpen}
                                 setIsAlertsModalOpen={setIsAlertsModalOpen}
                                 isExecutiveSummaryOpen={isExecutiveSummaryOpen}
-                                // FIX: Corrected typo from setIsExecutiveSummaryOpen to setExecutiveSummaryOpen to match the state setter.
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
@@ -198,13 +278,21 @@ const App: React.FC = () => {
             </div>
 
 
-            {/* Modals */}
+            {/* Modals & Indicators */}
              <ImportDataModal 
                 isOpen={isImportDataOpen}
                 onClose={() => setImportDataOpen(false)}
-                onImportActuals={handleImportActuals}
-                onImportBudget={handleImportBudget}
+                activeJob={activeImportJob}
+                setActiveJob={setActiveImportJob}
+                onConfirmImport={handleConfirmImport}
             />
+             {activeImportJob && !isImportDataOpen && (
+                <ImportStatusIndicator
+                    job={activeImportJob}
+                    onExpand={() => setImportDataOpen(true)}
+                    onDismiss={() => setActiveImportJob(null)}
+                />
+            )}
             <StrategyHubModal
                 isOpen={isStrategyHubOpen}
                 onClose={() => setStrategyHubOpen(false)}
