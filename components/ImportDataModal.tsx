@@ -105,7 +105,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setIsProcessing(true);
     setStatusLog([]);
     setErrors([]);
-    let importSuccess = false;
 
     const processAndImport = async (processor: () => Promise<{ dataType: 'Actuals' | 'Budget', data: any[] }>, sourceName: string) => {
         setStatusLog(prev => [...prev, `  -> Asking AI to analyze ${sourceName}...`]);
@@ -124,7 +123,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         } else {
             throw new Error(`Unknown data type returned by AI: ${result.dataType}`);
         }
-        importSuccess = true;
     };
 
 
