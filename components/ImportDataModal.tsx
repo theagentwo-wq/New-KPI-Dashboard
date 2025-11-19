@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { DataMappingTemplate, Kpi } from '../types';
@@ -30,144 +31,177 @@ const parseCSV = (text: string): { headers: string[], data: any[] } => {
     return { headers, data };
 };
 
-const parseExcel = (file: File): Promise<{ headers: string[], data: any[] }> => {
+const parseExcelWorkbook = (file: File): Promise<{ headers: string[], data: any[] }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const data = e.target?.result;
                 const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                if (json.length === 0) {
-                    resolve({ headers: [], data: [] });
-                    return;
+                let allData: any[] = [];
+                let unifiedHeaders: string[] = [];
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (json.length === 0) return;
+
+                    let headerIndex = json.findIndex(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''));
+                    if (headerIndex === -1) return;
+                    
+                    const headers = json[headerIndex].map(h => String(h).trim());
+                    // Use the headers from the first valid sheet as the master header list
+                    if (unifiedHeaders.length === 0 && headers.length > 0) {
+                        unifiedHeaders = headers;
+                    }
+                    
+                    const sheetData = json.slice(headerIndex + 1)
+                        .filter(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''))
+                        .map(row => {
+                            return headers.reduce((obj, header, index) => {
+                                obj[header] = row[index] || '';
+                                return obj;
+                            }, {} as { [key: string]: any });
+                        });
+                    
+                    allData = allData.concat(sheetData);
+                });
+
+                if (allData.length === 0) {
+                     reject(new Error("No data rows found in any of the workbook's sheets."));
+                } else {
+                     resolve({ headers: unifiedHeaders, data: allData });
                 }
-                
-                let headerIndex = json.findIndex(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''));
-                if (headerIndex === -1) {
-                    resolve({ headers: [], data: [] });
-                    return;
-                }
-                
-                const headers = json[headerIndex].map(h => String(h).trim());
-                const parsedData = json.slice(headerIndex + 1)
-                    .filter(row => Array.isArray(row) && row.some(cell => cell && String(cell).trim() !== ''))
-                    .map(row => {
-                        return headers.reduce((obj, header, index) => {
-                            obj[header] = row[index] || '';
-                            return obj;
-                        }, {} as { [key: string]: any });
-                    });
-                resolve({ headers, data: parsedData });
             } catch (error) {
                 reject(error);
             }
         };
+        reader.onerror = (error) => reject(error);
         reader.readAsArrayBuffer(file);
     });
 };
 
 
 export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [statusLog, setStatusLog] = useState<string[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  const resetState = () => {
+    setFiles([]);
+    setIsProcessing(false);
+    setProgress({ current: 0, total: 0 });
+    setStatusLog([]);
+    setErrors([]);
+  };
 
   useEffect(() => {
-    if (isOpen) {
-      setFile(null); setIsLoading(false); setStatusMessage(null); setError(null);
-    }
+    if (isOpen) resetState();
   }, [isOpen]);
 
-  const handleFileDrop = (files: FileList) => {
-    if (files && files[0]) { setFile(files[0]); setError(null); }
+  useEffect(() => {
+    if (logContainerRef.current) {
+        logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [statusLog]);
+
+  const handleFileDrop = (fileList: FileList) => {
+    if (fileList && fileList.length > 0) {
+      setFiles(Array.from(fileList));
+      setStatusLog([]);
+      setErrors([]);
+    }
   };
 
   const handleImport = async () => {
-    if (!file) { setError('Please select a file to upload.'); return; }
+    if (files.length === 0) {
+      setErrors(['Please select at least one file to upload.']);
+      return;
+    }
 
-    setIsLoading(true); setStatusMessage('Reading and parsing file...'); setError(null);
-    const fileType = file.name.split('.').pop()?.toLowerCase() || '';
-    
-    try {
-        if (['csv', 'xlsx', 'xlsm'].includes(fileType)) {
-            // Tabular Data Flow (CSV/Excel) - NOW FULLY AUTOMATED
-            setStatusMessage(`Parsing ${file.name}...`);
-            const { headers, data } = fileType === 'csv' 
-                ? parseCSV(await file.text())
-                : await parseExcel(file);
-            
-            if (data.length === 0) throw new Error("Could not find any data rows in the file.");
-            
-            const isBudget = headers.includes('Year') && headers.includes('Month');
-            
-            if (isBudget) {
-                setStatusMessage('Detected Budget format. Importing...');
-                await batchImportBudgets(data);
-            } else {
-                // Actuals: AI-driven mapping, no user interaction
-                setStatusMessage('Asking AI to map columns...');
+    setIsProcessing(true);
+    setProgress({ current: 0, total: files.length });
+    setStatusLog([]);
+    setErrors([]);
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const currentFileNum = i + 1;
+        setProgress({ current: currentFileNum, total: files.length });
+        setStatusLog(prev => [...prev, `[${currentFileNum}/${files.length}] Processing ${file.name}...`]);
+
+        const fileType = file.name.split('.').pop()?.toLowerCase() || '';
+
+        try {
+            if (['xlsx', 'xlsm'].includes(fileType)) {
+                const { headers, data } = await parseExcelWorkbook(file);
+                if (data.length === 0) throw new Error("No data rows found in any sheet.");
+                const isBudget = headers.includes('Year') && headers.includes('Month');
+                if (isBudget) {
+                     setStatusLog(prev => [...prev, `  -> Detected Budget format. Importing...`]);
+                     await batchImportBudgets(data);
+                } else {
+                     setStatusLog(prev => [...prev, `  -> Asking AI to map columns...`]);
+                     const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
+                     const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
+                     const adHocTemplate: DataMappingTemplate = {
+                        id: 'ad-hoc', name: `AI Map for ${file.name}`, headers,
+                        mappings: suggestedMappings as DataMappingTemplate['mappings'],
+                     };
+                     setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
+                     await batchImportActuals(data, adHocTemplate);
+                }
+            } else if (fileType === 'csv') {
+                const { headers, data } = parseCSV(await file.text());
+                if (data.length === 0) throw new Error("No data rows found in CSV.");
+                setStatusLog(prev => [...prev, `  -> Asking AI to map columns...`]);
                 const appKpis = ['Store Name', 'Week Start Date', ...Object.values(Kpi), 'ignore'];
                 const suggestedMappings = await getAIAssistedMapping(headers, appKpis);
-                
                 const adHocTemplate: DataMappingTemplate = {
-                    id: 'ad-hoc-template', // Not saved, just for type compliance
-                    name: `Ad-hoc for ${file.name}`,
-                    headers: headers,
+                    id: 'ad-hoc', name: `AI Map for ${file.name}`, headers,
                     mappings: suggestedMappings as DataMappingTemplate['mappings'],
                 };
-                
-                setStatusMessage(`Applying AI-generated map and importing data...`);
+                setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
                 await batchImportActuals(data, adHocTemplate);
-            }
-            
-            setStatusMessage('Successfully imported data!');
-            setTimeout(() => { onImportSuccess(); onClose(); }, 1500);
 
-        } else if (['png', 'jpg', 'jpeg', 'pdf', 'docx'].includes(fileType)) {
-            // AI Vision Flow (Image/PDF/Doc)
-            setStatusMessage('Analyzing document with AI Vision...');
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const base64Data = (e.target?.result as string).split(',')[1];
-                    const context = `Identify the week start dates directly from the document visual or text.`;
-                    let extractedData;
-
-                    if (['png', 'jpg', 'jpeg'].includes(fileType)) {
-                        extractedData = await extractKpisFromImage(base64Data, context);
-                    } else { // PDF, DOCX
-                        extractedData = await extractKpisFromDocument(base64Data, file.type, context);
-                    }
-
-                    if (extractedData.length === 0) throw new Error("AI could not extract any valid data from the document.");
-                    
-                    setStatusMessage(`AI extracted ${extractedData.length} weekly records. Importing...`);
-                    await batchImportStructuredActuals(extractedData);
-                    setStatusMessage('Successfully imported data from document!');
-                    setTimeout(() => { onImportSuccess(); onClose(); }, 1500);
-
-                } catch(err) {
-                    const errorMsg = err instanceof Error ? err.message : 'AI analysis failed.';
-                    setError(errorMsg);
-                    setIsLoading(false);
+            } else if (['png', 'jpg', 'jpeg', 'pdf', 'docx'].includes(fileType)) {
+                setStatusLog(prev => [...prev, `  -> Analyzing with AI Vision...`]);
+                const base64Data = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                  reader.onerror = (error) => reject(error);
+                  reader.readAsDataURL(file);
+                });
+                const context = `Identify week start dates from document text.`;
+                let extractedData;
+                if (['png', 'jpg', 'jpeg'].includes(fileType)) {
+                    extractedData = await extractKpisFromImage(base64Data, context);
+                } else {
+                    extractedData = await extractKpisFromDocument(base64Data, file.type, context);
                 }
-            };
-            reader.readAsDataURL(file);
-        } else {
-            throw new Error('Unsupported file type.');
-        }
+                if (!extractedData || extractedData.length === 0) throw new Error("AI could not extract valid data.");
+                setStatusLog(prev => [...prev, `  -> AI extracted ${extractedData.length} records. Importing...`]);
+                await batchImportStructuredActuals(extractedData);
+            } else {
+                throw new Error(`Unsupported file type: .${fileType}`);
+            }
+            setStatusLog(prev => [...prev, `  -> SUCCESS: ${file.name} imported.`]);
 
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(errorMsg);
-      setIsLoading(false);
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+            setErrors(prev => [...prev, `FAILED: ${file.name} - ${errorMsg}`]);
+            setStatusLog(prev => [...prev, `  -> ERROR: ${errorMsg}`]);
+        }
     }
+
+    setStatusLog(prev => [...prev, `\nImport Complete.`]);
+    setIsProcessing(false);
+    onImportSuccess();
   };
 
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.add('border-cyan-500', 'bg-slate-700'); };
@@ -176,45 +210,75 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   
   const acceptedFileTypes = ".csv, .xlsx, .xlsm, .png, .jpg, .jpeg, .pdf, .docx";
 
+  const isFinished = !isProcessing && progress.total > 0;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Universal Data Hub">
       <div className="space-y-4">
-        <p className="text-slate-300 text-sm">
-            Upload any Weekly Actuals or Annual Budget file. The system will automatically detect the file type, dates, and data structure.
-        </p>
-
-        <div 
-          ref={dropzoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
-          onClick={() => document.getElementById('file-upload')?.click()}
-          className="border-2 border-dashed border-slate-600 rounded-lg p-10 text-center cursor-pointer transition-colors hover:bg-slate-800/50"
-        >
-          <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} />
-          <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
-          {file ? (
-            <p className="text-slate-200 text-lg">File selected: <span className="font-bold text-cyan-400">{file.name}</span></p>
-          ) : (
-            <>
-              <p className="text-slate-300 font-medium text-lg">Drag & drop a report here</p>
-              <p className="text-sm text-slate-500 mt-2">Supports Excel, CSV, Images, PDF, and Word</p>
-            </>
-          )}
-        </div>
-
-        {isLoading && (
-            <div className="flex items-center justify-center gap-2 text-cyan-400 mt-4">
-                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
-                 <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
-                 <p>{statusMessage}</p>
+        {!isProcessing && !isFinished && (
+             <p className="text-slate-300 text-sm">
+                Upload any Weekly Actuals or Annual Budget file. The system will automatically detect the file type, dates, and data structure, even across multiple tabs in an Excel workbook.
+            </p>
+        )}
+       
+        {!isProcessing && !isFinished && (
+            <div 
+            ref={dropzoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
+            onClick={() => document.getElementById('file-upload')?.click()}
+            className="border-2 border-dashed border-slate-600 rounded-lg p-10 text-center cursor-pointer transition-colors hover:bg-slate-800/50"
+            >
+                <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} multiple />
+                <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
+                {files.length > 0 ? (
+                    <p className="text-slate-200 text-lg">{files.length} file(s) selected</p>
+                ) : (
+                    <>
+                    <p className="text-slate-300 font-medium text-lg">Drag & drop one or more files here</p>
+                    <p className="text-sm text-slate-500 mt-2">Supports Excel, CSV, Images, PDF, and Word</p>
+                    </>
+                )}
             </div>
         )}
-        {error && <p className="text-center text-red-400 bg-red-900/50 p-2 rounded-md border border-red-700">{error}</p>}
+        
+        {(isProcessing || isFinished) && (
+            <div className="space-y-3">
+                 <div className="flex justify-between items-center text-sm">
+                    <p className="text-cyan-400 font-semibold">{isProcessing ? 'Importing...' : 'Finished'}</p>
+                    <p className="text-slate-400">{progress.current} / {progress.total}</p>
+                 </div>
+                 <div className="w-full bg-slate-700 rounded-full h-2.5">
+                    <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${(progress.current / progress.total) * 100}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                </div>
+                <div ref={logContainerRef} className="bg-slate-900 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto custom-scrollbar text-xs font-mono">
+                    {statusLog.map((log, i) => (
+                        <p key={i} className={log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : 'text-slate-400'}>
+                            {log}
+                        </p>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {errors.length > 0 && (
+            <div className="space-y-1">
+                 <h3 className="text-sm font-bold text-red-400">Errors Encountered:</h3>
+                {errors.map((err, i) => (
+                    <p key={i} className="text-xs text-red-400 bg-red-900/30 p-1.5 rounded-md">{err}</p>
+                ))}
+            </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-4 border-t border-slate-700 mt-4">
-          <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
-          <button onClick={handleImport} disabled={isLoading || !file} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
-            {isLoading ? 'Processing...' : 'Import Data'}
-          </button>
+          {isFinished ? (
+            <button onClick={onClose} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md shadow-lg shadow-cyan-900/20">Close</button>
+          ) : (
+            <>
+                <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
+                <button onClick={handleImport} disabled={isProcessing || files.length === 0} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
+                    {isProcessing ? 'Processing...' : `Import ${files.length} File(s)`}
+                </button>
+            </>
+          )}
         </div>
       </div>
     </Modal>
