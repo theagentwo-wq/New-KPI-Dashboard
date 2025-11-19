@@ -1,7 +1,7 @@
 // FIX: Resolve Buffer and stream errors for environments where Node.js types are not available to TypeScript.
 import { GoogleGenAI, Type } from "@google/genai";
 import fetch from 'node-fetch';
-import { Netlify, NetlifyResponse } from 'netlify-functions-ts';
+// FIX: The invalid import 'netlify-functions-ts' has been removed.
 import { createAnalysisJob } from '../../services/firebaseService';
 
 // FIX: Declare Buffer as a global type to resolve TypeScript errors.
@@ -108,12 +108,18 @@ export const handler = async (event: any, context: any) => {
 
     switch (action) {
       case 'startStrategicAnalysis': {
-        const netlify = new Netlify(context);
         const jobId = await createAnalysisJob(payload);
         
-        // Asynchronously invoke the background function to do the heavy lifting
-        await netlify.functions.invoke('process-analysis-job', {
-            payload: { jobId }
+        // FIX: Replaced the non-existent 'netlify.functions.invoke' with a standard fetch call
+        // to reliably trigger the background function.
+        const origin = new URL(event.rawUrl).origin;
+        const functionUrl = `${origin}/.netlify/functions/process-analysis-job`;
+
+        fetch(functionUrl, {
+            method: 'POST',
+            body: JSON.stringify({ payload: { jobId } })
+        }).catch(err => {
+            console.error("Error invoking background function 'process-analysis-job':", err);
         });
 
         // Immediately return the jobId to the client

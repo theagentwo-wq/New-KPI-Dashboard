@@ -1,6 +1,6 @@
 const { GoogleGenAI, Type } = require("@google/genai");
 const fetch = require('node-fetch');
-const { Netlify } = require('netlify-functions-ts');
+// FIX: The invalid require('netlify-functions-ts') has been removed.
 const { createAnalysisJob } = require('../../services/firebaseService');
 
 
@@ -104,12 +104,17 @@ exports.handler = async (event, context) => {
 
     switch (action) {
       case 'startStrategicAnalysis': {
-        const netlify = new Netlify(context);
         const jobId = await createAnalysisJob(payload);
         
-        // Asynchronously invoke the background function to do the heavy lifting
-        await netlify.functions.invoke('process-analysis-job', {
-            payload: { jobId }
+        // FIX: Replaced invoke logic with a standard fetch call.
+        const origin = new URL(event.rawUrl).origin;
+        const functionUrl = `${origin}/.netlify/functions/process-analysis-job`;
+
+        fetch(functionUrl, {
+            method: 'POST',
+            body: JSON.stringify({ payload: { jobId } })
+        }).catch(err => {
+            console.error("Error invoking background function 'process-analysis-job':", err);
         });
 
         // Immediately return the jobId to the client
