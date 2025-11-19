@@ -2,7 +2,7 @@
 
 # Set the default timeout for all synchronous serverless functions to 25 seconds.
 # This provides a buffer for long-running AI analysis tasks in the Universal Data Hub.
-[functions "*"]
+[functions]
   timeout = 25
 
 # Define 'process-analysis-job' as a background function.
