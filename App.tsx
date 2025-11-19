@@ -13,7 +13,7 @@ import { NewsFeedPage } from './pages/NewsFeedPage';
 import { ImportDataModal } from './components/ImportDataModal';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { StrategyHubModal } from './components/StrategyHubModal';
-import { ImportStatusIndicator } from './components/ImportStatusIndicator';
+import { ImportStatusIndicator } from './components/ImportStatusIndicator.tsx';
 
 // Main App Component
 const App: React.FC = () => {
@@ -283,8 +283,8 @@ const App: React.FC = () => {
              <ImportDataModal 
                 isOpen={isImportDataOpen}
                 onClose={() => setImportDataOpen(false)}
-                activeJob={activeJob}
-                setActiveJob={setActiveJob}
+                activeJob={activeImportJob}
+                setActiveJob={setActiveImportJob}
                 onConfirmImport={handleConfirmImport}
             />
              {activeImportJob && !isImportDataOpen && (
