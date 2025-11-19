@@ -1,7 +1,14 @@
-# Netlify configuration for timeouts and background functions
+# Netlify build and functions configuration for the "Hardened Monorepo" architecture.
+# This is a static file and should not be modified by any build scripts.
+
+[build]
+  # The command to build the entire project (backend functions first, then frontend client).
+  command = "npm run build"
+  # The directory that contains the built frontend application.
+  publish = "dist"
 
 [functions]
-  # Tell Netlify where to find the compiled serverless functions.
+  # Tell Netlify where to find the FINAL, COMPILED serverless functions.
   directory = "functions-dist"
   # Set the default timeout for all synchronous serverless functions to 25 seconds.
   timeout = 25
