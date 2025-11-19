@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { extractKpisFromDocument, extractKpisFromText, deleteImportFile } from '../services/geminiService';
 import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 import { ALL_STORES } from '../constants';
+import * as XLSX from 'xlsx';
 
 interface ImportDataModalProps {
   isOpen: boolean;
@@ -112,6 +113,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [step, setStep] = useState<ImportStep>('upload');
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedText, setStagedText] = useState<string>('');
+  const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -123,6 +126,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStep('upload');
     setStagedFiles([]);
     setStagedText('');
+    setStagedWorkbook(null);
+    setSelectedSheets([]);
     setProgress({ current: 0, total: 0 });
     setStatusLog([]);
     setErrors([]);
@@ -133,12 +138,30 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   useEffect(() => { if (logContainerRef.current) { logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight; } }, [statusLog]);
   
   const processAndSetFiles = async (files: File[]) => {
-      setStatusLog(['Optimizing images before upload...']);
-      const resizedFiles = await Promise.all(files.map(resizeImage));
-      setStagedFiles(resizedFiles);
-      setStagedText('');
-      setErrors([]);
-      setStatusLog([]);
+      const excelFile = files.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+      if (excelFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetNames = workbook.SheetNames;
+            setStagedWorkbook({ file: excelFile, sheets: sheetNames });
+            setSelectedSheets(sheetNames); // Select all by default
+            setStagedFiles([]);
+            setStagedText('');
+            setErrors([]);
+            setStatusLog([]);
+        };
+        reader.readAsArrayBuffer(excelFile);
+      } else {
+        setStatusLog(['Optimizing images before upload...']);
+        const resizedFiles = await Promise.all(files.map(resizeImage));
+        setStagedFiles(resizedFiles);
+        setStagedWorkbook(null);
+        setStagedText('');
+        setErrors([]);
+        setStatusLog([]);
+      }
   };
 
   const handleFileDrop = (fileList: FileList) => { if (fileList && fileList.length > 0) processAndSetFiles(Array.from(fileList)); };
@@ -158,6 +181,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             items[i].getAsString((text) => {
                 setStagedText(text);
                 setStagedFiles([]);
+                setStagedWorkbook(null);
                 setStatusLog([]);
                 setErrors([]);
             });
@@ -170,9 +194,17 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     if (isOpen) window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, [isOpen, handlePaste]);
+  
+  const handleToggleSheet = (sheetName: string) => {
+    setSelectedSheets(prev => prev.includes(sheetName) ? prev.filter(s => s !== sheetName) : [...prev, sheetName]);
+  };
 
   const handleAnalyze = async () => {
-    if (stagedFiles.length === 0 && !stagedText.trim()) {
+    const hasFiles = stagedFiles.length > 0;
+    const hasText = stagedText.trim().length > 0;
+    const hasWorkbook = stagedWorkbook && selectedSheets.length > 0;
+
+    if (!hasFiles && !hasText && !hasWorkbook) {
       setErrors(['Please select files, paste an image, or paste text to analyze.']);
       return;
     }
@@ -182,9 +214,9 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setExtractedData([]);
 
     let jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[] = [];
-    if (stagedFiles.length > 0) {
+    if (hasFiles) {
         jobs = stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }));
-    } else {
+    } else if (hasText) {
         const yearRegex = /(\d{4} Weekly Sales Breakdown)/g;
         const chunks = stagedText.split(yearRegex).filter(Boolean);
         if (chunks.length > 1) {
@@ -192,8 +224,31 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         } else {
             jobs.push({ type: 'text-chunk', content: stagedText, name: 'Pasted text' });
         }
+    } else if (hasWorkbook) {
+        const workbookFile = stagedWorkbook.file;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetJobs = selectedSheets.map(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const csvText = XLSX.utils.sheet_to_csv(worksheet);
+                return {
+                    type: 'text-chunk' as const,
+                    content: csvText,
+                    name: `${workbookFile.name} - ${sheetName}`
+                };
+            });
+            await runAnalysisJobs(sheetJobs);
+        };
+        reader.readAsArrayBuffer(workbookFile);
+        return; // runAnalysisJobs will be called asynchronously
     }
 
+    await runAnalysisJobs(jobs);
+  };
+
+  const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     setProgress({ current: 0, total: jobs.length });
     const allExtractedData: ExtractedData[] = [];
 
@@ -202,21 +257,21 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         const currentJobNum = i + 1;
         setProgress({ current: currentJobNum, total: jobs.length });
         setStatusLog(prev => [...prev, `[${currentJobNum}/${jobs.length}] Analyzing chunk: '${job.name}'...`]);
-        let fileUrl: string | null = null, filePath: string | null = null;
+        let filePath: string | null = null;
         try {
             let result: { dataType: 'Actuals' | 'Budget', data: any[] };
             if (job.type === 'file') {
                 setStatusLog(prev => [...prev, `  -> Uploading file to secure storage...`]);
                 const uploadResult = await uploadFile(job.content as File);
-                ({ fileUrl, filePath } = uploadResult);
+                ({ filePath } = uploadResult);
                 setStatusLog(prev => [...prev, `  -> Asking AI to analyze document...`]);
-                result = await extractKpisFromDocument({ fileUrl, filePath, mimeType: (job.content as File).type, fileName: job.name });
+                result = await extractKpisFromDocument({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name });
             } else {
                 setStatusLog(prev => [...prev, `  -> Uploading text chunk to secure storage...`]);
                 const uploadResult = await uploadTextAsFile(job.content as string, job.name);
-                ({ fileUrl, filePath } = uploadResult);
+                ({ filePath } = uploadResult);
                 setStatusLog(prev => [...prev, `  -> Asking AI to analyze text chunk...`]);
-                result = await extractKpisFromText({ fileUrl, filePath });
+                result = await extractKpisFromText(uploadResult);
             }
             if (!result.dataType || !result.data) throw new Error("AI analysis returned an unexpected format.");
             allExtractedData.push({ ...result, sourceName: job.name });
@@ -237,7 +292,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       setStatusLog(prev => [...prev, `\nAnalysis Complete. No data was successfully extracted.`]);
       setStep('finished');
     }
-  };
+  }
 
   const handleDataChange = (sourceIndex: number, rowIndex: number, column: string, value: string) => {
       const newData = [...extractedData];
@@ -290,7 +345,20 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
               className="border-2 border-dashed border-slate-600 rounded-lg p-10 text-center cursor-pointer transition-colors hover:bg-slate-800/50">
               <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} multiple />
               <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
-              {stagedFiles.length > 0 ? (
+              {stagedWorkbook ? (
+                 <div className="text-slate-200 text-sm text-left">
+                    <p className="font-bold text-lg text-center mb-2">{stagedWorkbook.file.name}</p>
+                    <p className="text-xs text-slate-400 mb-2">Select sheets to analyze:</p>
+                    <div className="max-h-24 overflow-y-auto custom-scrollbar space-y-1 p-2 bg-slate-900/50 rounded-md">
+                        {stagedWorkbook.sheets.map(sheet => (
+                            <label key={sheet} className="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" checked={selectedSheets.includes(sheet)} onChange={() => handleToggleSheet(sheet)} className="form-checkbox h-4 w-4 bg-slate-700 border-slate-600 text-cyan-500 rounded focus:ring-cyan-500"/>
+                                <span>{sheet}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+              ) : stagedFiles.length > 0 ? (
                 <div className="text-slate-200 text-sm">
                   <p className="font-bold text-lg">{stagedFiles.length} file(s) selected:</p>
                   <ul className="mt-2 text-left max-h-24 overflow-y-auto custom-scrollbar list-disc pl-5">
@@ -374,12 +442,13 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
 
   const renderFooter = () => {
+      const isAnalyzeDisabled = stagedFiles.length === 0 && !stagedText.trim() && (!stagedWorkbook || selectedSheets.length === 0);
       switch(step) {
           case 'upload':
               return (
                 <>
                     <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
-                    <button onClick={handleAnalyze} disabled={stagedFiles.length === 0 && !stagedText.trim()} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
+                    <button onClick={handleAnalyze} disabled={isAnalyzeDisabled} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
                         Analyze
                     </button>
                 </>
