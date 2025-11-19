@@ -154,7 +154,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                         mappings: suggestedMappings as DataMappingTemplate['mappings'],
                      };
                      setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                     await batchImportActuals(data, adHocTemplate);
+                     await batchImportActuals(data, adHocTemplate, file.name);
                 }
             } else if (fileType === 'csv') {
                 const { headers, data } = parseCSV(await file.text());
@@ -167,7 +167,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                     mappings: suggestedMappings as DataMappingTemplate['mappings'],
                 };
                 setStatusLog(prev => [...prev, `  -> Applying AI map and importing data...`]);
-                await batchImportActuals(data, adHocTemplate);
+                await batchImportActuals(data, adHocTemplate, file.name);
 
             } else if (['png', 'jpg', 'jpeg', 'pdf', 'docx'].includes(fileType)) {
                 setStatusLog(prev => [...prev, `  -> Analyzing with AI Vision...`]);

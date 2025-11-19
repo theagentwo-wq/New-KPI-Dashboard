@@ -136,19 +136,26 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
 }
 
 
-export const batchImportActuals = async (data: any[], template: DataMappingTemplate): Promise<void> => {
+export const batchImportActuals = async (data: any[], template: DataMappingTemplate, fileName?: string): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     const batch = db.batch();
 
     const storeNameHeader = Object.keys(template.mappings).find(h => template.mappings[h] === 'Store Name');
     const dateHeader = Object.keys(template.mappings).find(h => template.mappings[h] === 'Week Start Date');
     
-    if (!storeNameHeader) throw new Error("Mapping template is invalid: missing 'Store Name' mapping.");
-    if (!dateHeader) throw new Error("Mapping template is invalid: missing 'Week Start Date' mapping.");
+    if (!dateHeader) throw new Error("Mapping failed: AI could not identify a date column in the file.");
+
+    let fileNameStoreId: string | null = null;
+    if (!storeNameHeader && fileName) {
+        fileNameStoreId = cleanAndMatchStoreName(fileName);
+    }
+    
+    if (!storeNameHeader && !fileNameStoreId) {
+        throw new Error("Mapping failed: AI could not find a 'Store Name' column, and the file name did not match a known store.");
+    }
 
     data.forEach(row => {
-        const rawStoreName = row[storeNameHeader];
-        const storeId = cleanAndMatchStoreName(rawStoreName);
+        const storeId = storeNameHeader ? cleanAndMatchStoreName(row[storeNameHeader]) : fileNameStoreId;
         const rawDate = row[dateHeader];
         
         if (storeId && rawDate) {
@@ -189,7 +196,7 @@ export const batchImportActuals = async (data: any[], template: DataMappingTempl
                 }, { merge: true }); // Use merge:true to upsert
             }
         } else {
-             console.warn(`Could not match store name or date: "${rawStoreName}", "${rawDate}"`);
+             console.warn(`Could not match store name or date: "${storeNameHeader ? row[storeNameHeader] : 'from file name'}", "${rawDate}"`);
         }
     });
 

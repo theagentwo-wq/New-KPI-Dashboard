@@ -101,17 +101,18 @@ You must visually identify the dates or fiscal periods present in the document. 
 
       case 'getAIAssistedMapping': {
         const { headers: csvHeaders, kpis: appKpis } = payload;
-        const prompt = `You are an intelligent data mapping assistant. Map the user's CSV headers to the application's predefined KPIs.
+        const prompt = `You are an intelligent data mapping assistant for a multi-unit restaurant group. Your primary goal is to map the user's spreadsheet headers to the application's predefined fields.
 
-        **Application KPIs:** ${appKpis.join(', ')}
-        **CSV Headers:** ${csvHeaders.join(', ')}
+**Application Fields:** ${appKpis.join(', ')}
+**Spreadsheet Headers:** ${csvHeaders.join(', ')}
 
-        **Instructions:**
-        - For each CSV header, find the best match from the Application KPIs.
-        - If a header is for the store location, map it to "Store Name".
-        - If it's a date, map to "Week Start Date".
-        - If there is no clear match, you MUST map it to "ignore".
-        - Your response MUST be a valid JSON object where keys are the original CSV headers and values are the mapped KPIs.`;
+**CRITICAL INSTRUCTIONS:**
+1.  Your most important task is to find the "Store Name" and "Week Start Date" columns.
+2.  **Store Name:** Look for headers like "Store Name", "Location", "Restaurant", "Unit", or similar. If you find one, map it to "Store Name".
+3.  **Date:** Look for headers like "Week Start Date", "Week Ending", "Date", or "Period". If you find one, map it to "Week Start Date".
+4.  **KPIs:** For the remaining headers, find the best match from the Application Fields list.
+5.  **No Match:** If a header has no clear match to any application field, you MUST map it to "ignore".
+6.  Your response MUST be a valid JSON object where keys are the original spreadsheet headers and values are the mapped fields.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
