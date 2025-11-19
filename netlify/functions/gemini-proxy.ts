@@ -1,20 +1,8 @@
 
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
 import { createAnalysisJob, createImportJob } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
-
-declare var Buffer: any;
-
-async function streamToBuffer(stream: any): Promise<any> {
-    const chunks: any[] = [];
-    return new Promise((resolve, reject) => {
-        stream.on('data', (chunk: any) => chunks.push(chunk));
-        stream.on('error', (err: any) => reject(err));
-        stream.on('end', () => resolve(Buffer.concat(chunks)));
-    });
-}
 
 export const handler: Handler = async (event, _context) => {
   const headers = {
@@ -71,16 +59,21 @@ export const handler: Handler = async (event, _context) => {
       }
       
       case 'deleteFile': {
-          // Note: This is a synchronous action for cleanup.
-          // In a production app, you might secure this endpoint further.
-          // await deleteFileByPath(payload.filePath);
+          // This synchronous action is for cleanup. It is currently a stub
+          // as the background jobs handle their own file deletion.
           return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       }
 
       default:
-        // This handles simple, synchronous requests like Executive Summary
-        const { data, view, periodLabel } = payload;
-        const prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
+        // This handles simple, synchronous requests like Executive Summary, Note Trends etc.
+        const { data, view, periodLabel, notes } = payload;
+        
+        let prompt;
+        if (action === 'getNoteTrends' && notes) {
+            prompt = `You are an expert operations analyst for a restaurant group. Analyze these notes and identify the top 3-4 recurring themes or trends. Provide the output as a concise, bulleted list in Markdown. Notes:\n${JSON.stringify(notes.map((n:any) => n.content))}`;
+        } else {
+            prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Cafe for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;
+        }
         
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
         return { statusCode: 200, headers, body: JSON.stringify({ content: response.text }) };

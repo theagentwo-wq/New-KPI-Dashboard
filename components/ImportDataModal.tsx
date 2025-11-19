@@ -168,7 +168,9 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
   
   const handleAnalyzePastedData = async () => {
-    const jobs = Object.entries(pastedStoreData)
+    // FIX: Cast the result of Object.entries to correctly type `text` as a string,
+    // resolving 'trim' and assignment errors.
+    const jobs = (Object.entries(pastedStoreData) as [string, string][])
         .filter(([, text]) => text.trim())
         .map(([storeName, text]) => ({
             type: 'text-chunk' as const,
