@@ -11,6 +11,63 @@ interface ImportDataModalProps {
   onImportBudget: (data: any[]) => void;
 }
 
+const MAX_IMAGE_WIDTH = 1500; // pixels
+
+const resizeImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            // Not an image, resolve immediately
+            resolve(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                if (img.width <= MAX_IMAGE_WIDTH) {
+                    // No need to resize, return original file
+                    resolve(file);
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                const scaleFactor = MAX_IMAGE_WIDTH / img.width;
+                canvas.width = MAX_IMAGE_WIDTH;
+                canvas.height = img.height * scaleFactor;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    return reject(new Error('Could not get canvas context'));
+                }
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) {
+                            return reject(new Error('Canvas toBlob failed'));
+                        }
+                        // Use a consistent name but change extension if needed
+                        const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                        const resizedFile = new File([blob], newName, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now(),
+                        });
+                        resolve(resizedFile);
+                    },
+                    'image/jpeg',
+                    0.9 // 90% quality
+                );
+            };
+            img.onerror = reject;
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
+
 export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClose, onImportActuals, onImportBudget }) => {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedText, setStagedText] = useState<string>('');
@@ -39,17 +96,23 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [statusLog]);
+  
+  const processAndSetFiles = async (files: File[]) => {
+      setStatusLog(['Optimizing images before upload...']);
+      const resizedFiles = await Promise.all(files.map(resizeImage));
+      setStagedFiles(resizedFiles);
+      setStagedText('');
+      setErrors([]);
+      setStatusLog([]);
+  };
 
   const handleFileDrop = (fileList: FileList) => {
     if (fileList && fileList.length > 0) {
-      setStagedFiles(Array.from(fileList));
-      setStagedText('');
-      setStatusLog([]);
-      setErrors([]);
+      processAndSetFiles(Array.from(fileList));
     }
   };
 
-  const handlePaste = useCallback((event: ClipboardEvent) => {
+  const handlePaste = useCallback(async (event: ClipboardEvent) => {
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -57,10 +120,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         if (items[i].type.indexOf('image') !== -1) {
             const blob = items[i].getAsFile();
             if (blob) {
-                setStagedFiles([new File([blob], "pasted-image.png", { type: blob.type })]);
-                setStagedText('');
-                setStatusLog([]);
-                setErrors([]);
+                const pastedFile = new File([blob], "pasted-image.png", { type: blob.type });
+                await processAndSetFiles([pastedFile]);
                 return;
             }
         }
