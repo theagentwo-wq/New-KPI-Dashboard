@@ -1,8 +1,8 @@
-# Increase the timeout for all serverless functions to 60 seconds.
+# Increase the timeout for all serverless functions to 90 seconds.
 # This uses a wildcard to apply the setting to each function individually,
 # resolving a parser issue with the global [functions] block.
 [functions."*"]
-  timeout = 60
+  timeout = 90
 
 # Configure Netlify's secret scanner to prevent false positives.
 # This ignores known, non-sensitive key patterns in the Firebase SDK.
