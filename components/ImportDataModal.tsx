@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { Kpi } from '../types';
-import { batchImportActuals, batchImportBudgets, batchImportStructuredActuals } from '../services/firebaseService';
+import { batchImportActuals, batchImportBudgets } from '../services/firebaseService';
 import { getAIAssistedMapping } from '../services/geminiService';
 import * as XLSX from 'xlsx';
 
