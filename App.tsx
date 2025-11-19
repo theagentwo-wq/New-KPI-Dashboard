@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, PerformanceData } from '@/types';
-import { getInitialPeriod } from '@/utils/dateUtils';
-import { ScenarioModeler } from '@/components/ScenarioModeler';
-import { DirectorProfileModal } from '@/components/DirectorProfileModal';
-import { BudgetPlanner } from '@/components/BudgetPlanner';
-import { GoalSetter } from '@/components/GoalSetter';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob } from '@/services/firebaseService';
-import { Sidebar } from '@/components/Sidebar';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { NewsFeedPage } from '@/pages/NewsFeedPage';
-import { ImportDataModal } from '@/components/ImportDataModal';
-import { DataEntryPage } from '@/pages/DataEntryPage';
-import { StrategyHubModal } from '@/components/StrategyHubModal';
-import { ImportStatusIndicator } from '@/components/ImportStatusIndicator';
+import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, PerformanceData } from '@/types.ts';
+import { getInitialPeriod } from '@/utils/dateUtils.ts';
+import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
+import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
+import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
+import { GoalSetter } from '@/components/GoalSetter.tsx';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob } from '@/services/firebaseService.ts';
+import { Sidebar } from '@/components/Sidebar.tsx';
+import { DashboardPage } from '@/pages/DashboardPage.tsx';
+import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
+import { ImportDataModal } from '@/components/ImportDataModal.tsx';
+import { DataEntryPage } from '@/pages/DataEntryPage.tsx';
+import { StrategyHubModal } from '@/components/StrategyHubModal.tsx';
+import { ImportStatusIndicator } from '@/components/ImportStatusIndicator.tsx';
 
 // Main App Component
 const App: React.FC = () => {
