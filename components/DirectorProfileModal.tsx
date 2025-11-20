@@ -130,29 +130,33 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     onAddDeployment(deploymentData);
     setIsPlannerOpen(false);
   };
+  
+  const topStore = useMemo(() => {
+    // PERMANENT FIX: Use a safer sorting method instead of reduce to prevent crashes on sparse data.
+    if (!directorStoreData || directorStoreData.length === 0) {
+      return 'N/A';
+    }
+
+    const kpiConfig = KPI_CONFIG[selectedKpi];
+    
+    // Create a mutable copy and sort it.
+    const sortedStores = [...directorStoreData].sort((a, b) => {
+        // Safely get performance values, providing a default that won't win the comparison if the value is missing.
+        const aPerf = a.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+        const bPerf = b.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+
+        if (kpiConfig.higherIsBetter) {
+            return bPerf - aPerf; // Sort descending (highest value first)
+        } else {
+            return aPerf - bPerf; // Sort ascending (lowest value first)
+        }
+    });
+
+    // The best store is the first one in the sorted list.
+    return sortedStores[0].storeId;
+  }, [directorStoreData, selectedKpi]);
 
   if (!director) return null;
-
-  const topStore = useMemo(() => {
-    if (!directorStoreData || directorStoreData.length === 0) return 'N/A';
-    
-    // FIX: Provide an initial value to reduce() to prevent errors on empty or filtered-empty arrays.
-    const initialValue = directorStoreData[0];
-
-    const topPerformingStore = directorStoreData.reduce((best, current) => {
-        const kpiConfig = KPI_CONFIG[selectedKpi];
-        const bestPerf = best.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-        const currentPerf = current.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-        
-        if (kpiConfig.higherIsBetter) {
-            return currentPerf > bestPerf ? current : best;
-        } else {
-            return currentPerf < bestPerf ? current : best;
-        }
-    }, initialValue);
-
-    return topPerformingStore.storeId;
-  }, [directorStoreData, selectedKpi]);
   
   const getBudgetBarColor = (percentage: number) => {
     if (percentage > 90) return 'bg-red-500';
