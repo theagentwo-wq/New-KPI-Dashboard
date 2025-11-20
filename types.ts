@@ -47,7 +47,7 @@ export interface DirectorProfile {
   photo: string;
   bio: string;
   homeLocation: string;
-  quarterlyTravelBudget: number;
+  yearlyTravelBudget: number;
 }
 
 export interface Goal {

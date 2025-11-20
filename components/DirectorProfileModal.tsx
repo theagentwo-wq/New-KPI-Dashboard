@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from './Modal';
-import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, View } from '../types';
+import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData, Budget } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
 import { marked } from 'marked';
 import { KPI_CONFIG } from '../constants';
@@ -12,8 +12,9 @@ interface DirectorProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   director?: DirectorProfile;
-  directorAggregateData?: PerformanceData;
-  directorStoreData?: { [storeId: string]: { actual: PerformanceData }};
+  performanceData: StorePerformanceData[];
+  budgets: Budget[];
+  goals: Goal[];
   selectedKpi: Kpi;
   period: Period;
   onUpdatePhoto: (directorId: string, file: File) => Promise<string>;
@@ -24,7 +25,10 @@ interface DirectorProfileModalProps {
 
 type DeploymentTab = 'map' | 'timeline' | 'budget';
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, directorAggregateData, directorStoreData, selectedKpi, period, onUpdatePhoto, onUpdateContactInfo, deployments, onAddDeployment }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ 
+    isOpen, onClose, director, performanceData, budgets, goals, selectedKpi, period, 
+    onUpdatePhoto, onUpdateContactInfo, deployments, onAddDeployment 
+}) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
@@ -42,6 +46,36 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     return deployments.filter(d => d.directorId === director.id);
   }, [deployments, director]);
 
+  const directorGoals = useMemo(() => {
+    if (!director) return [];
+    const currentYear = new Date().getFullYear();
+    const currentQuarter = Math.floor((new Date().getMonth() / 3)) + 1;
+    return goals.filter(g => g.directorId === director.id && g.year === currentYear && g.quarter === currentQuarter);
+  }, [goals, director]);
+
+  const directorStoreData = useMemo(() => {
+    // FIX: Return an empty array instead of an empty object to ensure type consistency.
+    if (!director) return [];
+    return performanceData.filter(pd => director.stores.includes(pd.storeId));
+  }, [performanceData, director]);
+
+  const directorAggregateData = useMemo(() => {
+    const data: PerformanceData = {};
+    if (directorStoreData.length === 0) return data;
+    
+    for (const kpi of Object.values(Kpi)) {
+        const kpiConfig = KPI_CONFIG[kpi];
+        const values = directorStoreData.map(pd => pd.data[kpi]).filter(v => v !== undefined && !isNaN(v)) as number[];
+        if (values.length > 0) {
+            if (kpiConfig.format === 'currency') {
+                data[kpi] = values.reduce((sum, v) => sum + v, 0);
+            } else {
+                data[kpi] = values.reduce((sum, v) => sum + v, 0) / values.length;
+            }
+        }
+    }
+    return data;
+  }, [directorStoreData]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -95,25 +129,35 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   
   const handleAddDeployment = (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => {
     onAddDeployment(deploymentData);
-    setIsPlannerOpen(false); // Close planner on save
+    setIsPlannerOpen(false);
   };
 
   if (!director) return null;
 
-  const topStore = (director.stores && director.stores.length > 0 && directorStoreData) ? director.stores.reduce((best, current) => {
-    if (!directorStoreData?.[current]?.actual) return best;
-    if (!directorStoreData?.[best]?.actual) return current;
-    const kpiConfig = KPI_CONFIG[selectedKpi];
-    const bestPerf = directorStoreData[best].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-    const currentPerf = directorStoreData[current].actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-    return (kpiConfig.higherIsBetter ? currentPerf > bestPerf : currentPerf < bestPerf) ? current : best;
-  }, director.stores[0]) : 'N/A';
+  const topStore = useMemo(() => {
+    if (directorStoreData.length === 0) return 'N/A';
+    return directorStoreData.reduce((best, current) => {
+        const kpiConfig = KPI_CONFIG[selectedKpi];
+        const bestPerf = best.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+        const currentPerf = current.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
+        return (kpiConfig.higherIsBetter ? currentPerf > bestPerf : currentPerf < bestPerf) ? current : best;
+    }).storeId;
+  }, [directorStoreData, selectedKpi]);
   
+  const getBudgetBarColor = (percentage: number) => {
+    if (percentage > 90) return 'bg-red-500';
+    if (percentage > 75) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
   const renderDeploymentContent = () => {
     const now = new Date();
+    const currentYear = now.getFullYear();
     const activeDeployments = directorDeployments.filter(d => new Date(d.startDate) <= now && new Date(d.endDate) >= now);
-    const totalBudgetSpent = directorDeployments.reduce((sum, d) => sum + d.estimatedBudget, 0);
-    const budgetPercentage = (totalBudgetSpent / director.quarterlyTravelBudget) * 100;
+    const totalBudgetSpentThisYear = directorDeployments
+        .filter(d => new Date(d.startDate).getFullYear() === currentYear)
+        .reduce((sum, d) => sum + d.estimatedBudget, 0);
+    const budgetPercentage = (totalBudgetSpentThisYear / director.yearlyTravelBudget) * 100;
     
     switch (activeDeploymentTab) {
       case 'map':
@@ -132,14 +176,19 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         );
       case 'budget':
         return (
-           <div className="p-4 text-center">
-             <p className="text-xs text-slate-400">QTD Travel Spend</p>
-             <p className="text-2xl font-bold text-white mt-1">
-                {totalBudgetSpent.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
-             </p>
-             <p className="text-sm text-slate-400">of {director.quarterlyTravelBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })} budget</p>
-             <div className="w-full bg-slate-700 rounded-full h-2.5 mt-3">
-               <div className="bg-cyan-500 h-2.5 rounded-full" style={{ width: `${Math.min(budgetPercentage, 100)}%` }}></div>
+           <div className="p-4 flex items-center gap-4">
+             <Icon name="budget" className="w-10 h-10 text-cyan-400 flex-shrink-0" />
+             <div className="w-full">
+                <div className="flex justify-between items-baseline mb-1">
+                    <p className="text-xl font-bold text-white">
+                        {totalBudgetSpentThisYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-sm text-slate-400">of {director.yearlyTravelBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</p>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-2.5">
+                    <div className={`${getBudgetBarColor(budgetPercentage)} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${Math.min(budgetPercentage, 100)}%` }}></div>
+                </div>
+                <p className="text-xs text-slate-400 text-right mt-1">{`FY${currentYear} Travel Budget`}</p>
              </div>
            </div>
         );
@@ -148,87 +197,90 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
   return (
     <>
-        <Modal isOpen={isOpen} onClose={onClose} title={`${director.name} ${director.lastName}`} size="large">
+      <Modal isOpen={isOpen} onClose={onClose} title={`${director.name} ${director.lastName}'s Hub`} size="large">
         <div className="flex flex-col md:flex-row gap-6">
+            {/* --- LEFT COLUMN --- */}
             <div className="w-full md:w-1/3 space-y-4">
-            {/* Profile Section */}
-             <div className="text-center">
-              <div className="relative group w-32 h-32 mx-auto">
-                <img src={director.photo} alt={`${director.name} ${director.lastName}`} className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover"/>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity">
-                    <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm"><Icon name="edit" className="w-4 h-4" /> Change</span>
-                </button>
-                {isUploading && (<div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center rounded-full"><svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>)}
-              </div>
-              {uploadError && <p className="text-xs text-red-400 mt-2">{uploadError}</p>}
-              <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
-              <p className="text-cyan-400">{director.title}</p>
-            </div>
-            {/* Contact Info */}
-             <div>
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-bold text-slate-300">Contact</h4>
-                    {!isEditingContact && (<button onClick={() => setIsEditingContact(true)} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 p-1 rounded-md hover:bg-slate-700"><Icon name="edit" className="w-3 h-3" /> Edit</button>)}
-                </div>
-                {isEditingContact ? (
-                     <div className="text-sm space-y-3 text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-700">
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1">Email Address</label>
-                            <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
-                        </div>
-                        <div>
-                             <label className="block text-xs text-slate-400 mb-1">Phone Number</label>
-                             <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
-                        </div>
-                         <div className="flex justify-end gap-2 pt-2">
-                            <button onClick={() => setIsEditingContact(false)} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
-                            <button onClick={handleSaveContact} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
-                        </div>
+                {/* Profile Section */}
+                <div className="text-center">
+                    <div className="relative group w-32 h-32 mx-auto">
+                        <img src={director.photo} alt={`${director.name} ${director.lastName}`} className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover"/>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                        <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity">
+                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm"><Icon name="edit" className="w-4 h-4" /> Change</span>
+                        </button>
                     </div>
-                ) : (
-                    <div className="text-sm space-y-1 text-slate-300 bg-slate-900/50 p-3 rounded-md border border-slate-700">
+                    <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
+                    <p className="text-cyan-400">{director.title}</p>
+                </div>
+
+                {/* Contact & Stores */}
+                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
+                    <h4 className="text-md font-bold text-slate-300">Details</h4>
+                    <div className="text-sm space-y-1 text-slate-300">
                         <p><strong>Email:</strong> <a href={`mailto:${director.email}`} className="text-cyan-400 hover:underline">{director.email}</a></p>
                         <p><strong>Phone:</strong> <a href={`tel:${director.phone}`} className="text-cyan-400 hover:underline">{director.phone}</a></p>
                         <p><strong>Home:</strong> {director.homeLocation}</p>
                     </div>
-                )}
-            </div>
-          </div>
-          <div className="w-full md:w-2/3 space-y-4">
-            {/* Deployment Planner */}
-            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-bold text-slate-300">Deployments</h4>
-                    <button onClick={() => setIsPlannerOpen(true)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 rounded-md transition-colors">
-                        <Icon name="plus" className="w-4 h-4" /> Plan New
-                    </button>
+                    <h4 className="text-md font-bold text-slate-300 pt-2 border-t border-slate-700">Region Stores</h4>
+                    <div className="text-sm space-y-1 text-slate-300 max-h-24 overflow-y-auto custom-scrollbar pr-2">
+                        {director.stores.map(store => <p key={store}>{store}</p>)}
+                    </div>
                 </div>
-                 <div className="flex border-b border-slate-700 mb-2">
-                    <button onClick={() => setActiveDeploymentTab('map')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'map' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Map</button>
-                    <button onClick={() => setActiveDeploymentTab('timeline')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'timeline' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Timeline</button>
-                    <button onClick={() => setActiveDeploymentTab('budget')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'budget' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Budget</button>
+                
+                {/* Goals & Performance */}
+                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
+                     <h4 className="text-md font-bold text-slate-300">Goals & Performance</h4>
+                      <div className="bg-slate-800 p-3 rounded-md">
+                        <p className="text-xs text-slate-400 mb-1">Top Performing Store (by {selectedKpi})</p>
+                        <p className="font-bold text-cyan-400 flex items-center gap-2"><Icon name="trophy" className="w-4 h-4" />{topStore}</p>
+                      </div>
+                      <div className="bg-slate-800 p-3 rounded-md">
+                        <p className="text-xs text-slate-400 mb-1">Active Q{Math.floor((new Date().getMonth() / 3)) + 1} Goals</p>
+                        {directorGoals.length > 0 ? (
+                            <ul className="text-xs space-y-1">
+                                {directorGoals.map(g => <li key={g.id} className="flex justify-between"><span>{g.kpi}:</span> <span className="font-bold text-white">{g.target}</span></li>)}
+                            </ul>
+                        ) : <p className="text-xs text-slate-500">No goals set.</p>}
+                      </div>
                 </div>
-                <div>{renderDeploymentContent()}</div>
-            </div>
 
-            {/* AI Snapshot */}
-            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-bold text-cyan-400">AI Performance Snapshot</h4>
-                    {(!isLoading && snapshot) && (<button onClick={handleGenerateSnapshot} className="text-xs flex items-center gap-1 text-cyan-400 hover:text-cyan-300"><Icon name="sparkles" className="w-4 h-4" />Regenerate</button>)}
+            </div>
+            {/* --- RIGHT COLUMN --- */}
+            <div className="w-full md:w-2/3 space-y-4">
+                {/* Deployment Planner */}
+                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-lg font-bold text-slate-300">Deployments</h4>
+                        <button onClick={() => setIsPlannerOpen(true)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 rounded-md transition-colors">
+                            <Icon name="plus" className="w-4 h-4" /> Plan New
+                        </button>
+                    </div>
+                    <div className="flex border-b border-slate-700 mb-2">
+                        <button onClick={() => setActiveDeploymentTab('map')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'map' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Map</button>
+                        <button onClick={() => setActiveDeploymentTab('timeline')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'timeline' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Timeline</button>
+                        <button onClick={() => setActiveDeploymentTab('budget')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'budget' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Budget</button>
+                    </div>
+                    <div>{renderDeploymentContent()}</div>
                 </div>
-                <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                {isLoading ? (
-                    <div className="flex items-center justify-center space-x-2 min-h-[100px]"><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div><p className="text-slate-400">Generating AI snapshot...</p></div>
-                ) : sanitizedHtml ? (
-                    <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
-                ) : (
-                    <div className="text-center py-4"><p className="text-slate-400 mb-3">Get an AI-powered summary of this director's performance.</p><button onClick={handleGenerateSnapshot} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md inline-flex items-center gap-2"><Icon name="sparkles" className="w-5 h-5" />Generate Snapshot</button></div>
-                )}
+
+                {/* AI Snapshot */}
+                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-lg font-bold text-cyan-400">AI Performance Snapshot</h4>
+                        {(!isLoading && snapshot) && (<button onClick={handleGenerateSnapshot} className="text-xs flex items-center gap-1 text-cyan-400 hover:text-cyan-300"><Icon name="sparkles" className="w-4 h-4" />Regenerate</button>)}
+                    </div>
+                    <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center space-x-2 min-h-[100px]"><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div><p className="text-slate-400">Generating AI snapshot...</p></div>
+                    ) : sanitizedHtml ? (
+                        <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
+                    ) : (
+                        <div className="text-center py-4"><p className="text-slate-400 mb-3">Get an AI-powered summary of this director's performance for {period.label}.</p><button onClick={handleGenerateSnapshot} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md inline-flex items-center gap-2"><Icon name="sparkles" className="w-5 h-5" />Generate Snapshot</button></div>
+                    )}
+                    </div>
                 </div>
             </div>
-          </div>
         </div>
       </Modal>
       <DeploymentPlannerModal 

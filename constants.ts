@@ -10,7 +10,7 @@ export const DIRECTORS: DirectorProfile[] = [
     photo: 'https://i.postimg.cc/NGKXrRfv/DANNY.jpg',
     bio: 'Danny has been a pivotal part of our growth, focusing on operational excellence and team development in his diverse region.',
     homeLocation: 'Denver, CO',
-    quarterlyTravelBudget: 25000,
+    yearlyTravelBudget: 30000,
   },
   {
     id: 'Heather', name: 'Heather', lastName: 'Roberts',
@@ -21,7 +21,7 @@ export const DIRECTORS: DirectorProfile[] = [
     photo: 'https://i.postimg.cc/zDyhRTD9/HEATHER.jpg',
     bio: 'With a background in culinary arts and management, Heather brings a unique blend of creativity and discipline to the Southeast region.',
     homeLocation: 'Knoxville, TN',
-    quarterlyTravelBudget: 22000,
+    yearlyTravelBudget: 30000,
   },
   {
     id: 'Ryan', name: 'Ryan', lastName: 'Bowen',
@@ -32,7 +32,7 @@ export const DIRECTORS: DirectorProfile[] = [
     photo: 'https://i.postimg.cc/ryD4t5FX/RYAN.jpg',
     bio: 'Ryan is a data-driven leader who excels at optimizing prime costs and enhancing guest satisfaction across his Midwest stores.',
     homeLocation: 'Columbus, OH',
-    quarterlyTravelBudget: 20000,
+    yearlyTravelBudget: 30000,
   },
   {
     id: 'Robert', name: 'Robert', lastName: 'Simms',
@@ -43,7 +43,7 @@ export const DIRECTORS: DirectorProfile[] = [
     photo: 'https://i.postimg.cc/RCWtnwCk/ROBERT.jpg',
     bio: 'Robert champions a culture of hospitality and is known for his ability to build high-performing teams that deliver consistent results in the Carolinas and Virginia.',
     homeLocation: 'Greenville, SC',
-    quarterlyTravelBudget: 28000,
+    yearlyTravelBudget: 30000,
   }
 ];
 

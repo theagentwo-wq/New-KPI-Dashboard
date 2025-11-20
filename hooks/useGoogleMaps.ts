@@ -1,5 +1,13 @@
 // FIX: Add Google Maps type definitions to resolve type errors for the 'google' object on the window.
-/// <reference types="google.maps" />
+// By declaring the `google` object on the `Window` interface, we inform TypeScript that it may exist globally,
+// resolving the type error without needing external @types packages.
+declare global {
+  interface Window {
+    google?: {
+      maps: any; // Using `any` as this hook is generic and doesn't need detailed map types.
+    };
+  }
+}
 
 import { useState, useEffect } from 'react';
 import { getMapsApiKey } from '../services/geminiService';

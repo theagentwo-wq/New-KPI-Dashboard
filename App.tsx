@@ -436,6 +436,9 @@ const App: React.FC = () => {
                 isOpen={isProfileOpen} 
                 onClose={() => setProfileOpen(false)} 
                 director={selectedDirector} 
+                performanceData={performanceData}
+                budgets={budgets}
+                goals={goals}
                 selectedKpi={Kpi.Sales} 
                 period={getInitialPeriod()}
                 onUpdatePhoto={handleUpdateDirectorPhoto}

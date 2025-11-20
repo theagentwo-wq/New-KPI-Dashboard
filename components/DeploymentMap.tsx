@@ -1,5 +1,34 @@
 // FIX: Add Google Maps type definitions to resolve namespace and type errors.
-/// <reference types="google.maps" />
+// By declaring the necessary parts of the google.maps namespace, we can provide type safety
+// and satisfy the TypeScript compiler without needing the @types/google.maps package.
+declare namespace google.maps {
+  class LatLngBounds {
+    constructor();
+    extend(point: { lat: number; lng: number }): void;
+    getCenter(): any;
+  }
+  class Map {
+    constructor(mapDiv: HTMLElement, opts?: any);
+    fitBounds(bounds: LatLngBounds): void;
+  }
+  class Marker {
+    constructor(opts?: any);
+    setMap(map: Map | null): void;
+    addListener(eventName: string, handler: Function): any;
+  }
+  class InfoWindow {
+    constructor(opts?: any);
+    close(): void;
+    open(map?: Map, anchor?: Marker): void;
+    setContent(content: string | Element | Node): void;
+  }
+  class Point {
+    constructor(x: number, y: number);
+  }
+  class Size {
+    constructor(width: number, height: number);
+  }
+}
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useGoogleMaps } from '../hooks/useGoogleMaps';
