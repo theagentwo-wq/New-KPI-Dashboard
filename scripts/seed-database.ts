@@ -1,7 +1,8 @@
 // This script is designed to be run from the command line to seed the database with historical data.
 // Usage: npm run seed:db
 
-import process from 'node:process';
+// FIX: Removed `import process from 'node:process';` to resolve TypeScript errors.
+// The global `process` object is used instead, which is available in the Node.js runtime.
 import 'dotenv/config'; // Load environment variables from .env.local
 import { initializeFirebaseService } from '../services/firebaseService';
 import { Kpi, PerformanceData } from '../types';
@@ -116,11 +117,11 @@ const parseAndTransformData = () => {
         const year = parseInt(yearStr);
         if (isNaN(year)) continue;
 
-        const weeksInYear = allFiscalPeriods.filter(p => p.type === 'Week' && p.startDate.getFullYear() === year);
-        if(weeksInYear.length === 0) {
-            // Adjust for fiscal years starting at the end of the previous calendar year
-             const weeksInFiscalYear = allFiscalPeriods.filter(p => p.label.endsWith(`FY${year}`));
-             weeksInYear.push(...weeksInFiscalYear);
+        const weeksInYear = allFiscalPeriods.filter(p => p.type === 'Week' && p.label.includes(`FY${year}`));
+
+        if (weeksInYear.length === 0) {
+            console.warn(`Could not find any fiscal weeks for FY${year}. Skipping year.`);
+            continue;
         }
 
         const locations = yearlyData[year];
