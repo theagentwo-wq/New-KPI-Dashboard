@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, DirectorProfile } from '../types';
-import { KPI_CONFIG, DIRECTORS, ALL_STORES, ALL_KPIS } from '../constants';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, DirectorProfile, Kpi } from '../types';
+import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getInitialPeriod, getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
 import { NotesPanel } from '../components/NotesPanel';
@@ -14,6 +14,7 @@ import { FirebaseStatus } from '../services/firebaseService';
 import { Modal } from '../components/Modal';
 import { ExecutiveSummaryModal } from '../components/ExecutiveSummaryModal';
 import { getPerformanceData } from '../services/firebaseService';
+import { KPISummaryCards } from '../components/KPISummaryCards';
 
 interface DashboardPageProps {
     currentView: View;
@@ -41,6 +42,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
+    const [selectedKpi, setSelectedKpi] = useState<Kpi>(Kpi.Sales);
 
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isReviewModalOpen, setReviewModalOpen] = useState(false);
@@ -113,6 +115,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         setPeriodType('Week');
         setCurrentPeriod(getInitialPeriod());
         setComparisonMode('vs. Prior Period');
+        setSelectedKpi(Kpi.Sales);
     }, []);
 
     const isPrevPeriodDisabled = currentPeriodIndex <= 0;
@@ -155,7 +158,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             }
 
             const variance: PerformanceData = {};
-            ALL_KPIS.forEach(kpi => {
+            Object.values(Kpi).forEach(kpi => {
                 const actualValue = actual[kpi];
                 const comparisonValue = comparison?.[kpi];
                 if (actualValue !== undefined && comparisonValue !== undefined) {
@@ -198,10 +201,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 actual: {}, comparison: {}, variance: {}
             };
 
-            // FIX: Explicitly type the value from Object.values to prevent `unknown` type error.
             type StoreProcessedData = (typeof allStoresProcessedData)[string];
 
-            ALL_KPIS.forEach(kpi => {
+            Object.values(Kpi).forEach(kpi => {
                  const kpiConfig = KPI_CONFIG[kpi];
                  const actualValues = Object.values(directorStoreData).map((s: StoreProcessedData) => s.actual[kpi]).filter(v => v !== undefined) as number[];
                  const comparisonValues = Object.values(directorStoreData).map((s: StoreProcessedData) => s.comparison?.[kpi]).filter(v => v !== undefined) as number[];
@@ -221,6 +223,30 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         });
         return directorData;
     }, [allStoresProcessedData]);
+
+    const summaryDataForCards = useMemo(() => {
+        if (currentView === 'Total Company') {
+            const aggregated: PerformanceData = {};
+            Object.values(Kpi).forEach(kpi => {
+                const kpiConfig = KPI_CONFIG[kpi];
+                const values = Object.values(allStoresProcessedData).map(d => d.actual[kpi]).filter(v => v !== undefined) as number[];
+                if (values.length === 0) return;
+
+                if (kpiConfig.format === 'currency') {
+                    aggregated[kpi] = values.reduce((sum, v) => sum + v, 0);
+                } else {
+                    aggregated[kpi] = values.reduce((sum, v) => sum + v, 0) / values.length;
+                }
+            });
+            return aggregated;
+        }
+        // FIX: Use a type guard to safely access the 'aggregated' property on the 'DataItem' union type.
+        const directorData = directorAggregates[currentView];
+        if (directorData && 'aggregated' in directorData) {
+            return directorData.aggregated;
+        }
+        return undefined;
+    }, [currentView, allStoresProcessedData, directorAggregates]);
 
     const handleLocationSelect = useCallback((location: string) => {
         setSelectedLocation(location);
@@ -242,10 +268,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
+            <div className="mb-6">
+                <KPISummaryCards 
+                    data={summaryDataForCards}
+                    selectedKpi={selectedKpi}
+                    onKpiSelect={setSelectedKpi}
+                />
+            </div>
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
                 <div className="xl:col-span-3 space-y-6">
                     <CompanyStoreRankings
                          data={processedDataForTable}
+                         selectedKpi={selectedKpi}
                          currentView={currentView}
                          period={currentPeriod}
                          periodType={periodType}

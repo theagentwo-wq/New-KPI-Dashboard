@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Kpi, PerformanceData, WeatherInfo, View, Period, ComparisonMode } from '../types';
-import { KPI_CONFIG, ALL_KPIS } from '../constants';
+import { KPI_CONFIG } from '../constants';
 import { Icon } from './Icon';
 import { getWeatherForLocation } from '../services/weatherService';
 import { WeatherIcon } from './WeatherIcon';
@@ -14,6 +14,7 @@ interface CompanySnapshotProps {
       variance: PerformanceData;
     }
   };
+  selectedKpi: Kpi;
   currentView: View;
   period: Period;
   periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
@@ -28,11 +29,6 @@ interface CompanySnapshotProps {
   isNextPeriodDisabled: boolean;
   onResetView: () => void;
 }
-
-type SortConfig = {
-    key: Kpi;
-    direction: 'ascending' | 'descending';
-} | null;
 
 const formatValue = (value: number | undefined, kpi: Kpi) => {
     if (value == null || isNaN(value)) return '-';
@@ -85,10 +81,9 @@ const getRankIndicator = (rank: number) => {
 const defaultVisibleKPIs = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost, Kpi.AvgReviews];
 
 export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({ 
-    data, currentView, period, periodType, setPeriodType, comparisonMode, setComparisonMode, onLocationSelect, onReviewClick,
+    data, selectedKpi, currentView, period, periodType, setPeriodType, comparisonMode, setComparisonMode, onLocationSelect, onReviewClick,
     onPrevPeriod, onNextPeriod, isPrevPeriodDisabled, isNextPeriodDisabled, onResetView
 }) => {
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: Kpi.Sales, direction: 'descending' });
     const [visibleKPIs, setVisibleKPIs] = useState<Kpi[]>(defaultVisibleKPIs);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [weatherData, setWeatherData] = useState<{ [key: string]: WeatherInfo | null }>({});
@@ -115,54 +110,31 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
 
     const sortedStores = useMemo(() => {
         const storeArray: [string, typeof data[string]][] = Object.entries(data);
-        if (sortConfig !== null) {
-            storeArray.sort(([, a], [, b]) => {
-                const aValue = a.actual[sortConfig.key] || 0;
-                const bValue = b.actual[sortConfig.key] || 0;
-                
-                const higherIsBetter = KPI_CONFIG[sortConfig.key].higherIsBetter;
-                
-                let comparison = 0;
-                if (aValue > bValue) {
-                    comparison = 1;
-                } else if (aValue < bValue) {
-                    comparison = -1;
-                }
 
-                if (!higherIsBetter) {
-                    comparison *= -1;
-                }
+        storeArray.sort(([, a], [, b]) => {
+            const aValue = a.actual[selectedKpi] ?? -Infinity;
+            const bValue = b.actual[selectedKpi] ?? -Infinity;
+            
+            const higherIsBetter = KPI_CONFIG[selectedKpi].higherIsBetter;
+            
+            let comparison = 0;
+            if (aValue > bValue) comparison = -1;
+            else if (aValue < bValue) comparison = 1;
+            
+            if (!higherIsBetter) comparison *= -1;
 
-                if (sortConfig.direction === 'descending') {
-                    comparison *= -1;
-                }
-
-                return comparison;
-            });
-        }
+            return comparison;
+        });
         return storeArray;
-    }, [data, sortConfig]);
-
-    const requestSort = (key: Kpi) => {
-        let direction: 'ascending' | 'descending' = 'descending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'descending') {
-            direction = 'ascending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const getSortIndicator = (kpi: Kpi) => {
-        if (!sortConfig || sortConfig.key !== kpi) return null;
-        return sortConfig.direction === 'ascending' ? '▲' : '▼';
-    }
+    }, [data, selectedKpi]);
 
     const toggleKPI = (kpi: Kpi) => {
         setVisibleKPIs(prev => prev.includes(kpi) ? prev.filter(k => k !== kpi) : [...prev, kpi]);
     };
 
     const title = useMemo(() => {
-        if (currentView === 'Total Company') return 'Total Company Snapshot';
-        return `${currentView}'s Area Snapshot`;
+        if (currentView === 'Total Company') return 'Store Rankings';
+        return `${currentView}'s Store Rankings`;
     }, [currentView]);
 
     return (
@@ -197,7 +169,7 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
                             </button>
                             {dropdownOpen && (
                                 <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-md shadow-lg z-20">
-                                    {ALL_KPIS.map(kpi => (
+                                    {Object.values(Kpi).map(kpi => (
                                         <label key={kpi} className="flex items-center px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer">
                                             <input type="checkbox" checked={visibleKPIs.includes(kpi)} onChange={() => toggleKPI(kpi)} className="mr-2 h-4 w-4 rounded bg-slate-700 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
                                             {kpi}
@@ -220,8 +192,8 @@ export const CompanyStoreRankings: React.FC<CompanySnapshotProps> = ({
                             <th scope="col" className="px-2 py-3 sticky left-16 bg-slate-900 z-20">Location</th>
                             {visibleKPIs.map(kpi => (
                                 <React.Fragment key={kpi}>
-                                    <th scope="col" className="px-2 py-3 text-center cursor-pointer hover:bg-slate-700" onClick={() => requestSort(kpi)}>
-                                        {kpi} Act. {getSortIndicator(kpi)}
+                                    <th scope="col" className="px-2 py-3 text-center">
+                                        {kpi} Act.
                                     </th>
                                     <th scope="col" className="px-2 py-3 text-center">{getAbbreviatedLabel(comparisonMode)}</th>
                                     <th scope="col" className="px-2 py-3 text-center">Var.</th>
