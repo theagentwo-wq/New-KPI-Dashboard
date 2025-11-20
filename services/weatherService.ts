@@ -25,7 +25,8 @@ async function fetchNWS(url: string, cacheKey: string) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            console.error(`NWS API Error for ${url}: ${response.statusText}`);
+            console.error(`NWS API Error for ${url}: ${response.status} ${response.statusText}`);
+            // Do not cache errors
             return null;
         }
         const data = await response.json();
@@ -46,11 +47,17 @@ export const getWeatherForLocation = async (location: string): Promise<WeatherIn
     if (!coords) return null;
 
     const metadata = await getPointMetadata(coords.lat, coords.lon);
-    if (!metadata) return null;
+    if (!metadata?.properties?.forecastHourly) {
+        console.warn(`Could not get hourly forecast URL from metadata for ${location}`);
+        return null;
+    }
 
     const forecastUrl = metadata.properties.forecastHourly;
     const forecastData = await fetchNWS(forecastUrl, `hourly-${location}`);
-    if (!forecastData || !forecastData.properties?.periods?.[0]) return null;
+    if (!forecastData || !forecastData.properties?.periods?.[0]) {
+        console.warn(`No hourly forecast periods found for ${location}`);
+        return null;
+    }
 
     const currentPeriod = forecastData.properties.periods[0];
     return {
@@ -66,20 +73,40 @@ export const get7DayForecastForLocation = async (location: string): Promise<Dail
     if (!coords) return null;
 
     const metadata = await getPointMetadata(coords.lat, coords.lon);
-    if (!metadata) return null;
+    if (!metadata?.properties?.forecast) {
+        console.warn(`Could not get daily forecast URL from metadata for ${location}`);
+        return null;
+    }
     
     const forecastUrl = metadata.properties.forecast;
     const forecastData = await fetchNWS(forecastUrl, `daily-${location}`);
-    if (!forecastData || !forecastData.properties?.periods) return null;
+    if (!forecastData || !forecastData.properties?.periods) {
+        console.warn(`No daily forecast periods found for ${location}`);
+        return null;
+    }
 
-    const dailyPeriods = forecastData.properties.periods
-      .filter((p: any) => p.isDaytime || forecastData.properties.periods.length <= 7)
-      .slice(0, 7);
+    // NWS often returns pairs of day/night forecasts. We want one item per day.
+    // We filter for daytime forecasts, but if there are none (e.g., only nightly), we take what we can get.
+    const daytimePeriods = forecastData.properties.periods.filter((p: any) => p.isDaytime);
+    const relevantPeriods = daytimePeriods.length > 0 ? daytimePeriods : forecastData.properties.periods;
 
-    return dailyPeriods.map((period: any) => ({
-        date: new Date(period.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
-        condition: mapNwsIconToCondition(period.icon),
-        temperature: period.temperature,
-        shortForecast: period.shortForecast
-    }));
+    // Take the first 7 unique days
+    const dailyForecasts: DailyForecast[] = [];
+    const seenDays = new Set<string>();
+
+    for (const period of relevantPeriods) {
+        if (dailyForecasts.length >= 7) break;
+        const dateStr = new Date(period.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+        if (!seenDays.has(dateStr)) {
+            dailyForecasts.push({
+                date: dateStr,
+                condition: mapNwsIconToCondition(period.icon),
+                temperature: period.temperature,
+                shortForecast: period.shortForecast
+            });
+            seenDays.add(dateStr);
+        }
+    }
+
+    return dailyForecasts;
 };

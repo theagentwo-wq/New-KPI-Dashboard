@@ -1,4 +1,5 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note } from '../types';
+
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo } from '../types';
 
 export interface PlaceDetails {
     name: string;
@@ -122,8 +123,9 @@ export const getAnomalyDetections = async (allStoresData: any, periodLabel: stri
     const result = await callAIApi('getAnomalyDetections', { allStoresData, periodLabel });
     return result.anomalies || [];
 };
-export const generateHuddleBrief = async (location: string, storeData: any, audience: string): Promise<string> => {
-    const result = await callAIApi('generateHuddleBrief', { location, storeData, audience });
+// FIX: Update function signature to accept weather info, matching backend expectations.
+export const generateHuddleBrief = async (location: string, storeData: any, audience: string, weather: WeatherInfo | null): Promise<string> => {
+    const result = await callAIApi('generateHuddleBrief', { location, storeData, audience, weather });
     return result.content || "Could not generate huddle brief.";
 };
 export const runWhatIfScenario = async (data: any, userPrompt: string): Promise<{ analysis: string, args?: any }> => {

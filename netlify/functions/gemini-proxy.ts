@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import fetch from 'node-fetch';
 import { createAnalysisJob, createImportJob, initializeFirebaseService } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
+import { isHoliday } from "../../utils/dateUtils";
 
 export const handler: Handler = async (event, _context) => {
   const headers = {
@@ -52,6 +53,20 @@ export const handler: Handler = async (event, _context) => {
     let responsePayload: any = {};
     const model = 'gemini-2.5-flash';
 
+    // --- Context Enrichment ---
+    const today = new Date();
+    const upcomingHolidays = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const holidayName = isHoliday(date);
+      if (holidayName) {
+        upcomingHolidays.push(`${holidayName} on ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`);
+      }
+    }
+    const holidayContext = upcomingHolidays.length > 0 ? `Upcoming Major US Holidays (next 30 days): ${upcomingHolidays.join(', ')}.` : "No major US holidays in the next 30 days.";
+
+
     switch (action) {
       // --- Background Job Triggers ---
       case 'startStrategicAnalysis': {
@@ -84,17 +99,22 @@ export const handler: Handler = async (event, _context) => {
           break;
       }
       case 'generateHuddleBrief': {
-          const { location, storeData, audience } = payload;
-          prompt = `You are an expert restaurant operations director creating a pre-shift huddle brief for the team at ${location}. The audience for this brief is the "${audience}" team. Using the provided performance data for the current period, generate a concise, motivating, and actionable brief in Markdown format.
+          const { location, storeData, audience, weather } = payload;
+          const weatherContext = weather ? `Today's weather forecast is: ${weather.temperature}°F, ${weather.shortForecast}.` : "Weather information is not available.";
+          prompt = `You are an expert restaurant operations director creating a pre-shift huddle brief for the team at ${location}. The audience is the "${audience}" team. Using the provided performance data, weather, and holiday context, generate a concise, motivating, and actionable brief in Markdown format.
 
-The brief must include:
+CONTEXT:
+- **Weather:** ${weatherContext} Use this to inform the team about potential impacts on business (e.g., "it's going to be raining from 11am until 4, we may see less patio traffic").
+- **Holidays:** ${holidayContext} Mention any upcoming holidays that could impact business.
+
+BRIEF STRUCTURE:
 1.  **A Motivating Opener:** A short, positive opening to energize the team.
 2.  **Key Wins:** Highlight 1-2 specific KPIs where the store is performing well. Use the data to back it up.
 3.  **Area of Focus:** Identify 1-2 KPIs that need improvement. Frame this constructively as a team goal.
 4.  **Team-Specific Action Item:** Provide one clear, actionable task relevant to the specified audience (${audience}).
-    *   For **FOH** (Front of House), this MUST be a specific, tried-and-true sales contest (e.g., "First to Five," "Perfect Pair," "Review Roundup"). The contest must include a creative, non-monetary reward that teams genuinely enjoy (e.g., first pick of sections, a gift card to a local coffee shop, bragging rights with a trophy).
-    *   For **BOH** (Back of House), focus on ticket times, food quality, or cost control (e.g., Food Cost, Prime Cost).
-    *   For **Managers**, provide a higher-level focus area, like managing labor or improving overall profitability (e.g., SOP, Prime Cost).
+    *   For **FOH**, this MUST be a specific, tried-and-true sales contest (e.g., "First to Five," "Perfect Pair," "Review Roundup"). The contest must include a creative, non-monetary reward that teams genuinely enjoy (e.g., first pick of sections, a gift card to a local coffee shop, bragging rights with a trophy).
+    *   For **BOH**, focus on ticket times, food quality, or cost control.
+    *   For **Managers**, provide a higher-level focus area, like managing labor or improving overall profitability.
 5.  **A Closing Message:** End with a positive and encouraging closing statement.
 
 Here is the performance data for ${location}:
@@ -119,10 +139,13 @@ Your tone should be professional and constructive.`;
           const { location } = payload;
           prompt = `You are a hyper-local market intelligence expert for a restaurant group. Provide a deep, granular-level local market analysis for our restaurant located in ${location}. Your goal is to uncover anything that could affect business. The analysis must be in Markdown format.
 
-Your analysis must include:
-1.  **Key Local Competitors:** Identify 3-4 direct or significant indirect competitors within a 2-mile radius. For each, briefly describe their concept and why they are relevant.
-2.  **Local Demand Drivers & Community Fabric:** What is the primary character of this neighborhood (e.g., office-heavy, nightlife hub, residential, tourist-focused)? What specific businesses, attractions, or demographics drive traffic and what does that mean for us?
-3.  **The Real Happenings (Next 30 Days):** Dive deep to find the "real happenings" and cool events beyond just official city calendars. Look for concerts (large and small), live music at local venues, farmers markets, art walks, recurring community gatherings, and anything that creates local foot traffic. List at least 3-5 specific, upcoming events with dates.`;
+CONTEXT:
+- **Holidays:** ${holidayContext} Consider how these holidays will impact local events and foot traffic.
+
+ANALYSIS MUST INCLUDE:
+1.  **Key Local Competitors:** Identify 3-4 direct or significant indirect competitors within a 2-mile radius.
+2.  **Local Demand Drivers:** What is the primary character of this neighborhood (e.g., office-heavy, nightlife hub, residential, tourist-focused)?
+3.  **The Real Happenings (Next 30 Days):** Dive deep to find "cool events" beyond official calendars. Look for concerts (large and small), live music at local venues, farmers markets, art walks, and recurring community gatherings. List at least 3-5 specific, upcoming events with dates, factoring in any relevant holidays.`;
           const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
           responsePayload = { content: response.text };
           break;
@@ -131,11 +154,14 @@ Your analysis must include:
           const { location } = payload;
           prompt = `You are a savvy, generational marketing strategist with a deep understanding of what local communities want. Generate 3 unique and actionable marketing ideas for our Tupelo Honey Southern Kitchen in ${location}.
 
-Each idea must be in Markdown format and include:
+CONTEXT:
+- **Holidays:** ${holidayContext} Your ideas should be timely and relevant to these holidays if applicable.
+
+EACH IDEA MUST INCLUDE:
 1.  **Idea Title:** A catchy name for the campaign.
-2.  **Concept:** A brief description of the idea, focusing on what makes it unique and appealing to the local community's cravings.
-3.  **Target Generation:** Identify a primary target generation (e.g., Gen Z, Millennial, Gen X) and explain *why* this concept resonates with their specific values and media habits.
-4.  **Guerrilla Tactic:** Include a specific, low-cost, high-impact **guerilla marketing tactic** to execute the idea and create authentic local buzz (e.g., a pop-up, a social media challenge, a hyper-local partnership).`;
+2.  **Concept:** A brief description, focusing on what makes it unique and appealing to the local community's cravings.
+3.  **Target Generation:** Identify a primary target generation (e.g., Gen Z, Millennial, Gen X) and explain *why* this concept resonates with their specific values.
+4.  **Guerrilla Tactic:** Include a specific, low-cost, high-impact **guerrilla marketing tactic** to execute the idea and create authentic local buzz.`;
           const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
           responsePayload = { content: response.text };
           break;
