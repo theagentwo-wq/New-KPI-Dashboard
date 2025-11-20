@@ -579,6 +579,17 @@ export const addDeployment = async (deploymentData: Omit<Deployment, 'id' | 'cre
     return { id: docRef.id, ...newDeploymentData, createdAt: createdAtTimestamp.toDate().toISOString() };
 };
 
+export const updateDeployment = async (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>): Promise<void> => {
+    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
+    await deploymentsCollection.doc(deploymentId).update(updates);
+};
+
+export const deleteDeployment = async (deploymentId: string): Promise<void> => {
+    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
+    await deploymentsCollection.doc(deploymentId).delete();
+};
+
+
 // Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.
 // They could be used for a future "manual mapping" feature.
 export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {

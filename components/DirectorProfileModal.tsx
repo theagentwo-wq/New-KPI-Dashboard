@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
 import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData, Budget } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
@@ -21,24 +21,23 @@ interface DirectorProfileModalProps {
   onUpdateContactInfo: (directorId: string, contactInfo: { email: string; phone: string }) => Promise<void>;
   deployments: Deployment[];
   onAddDeployment: (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => void;
+  onUpdateDeployment: (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>) => void;
+  onDeleteDeployment: (deploymentId: string) => void;
 }
 
 type DeploymentTab = 'map' | 'timeline' | 'budget';
 
 export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ 
     isOpen, onClose, director, performanceData, budgets, goals, selectedKpi, period, 
-    onUpdatePhoto, onUpdateContactInfo, deployments, onAddDeployment 
+    onUpdatePhoto, onUpdateContactInfo, deployments, onAddDeployment, onUpdateDeployment, onDeleteDeployment
 }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sanitizedHtml, setSanitizedHtml] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isEditingContact, setIsEditingContact] = useState(false);
-  const [editEmail, setEditEmail] = useState('');
-  const [editPhone, setEditPhone] = useState('');
+  
   const [isPlannerOpen, setIsPlannerOpen] = useState(false);
+  const [editingDeployment, setEditingDeployment] = useState<Deployment | null>(null);
+
   const [activeDeploymentTab, setActiveDeploymentTab] = useState<DeploymentTab>('map');
   
   const directorDeployments = useMemo(() => {
@@ -80,14 +79,10 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     if (!isOpen) {
       setSnapshot('');
       setSanitizedHtml('');
-      setUploadError(null);
-      setIsEditingContact(false);
       setActiveDeploymentTab('map');
-    } else if (director) {
-      setEditEmail(director.email);
-      setEditPhone(director.phone);
+      setEditingDeployment(null);
     }
-  }, [isOpen, director]);
+  }, [isOpen]);
 
   useEffect(() => {
     const renderMarkdown = async () => {
@@ -109,50 +104,33 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     setSnapshot(result);
     setIsLoading(false);
   };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !director) return;
-    setIsUploading(true);
-    setUploadError(null);
-    try { await onUpdatePhoto(director.id, file); } 
-    catch (error) { setUploadError(error instanceof Error ? error.message : "Upload failed."); } 
-    finally { setIsUploading(false); }
-  };
-
-  const handleSaveContact = async () => {
-    if (!director) return;
-    await onUpdateContactInfo(director.id, { email: editEmail, phone: editPhone });
-    setIsEditingContact(false);
+  
+  const handleOpenPlannerForCreate = () => {
+    setEditingDeployment(null);
+    setIsPlannerOpen(true);
   };
   
-  const handleAddDeployment = (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => {
-    onAddDeployment(deploymentData);
-    setIsPlannerOpen(false);
+  const handleOpenPlannerForEdit = (deployment: Deployment) => {
+    setEditingDeployment(deployment);
+    setIsPlannerOpen(true);
+  };
+
+  const handleDeleteDeployment = (deploymentId: string) => {
+    if (window.confirm("Are you sure you want to delete this deployment plan?")) {
+      onDeleteDeployment(deploymentId);
+    }
   };
   
   const topStore = useMemo(() => {
-    // PERMANENT FIX: Use a safer sorting method instead of reduce to prevent crashes on sparse data.
     if (!directorStoreData || directorStoreData.length === 0) {
       return 'N/A';
     }
-
     const kpiConfig = KPI_CONFIG[selectedKpi];
-    
-    // Create a mutable copy and sort it.
     const sortedStores = [...directorStoreData].sort((a, b) => {
-        // Safely get performance values, providing a default that won't win the comparison if the value is missing.
         const aPerf = a.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
         const bPerf = b.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-
-        if (kpiConfig.higherIsBetter) {
-            return bPerf - aPerf; // Sort descending (highest value first)
-        } else {
-            return aPerf - bPerf; // Sort ascending (lowest value first)
-        }
+        return kpiConfig.higherIsBetter ? bPerf - aPerf : aPerf - bPerf;
     });
-
-    // The best store is the first one in the sorted list.
     return sortedStores[0].storeId;
   }, [directorStoreData, selectedKpi]);
 
@@ -168,10 +146,13 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     const now = new Date();
     const currentYear = now.getFullYear();
     const activeDeployments = directorDeployments.filter(d => new Date(d.startDate) <= now && new Date(d.endDate) >= now);
+    
+    // PERMANENT FIX: Initialize reduce with 0 to prevent crash on empty array.
     const totalBudgetSpentThisYear = directorDeployments
         .filter(d => new Date(d.startDate).getFullYear() === currentYear)
         .reduce((sum, d) => sum + d.estimatedBudget, 0);
-    const budgetPercentage = (totalBudgetSpentThisYear / director.yearlyTravelBudget) * 100;
+        
+    const budgetPercentage = director.yearlyTravelBudget > 0 ? (totalBudgetSpentThisYear / director.yearlyTravelBudget) * 100 : 0;
     
     switch (activeDeploymentTab) {
       case 'map':
@@ -180,10 +161,16 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
         return (
           <div className="max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-2">
             {directorDeployments.length > 0 ? directorDeployments.map(d => (
-              <div key={d.id} className="text-xs p-2 bg-slate-800/50 rounded-md">
-                <p className="font-bold text-slate-200">{d.deployedPerson === 'Director' ? director.name : d.deployedPerson} to {d.destination}</p>
-                <p className="text-slate-400">{new Date(d.startDate).toLocaleDateString()} - {new Date(d.endDate).toLocaleDateString()}</p>
-                <p className="text-slate-300 italic">Purpose: {d.purpose}</p>
+              <div key={d.id} className="text-xs p-2 bg-slate-800/50 rounded-md flex justify-between items-start">
+                <div>
+                    <p className="font-bold text-slate-200">{d.deployedPerson === 'Director' ? `${director.name} ${director.lastName}` : d.deployedPerson} to {d.destination}</p>
+                    <p className="text-slate-400">{new Date(d.startDate).toLocaleDateString()} - {new Date(d.endDate).toLocaleDateString()}</p>
+                    <p className="text-slate-300 italic">Purpose: {d.purpose}</p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => handleOpenPlannerForEdit(d)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteDeployment(d.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                </div>
               </div>
             )) : <p className="text-xs text-slate-400 text-center py-4">No deployments planned.</p>}
           </div>
@@ -213,22 +200,13 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={`${director.name} ${director.lastName}'s Hub`} size="large">
         <div className="flex flex-col md:flex-row gap-6">
-            {/* --- LEFT COLUMN --- */}
             <div className="w-full md:w-1/3 space-y-4">
-                {/* Profile Section */}
                 <div className="text-center">
-                    <div className="relative group w-32 h-32 mx-auto">
-                        <img src={director.photo} alt={`${director.name} ${director.lastName}`} className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover"/>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                        <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity">
-                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm"><Icon name="edit" className="w-4 h-4" /> Change</span>
-                        </button>
-                    </div>
+                    <img src={director.photo} alt={`${director.name} ${director.lastName}`} className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover mx-auto"/>
                     <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
                     <p className="text-cyan-400">{director.title}</p>
                 </div>
 
-                {/* Contact & Stores */}
                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
                     <h4 className="text-md font-bold text-slate-300">Details</h4>
                     <div className="text-sm space-y-1 text-slate-300">
@@ -242,7 +220,6 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
                     </div>
                 </div>
                 
-                {/* Goals & Performance */}
                  <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
                      <h4 className="text-md font-bold text-slate-300">Goals & Performance</h4>
                       <div className="bg-slate-800 p-3 rounded-md">
@@ -258,15 +235,12 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
                         ) : <p className="text-xs text-slate-500">No goals set.</p>}
                       </div>
                 </div>
-
             </div>
-            {/* --- RIGHT COLUMN --- */}
             <div className="w-full md:w-2/3 space-y-4">
-                {/* Deployment Planner */}
                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="text-lg font-bold text-slate-300">Deployments</h4>
-                        <button onClick={() => setIsPlannerOpen(true)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 rounded-md transition-colors">
+                        <button onClick={handleOpenPlannerForCreate} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 rounded-md transition-colors">
                             <Icon name="plus" className="w-4 h-4" /> Plan New
                         </button>
                     </div>
@@ -278,7 +252,6 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
                     <div>{renderDeploymentContent()}</div>
                 </div>
 
-                {/* AI Snapshot */}
                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="text-lg font-bold text-cyan-400">AI Performance Snapshot</h4>
@@ -301,7 +274,9 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
         isOpen={isPlannerOpen}
         onClose={() => setIsPlannerOpen(false)}
         director={director}
-        onAddDeployment={handleAddDeployment}
+        existingDeployment={editingDeployment}
+        onAddDeployment={onAddDeployment}
+        onUpdateDeployment={onUpdateDeployment}
       />
     </>
   );

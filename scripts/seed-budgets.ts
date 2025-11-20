@@ -1,6 +1,7 @@
 // This script is designed to be run from the command line to seed the database with budget data.
 // Usage: npm run seed:budgets
 
+import 'node:process'; // FIX: Add import for node process types
 import 'dotenv/config'; // Load environment variables from .env.local
 import { initializeFirebaseService } from '../services/firebaseService';
 import { Kpi } from '../types';

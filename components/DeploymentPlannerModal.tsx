@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { DirectorProfile, Deployment, View } from '../types';
-import { Icon } from './Icon';
+import { DirectorProfile, Deployment } from '../types';
 
 interface DeploymentPlannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   director: DirectorProfile;
+  existingDeployment: Deployment | null;
   onAddDeployment: (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => void;
+  onUpdateDeployment: (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>) => void;
 }
 
-export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ isOpen, onClose, director, onAddDeployment }) => {
+export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
+  isOpen, onClose, director, existingDeployment, onAddDeployment, onUpdateDeployment 
+}) => {
   const [deployedPersonType, setDeployedPersonType] = useState<'Director' | 'Strike Team'>('Director');
   const [strikeTeamName, setStrikeTeamName] = useState('');
   const [destination, setDestination] = useState('');
@@ -20,20 +23,34 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
   const [estimatedBudget, setEstimatedBudget] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const isEditMode = !!existingDeployment;
+
   useEffect(() => {
     if (isOpen) {
-      // Reset form on open
-      setDeployedPersonType('Director');
-      setStrikeTeamName('');
-      setDestination(director.stores[0] || '');
-      const today = new Date().toISOString().split('T')[0];
-      setStartDate(today);
-      setEndDate(today);
-      setPurpose('');
-      setEstimatedBudget('');
+      if (isEditMode) {
+        // Pre-fill form for editing
+        const isDirector = existingDeployment.deployedPerson === 'Director';
+        setDeployedPersonType(isDirector ? 'Director' : 'Strike Team');
+        setStrikeTeamName(isDirector ? '' : existingDeployment.deployedPerson);
+        setDestination(existingDeployment.destination);
+        setStartDate(existingDeployment.startDate.split('T')[0]);
+        setEndDate(existingDeployment.endDate.split('T')[0]);
+        setPurpose(existingDeployment.purpose);
+        setEstimatedBudget(String(existingDeployment.estimatedBudget));
+      } else {
+        // Reset form for creating
+        setDeployedPersonType('Director');
+        setStrikeTeamName('');
+        setDestination(director.stores[0] || '');
+        const today = new Date().toISOString().split('T')[0];
+        setStartDate(today);
+        setEndDate(today);
+        setPurpose('');
+        setEstimatedBudget('');
+      }
       setError(null);
     }
-  }, [isOpen, director]);
+  }, [isOpen, existingDeployment, director]);
 
   const handleSubmit = () => {
     setError(null);
@@ -47,7 +64,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
         return;
     }
 
-    onAddDeployment({
+    const deploymentData = {
       directorId: director.id,
       deployedPerson,
       destination,
@@ -55,11 +72,18 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
       endDate,
       purpose,
       estimatedBudget: parseFloat(estimatedBudget) || 0,
-    });
+    };
+
+    if (isEditMode) {
+      onUpdateDeployment(existingDeployment.id, deploymentData);
+    } else {
+      onAddDeployment(deploymentData);
+    }
+    onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`New Deployment Plan for ${director.name}'s Region`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={isEditMode ? 'Edit Deployment Plan' : `New Deployment for ${director.name}'s Region`}>
       <div className="space-y-4">
         {error && <p className="text-sm text-red-400 bg-red-900/30 p-2 rounded-md">{error}</p>}
         <div>
@@ -93,7 +117,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">Purpose</label>
-          <input type="text" value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Manager shift cover, New menu training" />
+          <input type="text" value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., Manager shift cover" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">Estimated Budget</label>
@@ -102,7 +126,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
         <div className="flex justify-end gap-2 pt-4 border-t border-slate-700">
           <button onClick={onClose} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
           <button onClick={handleSubmit} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md">
-            Save Deployment Plan
+            {isEditMode ? 'Save Changes' : 'Save Deployment Plan'}
           </button>
         </div>
       </div>

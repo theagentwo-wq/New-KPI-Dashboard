@@ -6,7 +6,7 @@ import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
 import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
 import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
 import { GoalSetter } from '@/components/GoalSetter.tsx';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob, getDeployments, addDeployment } from '@/services/firebaseService.ts';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob, getDeployments, addDeployment, updateDeployment, deleteDeployment } from '@/services/firebaseService.ts';
 import { Sidebar } from '@/components/Sidebar.tsx';
 import { DashboardPage } from '@/pages/DashboardPage.tsx';
 import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
@@ -272,7 +272,17 @@ const App: React.FC = () => {
 
     const handleAddDeployment = async (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => {
         const newDeployment = await addDeployment(deploymentData);
-        setDeployments(prev => [newDeployment, ...prev]);
+        setDeployments(prev => [newDeployment, ...prev].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
+    };
+
+    const handleUpdateDeployment = async (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>) => {
+        await updateDeployment(deploymentId, updates);
+        setDeployments(prev => prev.map(d => d.id === deploymentId ? { ...d, ...updates } : d));
+    };
+
+    const handleDeleteDeployment = async (deploymentId: string) => {
+        await deleteDeployment(deploymentId);
+        setDeployments(prev => prev.filter(d => d.id !== deploymentId));
     };
 
     const handleSaveDataForPeriod = async (storeId: string, period: Period, data: PerformanceData) => {
@@ -287,12 +297,9 @@ const App: React.FC = () => {
     const handleCancelAnalysisJob = async () => {
         if (!activeAnalysisJob?.id) return;
         try {
-            // This will mark the job as 'cancelled' in the DB.
-            // The frontend will stop listening due to the useEffect dependency array.
             await cancelAnalysisJob(activeAnalysisJob.id);
         } catch (error) {
             console.error("Failed to send cancel request for job:", error);
-            // Even if the DB update fails, clear it from the UI for a responsive feel.
         }
         setActiveAnalysisJob(null);
     };
@@ -445,6 +452,8 @@ const App: React.FC = () => {
                 onUpdateContactInfo={handleUpdateDirectorContactInfo}
                 deployments={deployments}
                 onAddDeployment={handleAddDeployment}
+                onUpdateDeployment={handleUpdateDeployment}
+                onDeleteDeployment={handleDeleteDeployment}
             />
 
         </div>
