@@ -47,6 +47,7 @@ export interface DirectorProfile {
   photo: string;
   bio: string;
   homeLocation: string;
+  quarterlyTravelBudget: number;
 }
 
 export interface Goal {
@@ -136,3 +137,15 @@ export type DataItem = {
     comparison?: PerformanceData;
     variance: PerformanceData;
 };
+
+export interface Deployment {
+  id: string;
+  directorId: View;
+  deployedPerson: 'Director' | string; // 'Director' or the name of the Strike Team member
+  destination: string; // Store ID
+  startDate: string; // ISO string
+  endDate: string; // ISO string
+  purpose: string;
+  estimatedBudget: number;
+  createdAt: string;
+}

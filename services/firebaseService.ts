@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 
-import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period } from '../types';
+import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 
@@ -23,6 +23,7 @@ let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestor
 let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let analysisJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 let importJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let deploymentsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
 
 
 let isInitialized = false;
@@ -81,6 +82,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         goalsCollection = db.collection('goals');
         analysisJobsCollection = db.collection('analysis_jobs');
         importJobsCollection = db.collection('import_jobs');
+        deploymentsCollection = db.collection('deployments');
         
         isInitialized = true;
         console.log("Firebase service initialized successfully.");
@@ -556,6 +558,25 @@ export const listenToImportJob = (jobId: string, callback: (data: any) => void):
             callback({ id: doc.id, ...doc.data() });
         }
     });
+};
+
+// --- Deployment Planner Functions ---
+export const getDeployments = async (): Promise<Deployment[]> => {
+    if (!deploymentsCollection) return [];
+    const snapshot = await deploymentsCollection.orderBy('startDate', 'desc').get();
+    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString()
+    } as Deployment));
+};
+
+export const addDeployment = async (deploymentData: Omit<Deployment, 'id' | 'createdAt'>): Promise<Deployment> => {
+    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
+    const createdAtTimestamp = firebase.firestore.Timestamp.now();
+    const newDeploymentData = { ...deploymentData, createdAt: createdAtTimestamp };
+    const docRef = await deploymentsCollection.add(newDeploymentData);
+    return { id: docRef.id, ...newDeploymentData, createdAt: createdAtTimestamp.toDate().toISOString() };
 };
 
 // Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.

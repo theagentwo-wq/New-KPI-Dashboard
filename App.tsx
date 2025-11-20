@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, PerformanceData } from '@/types.ts';
+import { Kpi, Period, View, StorePerformanceData, Budget, Goal, DirectorProfile, Note, NoteCategory, PerformanceData, Deployment } from '@/types.ts';
 import { getInitialPeriod } from '@/utils/dateUtils.ts';
 import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
 import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
 import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
 import { GoalSetter } from '@/components/GoalSetter.tsx';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob } from '@/services/firebaseService.ts';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob, getDeployments, addDeployment } from '@/services/firebaseService.ts';
 import { Sidebar } from '@/components/Sidebar.tsx';
 import { DashboardPage } from '@/pages/DashboardPage.tsx';
 import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
@@ -98,6 +98,7 @@ const App: React.FC = () => {
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
+    const [deployments, setDeployments] = useState<Deployment[]>([]);
     const [dbStatus, setDbStatus] = useState<FirebaseStatus>({ status: 'initializing' });
     const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     
@@ -128,18 +129,20 @@ const App: React.FC = () => {
     const fetchData = useCallback(async (period: Period) => {
         if (dbStatus.status === 'connected') {
             try {
-                const [pData, bData, nData, dData, gData] = await Promise.all([
+                const [pData, bData, nData, dData, gData, depData] = await Promise.all([
                     getPerformanceData(period.startDate, period.endDate),
                     getBudgets(period.startDate.getFullYear()),
                     getNotes(),
                     getDirectorProfiles(),
                     getGoals(),
+                    getDeployments(),
                 ]);
                 setPerformanceData(pData);
                 setBudgets(bData);
                 setNotes(nData);
                 setDirectors(dData);
                 setGoals(gData);
+                setDeployments(depData);
             } catch (error) {
                  console.error("Error fetching initial data from Firebase:", error);
                  const errorMessage = error instanceof Error ? error.message : String(error);
@@ -265,6 +268,11 @@ const App: React.FC = () => {
     const handleSetGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number) => {
         const newGoal = await addGoal(directorId, quarter, year, kpi, target);
         setGoals(prevGoals => [...prevGoals, newGoal]);
+    };
+
+    const handleAddDeployment = async (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => {
+        const newDeployment = await addDeployment(deploymentData);
+        setDeployments(prev => [newDeployment, ...prev]);
     };
 
     const handleSaveDataForPeriod = async (storeId: string, period: Period, data: PerformanceData) => {
@@ -432,6 +440,8 @@ const App: React.FC = () => {
                 period={getInitialPeriod()}
                 onUpdatePhoto={handleUpdateDirectorPhoto}
                 onUpdateContactInfo={handleUpdateDirectorContactInfo}
+                deployments={deployments}
+                onAddDeployment={handleAddDeployment}
             />
 
         </div>
