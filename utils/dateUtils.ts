@@ -1,4 +1,4 @@
-import { addDays, addWeeks, format, getYear, setYear } from 'date-fns';
+import { addDays, addWeeks, format, getYear } from 'date-fns';
 import { Period } from '../types';
 
 const FY2026_START_DATE = new Date('2025-12-29T00:00:00');
@@ -84,7 +84,6 @@ const getNthDayOfWeek = (year: number, month: number, dayOfWeek: number, week: n
   if (week === 5) { // Last week of the month
       date.setMonth(date.getMonth() + 1);
       date.setDate(0); // Last day of previous month
-      const lastDayOfMonth = date.getDate();
       while (date.getDay() !== dayOfWeek) {
           date.setDate(date.getDate() - 1);
       }
