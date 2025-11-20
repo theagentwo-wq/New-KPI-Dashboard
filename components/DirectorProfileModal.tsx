@@ -54,7 +54,6 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
   }, [goals, director]);
 
   const directorStoreData = useMemo(() => {
-    // FIX: Return an empty array instead of an empty object to ensure type consistency.
     if (!director) return [];
     return performanceData.filter(pd => director.stores.includes(pd.storeId));
   }, [performanceData, director]);
@@ -135,13 +134,24 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
   if (!director) return null;
 
   const topStore = useMemo(() => {
-    if (directorStoreData.length === 0) return 'N/A';
-    return directorStoreData.reduce((best, current) => {
+    if (!directorStoreData || directorStoreData.length === 0) return 'N/A';
+    
+    // FIX: Provide an initial value to reduce() to prevent errors on empty or filtered-empty arrays.
+    const initialValue = directorStoreData[0];
+
+    const topPerformingStore = directorStoreData.reduce((best, current) => {
         const kpiConfig = KPI_CONFIG[selectedKpi];
         const bestPerf = best.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
         const currentPerf = current.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-        return (kpiConfig.higherIsBetter ? currentPerf > bestPerf : currentPerf < bestPerf) ? current : best;
-    }).storeId;
+        
+        if (kpiConfig.higherIsBetter) {
+            return currentPerf > bestPerf ? current : best;
+        } else {
+            return currentPerf < bestPerf ? current : best;
+        }
+    }, initialValue);
+
+    return topPerformingStore.storeId;
   }, [directorStoreData, selectedKpi]);
   
   const getBudgetBarColor = (percentage: number) => {

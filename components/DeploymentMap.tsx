@@ -10,6 +10,7 @@ declare namespace google.maps {
   class Map {
     constructor(mapDiv: HTMLElement, opts?: any);
     fitBounds(bounds: LatLngBounds): void;
+    setZoom(zoom: number): void;
   }
   class Marker {
     constructor(opts?: any);
@@ -62,26 +63,30 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
         zoom: 6,
         disableDefaultUI: true,
         styles: [ /* Dark mode styles */
-            { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-            { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-            { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#746855' }] },
-            { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2835' }] },
-            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+            { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+            { elementType: 'labels.text.stroke', stylers: [{ color: '#1e293b' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+            { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#cbd5e1' }] },
+            { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+            { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#2c5282' }] },
+            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#262f3e' }] },
+            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+            { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4a5568' }] },
+            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
         ]
       });
-      newMap.fitBounds(bounds);
+      if (director.stores.length > 1) {
+        newMap.fitBounds(bounds);
+      } else {
+        newMap.setZoom(10);
+      }
       setMap(newMap);
       
       if (!infoWindowRef.current) {
         infoWindowRef.current = new google.maps.InfoWindow({
             content: '',
-            pixelOffset: new google.maps.Size(0, -40)
+            pixelOffset: new google.maps.Size(0, -45)
         });
       }
     }
@@ -89,52 +94,63 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
 
   useEffect(() => {
     if (map) {
-      // Clear existing markers
       markers.forEach(marker => marker.setMap(null));
       const newMarkers: google.maps.Marker[] = [];
 
-      activeDeployments.forEach(deployment => {
-        const storeDetails = STORE_DETAILS[deployment.destination];
-        if (!storeDetails) return;
+      if (activeDeployments.length > 0) {
+        // --- RENDER ACTIVE DEPLOYMENTS ---
+        activeDeployments.forEach(deployment => {
+          const storeDetails = STORE_DETAILS[deployment.destination];
+          if (!storeDetails) return;
 
-        const isDirector = deployment.deployedPerson === 'Director';
-        const iconUrl = isDirector ? director.photo : STRIKE_TEAM_ICON_URL;
+          const isDirector = deployment.deployedPerson === 'Director';
+          const iconUrl = isDirector ? director.photo : STRIKE_TEAM_ICON_URL;
 
-        const marker = new google.maps.Marker({
-          position: { lat: storeDetails.lat, lng: storeDetails.lon },
-          map,
-          icon: {
-            url: iconUrl,
-            scaledSize: new google.maps.Size(35, 35),
-            anchor: new google.maps.Point(17.5, 17.5),
-          },
-          title: deployment.destination
+          const marker = new google.maps.Marker({
+            position: { lat: storeDetails.lat, lng: storeDetails.lon },
+            map,
+            icon: {
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="clip"><circle cx="20" cy="20" r="18"/></clipPath></defs><image href="${iconUrl}" x="2" y="2" width="36" height="36" clip-path="url(#clip)"/><circle cx="20" cy="20" r="19" fill="none" stroke="#22d3ee" stroke-width="2"/></svg>`)}`,
+              anchor: new google.maps.Point(20, 20),
+            },
+            title: deployment.destination
+          });
+          
+          const infoContent = `<div class="bg-slate-800 text-white p-2 rounded-md font-sans text-sm"><p class="font-bold mb-1">${isDirector ? `${director.name} ${director.lastName}` : deployment.deployedPerson}</p><p class="text-xs text-slate-300">Purpose: ${deployment.purpose}</p><p class="text-xs text-slate-400 mt-1">Until: ${new Date(deployment.endDate).toLocaleDateString()}</p></div>`;
+
+          marker.addListener('mouseover', () => {
+              if (infoWindowRef.current) {
+                  infoWindowRef.current.setContent(infoContent);
+                  infoWindowRef.current.open(map, marker);
+              }
+          });
+          marker.addListener('mouseout', () => { if (infoWindowRef.current) infoWindowRef.current.close(); });
+          newMarkers.push(marker);
         });
-        
-        const infoContent = `
-            <div style="color: #333; font-family: sans-serif; font-size: 14px; padding: 5px;">
-                <p style="font-weight: bold; margin: 0 0 4px 0;">${isDirector ? `${director.name} ${director.lastName}` : deployment.deployedPerson}</p>
-                <p style="margin: 0;">Purpose: ${deployment.purpose}</p>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: #666;">Until: ${new Date(deployment.endDate).toLocaleDateString()}</p>
-            </div>`;
+      } else {
+        // --- RENDER DIRECTOR AT HOME LOCATION ---
+        const homeStoreDetails = STORE_DETAILS[director.homeLocation];
+        if (homeStoreDetails) {
+            const marker = new google.maps.Marker({
+                position: { lat: homeStoreDetails.lat, lng: homeStoreDetails.lon },
+                map,
+                icon: {
+                    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="clip"><circle cx="20" cy="20" r="18"/></clipPath></defs><image href="${director.photo}" x="2" y="2" width="36" height="36" clip-path="url(#clip)"/><circle cx="20" cy="20" r="19" fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="4 2"/></svg>`)}`,
+                    anchor: new google.maps.Point(20, 20),
+                },
+                title: `Home Base: ${director.homeLocation}`
+            });
 
-        marker.addListener('mouseover', () => {
-            if (infoWindowRef.current) {
-                infoWindowRef.current.setContent(infoContent);
-                infoWindowRef.current.open(map, marker);
-            }
-        });
-        marker.addListener('mouseout', () => {
-             if (infoWindowRef.current) {
-                infoWindowRef.current.close();
-            }
-        });
+            const infoContent = `<div class="bg-slate-800 text-white p-2 rounded-md font-sans text-sm"><p class="font-bold mb-1">${director.name} ${director.lastName}</p><p class="text-xs text-slate-300 italic">At Home Base: ${director.homeLocation}</p></div>`;
 
-        newMarkers.push(marker);
-      });
+            marker.addListener('mouseover', () => { if (infoWindowRef.current) { infoWindowRef.current.setContent(infoContent); infoWindowRef.current.open(map, marker); }});
+            marker.addListener('mouseout', () => { if (infoWindowRef.current) infoWindowRef.current.close(); });
+            newMarkers.push(marker);
+        }
+      }
       setMarkers(newMarkers);
     }
-     return () => { markers.forEach(marker => marker.setMap(null)); }; // Cleanup on unmount
+     return () => { markers.forEach(marker => marker.setMap(null)); };
   }, [map, activeDeployments, director]);
 
   if (error) {
