@@ -41,10 +41,13 @@ const categoryDisplayColors: { [key in NoteCategory]: { bg: string, text: string
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[600px]', dbStatus }) => {
   const [content, setContent] = useState('');
-  // This state is for the new note being composed. It will be automatically set by the filter.
   const [category, setCategory] = useState<NoteCategory>('General');
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Speech to Text State
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'Month')!, [mainDashboardPeriod]);
   const [notesPeriod, setNotesPeriod] = useState<Period>(initialMonthlyPeriod);
@@ -66,12 +69,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [filterCategory, setFilterCategory] = useState<NoteCategory | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // CORE LOGIC FIX: Sync the new note category with the active filter
   useEffect(() => {
     if (filterCategory !== 'All') {
       setCategory(filterCategory);
     } else {
-      setCategory('General'); // Default to 'General' when filter is 'All'
+      setCategory('General');
     }
   }, [filterCategory]);
 
@@ -84,8 +86,76 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   
   useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
-    setFilterCategory('All'); // Reset filter when view changes
+    setFilterCategory('All'); 
   }, [currentView]);
+
+  // --- Speech Recognition Setup ---
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+
+        recognitionRef.current.onresult = (event: any) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            
+            if (finalTranscript) {
+                setContent(prev => {
+                    // Add a space if we are appending to existing text
+                    const spacer = prev && !prev.endsWith(' ') ? ' ' : '';
+                    return prev + spacer + finalTranscript;
+                });
+            }
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+        };
+        
+        recognitionRef.current.onend = () => {
+            // If we are supposed to be listening but it stopped (silence), restart. 
+            // If manually stopped, isListening will be false.
+            if (isListening) {
+                try {
+                    recognitionRef.current.start();
+                } catch (e) {
+                    setIsListening(false);
+                }
+            }
+        }
+    }
+  }, [isListening]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+        alert("Speech recognition is not supported in this browser.");
+        return;
+    }
+
+    if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+    } else {
+        try {
+            recognitionRef.current.start();
+            setIsListening(true);
+        } catch (e) {
+            console.error("Failed to start speech recognition:", e);
+        }
+    }
+  };
+
 
   const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'Month'), []);
 
@@ -111,10 +181,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const handleAddNote = () => {
     if (content.trim() && notesPeriod) {
       const scope = JSON.parse(selectedScope);
-      // The `category` state is now correctly set by the useEffect hook
       addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
       setContent('');
-      // No need to reset category, it stays in sync with the filter
       setStagedImage(null);
       if(fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -294,6 +362,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   };
   
   const getPlaceholderText = () => {
+      if (isListening) return 'Listening... (Speak now)';
       switch (dbStatus.status) {
           case 'initializing': return 'Connecting...';
           case 'error': return 'Database not connected.';
@@ -388,7 +457,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             onChange={(e) => setContent(e.target.value)}
             placeholder={getPlaceholderText()}
             rows={3}
-            className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
+            className={`w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500 ${isListening ? 'ring-2 ring-red-500 border-red-500' : ''}`}
             disabled={dbStatus.status !== 'connected'}
           />
           {stagedImage && (
@@ -400,12 +469,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             </div>
           )}
           <div className="flex justify-between items-center pt-2">
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2">
                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
                   <Icon name="photo" className="w-5 h-5" />
-                  <span className="hidden sm:inline">Attach Photo</span>
+                  <span className="hidden sm:inline">Photo</span>
                 </button>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
+                
+                <button 
+                    onClick={toggleListening}
+                    className={`flex items-center gap-2 text-sm font-semibold py-2 px-2 rounded-md transition-all ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:text-white'}`}
+                    disabled={dbStatus.status !== 'connected'}
+                    title={isListening ? "Stop Dictation" : "Start Dictation"}
+                >
+                    <Icon name="microphone" className="w-5 h-5" />
+                    <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Dictate'}</span>
+                </button>
             </div>
             
             <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>

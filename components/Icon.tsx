@@ -77,6 +77,8 @@ export const Icon: React.FC<IconProps> = ({ name, className }) => {
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348A8.962 8.962 0 0118 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.09 0 4.02.73 5.56 1.98l-1.56 1.56m3-3L18 3m0 0v6m0-6h-6" /></svg>;
     case 'brain':
       return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.998 15.998 0 011.622-3.385m5.043.025a15.998 15.998 0 001.622-3.385m3.386 1.62a15.998 15.998 0 00-4.962-3.414A15.998 15.998 0 0012 2.25C8.904 2.25 6.101 3.284 3.999 5.043a15.997 15.997 0 00-1.622 3.385m15.996 0a15.996 15.996 0 00-5.043-.025m5.043.025a15.998 15.998 0 01-3.386-1.62m4.962 3.414a15.997 15.997 0 01-3.414 4.962m-1.622 3.385a15.998 15.998 0 01-3.386 1.62m-4.962-3.414A15.997 15.997 0 015.042 12a15.997 15.997 0 013.414-4.962m-1.622-3.385a15.998 15.998 0 013.386-1.62" /></svg>;
+    case 'microphone':
+      return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>;
     default:
       return null;
   }
