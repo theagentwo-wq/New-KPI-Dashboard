@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import { createAnalysisJob, createImportJob, initializeFirebaseService } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
 import { isHoliday } from "../../utils/dateUtils";
 
@@ -13,17 +12,6 @@ export const handler: Handler = async (event, _context) => {
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers };
-  }
-  
-  // Initialize Firebase only if needed for specific actions to save cold-start time
-  // However, current logic checks it upfront. We keep it but wrap in try-catch.
-  try {
-      const status = await initializeFirebaseService();
-      if (status.status === 'error') {
-          console.warn(`Firebase initialization warning: ${status.message}. Proceeding with AI-only tasks if possible.`);
-      }
-  } catch (e) {
-      console.warn("Firebase init failed entirely, proceeding cautiously.", e);
   }
 
   if (event.httpMethod !== 'POST') {
@@ -52,7 +40,6 @@ export const handler: Handler = async (event, _context) => {
 
     let prompt = '';
     let responsePayload: any = {};
-    // Use the stable flash model for speed and reliability
     const model = 'gemini-2.5-flash';
 
     // --- Context Enrichment ---
@@ -70,12 +57,9 @@ export const handler: Handler = async (event, _context) => {
 
     // Helper for safe generation with timeout
     const generateContentSafe = async (params: any) => {
-        // Create a timeout promise that rejects after 9 seconds
         const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error("Gemini API Request Timed Out")), 9000)
         );
-
-        // Race the API call against the timeout
         const result: any = await Promise.race([
             ai.models.generateContent(params),
             timeoutPromise
@@ -84,13 +68,17 @@ export const handler: Handler = async (event, _context) => {
     };
 
     switch (action) {
-      // --- Background Job Triggers ---
+      // --- Background Job Triggers (Requires Firebase) ---
       case 'startStrategicAnalysis': {
+        // DYNAMIC IMPORT: Only load Firebase code when absolutely necessary.
+        // This prevents the 'Firebase Web SDK in Node' crash (502) for all other requests.
+        const { createAnalysisJob } = await import('../../services/firebaseService');
         const jobId = await createAnalysisJob(payload);
         invokeBackgroundFunction('process-analysis-job', { jobId });
         return { statusCode: 200, headers, body: JSON.stringify({ jobId }) };
       }
       case 'startImportJob': {
+        const { createImportJob } = await import('../../services/firebaseService');
         const jobId = await createImportJob(payload);
         invokeBackgroundFunction('process-import-job', { jobId });
         return { statusCode: 200, headers, body: JSON.stringify({ jobId }) };
@@ -99,7 +87,7 @@ export const handler: Handler = async (event, _context) => {
           return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       }
 
-      // --- Synchronous AI Generation ---
+      // --- Synchronous AI Generation (Pure AI, NO Firebase) ---
       case 'chatWithStrategy': {
           const { context, userQuery, mode } = payload;
           let systemInst = "You are a helpful business strategy assistant.";
