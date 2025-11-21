@@ -147,12 +147,15 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     const currentYear = now.getFullYear();
     const activeDeployments = directorDeployments.filter(d => new Date(d.startDate) <= now && new Date(d.endDate) >= now);
     
-    // PERMANENT FIX: Initialize reduce with 0 to prevent crash on empty array.
+    // Safe budget calculation
     const totalBudgetSpentThisYear = directorDeployments
         .filter(d => new Date(d.startDate).getFullYear() === currentYear)
-        .reduce((sum, d) => sum + d.estimatedBudget, 0);
+        .reduce((sum, d) => sum + (d.estimatedBudget || 0), 0);
         
-    const budgetPercentage = director.yearlyTravelBudget > 0 ? (totalBudgetSpentThisYear / director.yearlyTravelBudget) * 100 : 0;
+    // Default to 30000 if yearlyTravelBudget is missing on the profile
+    const safeYearlyBudget = director.yearlyTravelBudget || 30000;
+    const budgetPercentage = safeYearlyBudget > 0 ? (totalBudgetSpentThisYear / safeYearlyBudget) * 100 : 0;
+    const remainingBudget = safeYearlyBudget - totalBudgetSpentThisYear;
     
     switch (activeDeploymentTab) {
       case 'map':
@@ -167,9 +170,12 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
                     <p className="text-slate-400">{new Date(d.startDate).toLocaleDateString()} - {new Date(d.endDate).toLocaleDateString()}</p>
                     <p className="text-slate-300 italic">Purpose: {d.purpose}</p>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => handleOpenPlannerForEdit(d)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteDeployment(d.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                <div className="flex flex-col items-end gap-1">
+                    <span className="text-cyan-400 font-mono font-semibold">{(d.estimatedBudget || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</span>
+                    <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => handleOpenPlannerForEdit(d)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteDeployment(d.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                    </div>
                 </div>
               </div>
             )) : <p className="text-xs text-slate-400 text-center py-4">No deployments planned.</p>}
@@ -177,19 +183,48 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
         );
       case 'budget':
         return (
-           <div className="p-4 flex items-center gap-4">
-             <Icon name="budget" className="w-10 h-10 text-cyan-400 flex-shrink-0" />
-             <div className="w-full">
-                <div className="flex justify-between items-baseline mb-1">
-                    <p className="text-xl font-bold text-white">
+           <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700 shadow-lg">
+             <div className="flex items-center justify-between mb-6">
+                <h4 className="text-lg font-bold text-white">Travel Budget FY{currentYear}</h4>
+                <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
+                    <Icon name="budget" className="w-6 h-6 text-cyan-400" />
+                </div>
+             </div>
+
+             <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Spent</p>
+                    <p className="text-2xl font-bold text-white">
                         {totalBudgetSpentThisYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
                     </p>
-                    <p className="text-sm text-slate-400">of {director.yearlyTravelBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</p>
                 </div>
-                <div className="w-full bg-slate-700 rounded-full h-2.5">
-                    <div className={`${getBudgetBarColor(budgetPercentage)} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${Math.min(budgetPercentage, 100)}%` }}></div>
+                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Remaining</p>
+                    <p className={`text-2xl font-bold ${remainingBudget < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {remainingBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+                    </p>
                 </div>
-                <p className="text-xs text-slate-400 text-right mt-1">{`FY${currentYear} Travel Budget`}</p>
+             </div>
+
+             <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                    <div>
+                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-cyan-300 bg-cyan-500/20">
+                            Budget Utilization
+                        </span>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-xs font-semibold inline-block text-slate-300">
+                            {budgetPercentage.toFixed(1)}%
+                        </span>
+                    </div>
+                </div>
+                <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-slate-700 border border-slate-600">
+                    <div style={{ width: `${Math.min(budgetPercentage, 100)}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${getBudgetBarColor(budgetPercentage)} transition-all duration-700 ease-out`}></div>
+                </div>
+                <p className="text-xs text-slate-500 text-center">
+                    Total Budget: <span className="text-slate-300 font-medium">{safeYearlyBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</span>
+                </p>
              </div>
            </div>
         );
