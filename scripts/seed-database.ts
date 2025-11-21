@@ -43,7 +43,7 @@ import 'firebase/compat/firestore';
 // If this array is empty, ALL years found in the CSV will be processed.
 // To prevent timeouts with large datasets, add specific years here (e.g., [2023]) 
 // and run the script multiple times.
-const YEARS_TO_SEED: number[] = [2025]; 
+const YEARS_TO_SEED: number[] = [2023, 2024, 2025]; 
 // Example: const YEARS_TO_SEED = [2023];
 
 // --- INLINED DATE LOGIC (To prevent import issues) ---
@@ -142,66 +142,152 @@ const KPI_NAME_MAP: { [key: string]: Kpi } = {
     'Reviews': Kpi.AvgReviews,
 };
 
+// Robust CSV splitter that respects quoted fields
+const splitCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current.trim());
+    return result;
+};
+
 const parseAndTransformData = () => {
     console.log("Parsing and transforming historical data...");
     const lines = HISTORICAL_DATA_CSV.trim().split('\n');
-    const locationLine = lines[0].split(',').map(s => s.trim().replace(/"/g, ''));
-    const yearLine = lines[1].split(',').map(s => s.trim());
+    
+    // Use robust splitter
+    const locationLine = splitCSVLine(lines[0]).map(s => s.replace(/^"|"$/g, ''));
+    const yearLine = splitCSVLine(lines[1]);
 
     const headers: { location: string; year: number }[] = [];
-    for (let i = 1; i < locationLine.length; i++) {
-        if (locationLine[i]) {
-            const mappedLocation = LOCATION_CODE_MAP[locationLine[i]];
+    
+    // Map flattened columns to location/year
+    // Logic: iterates through the location line. If a location is found, it assumes the next 3 columns belong to it.
+    // Because we now split correctly (preserving "Columbus, OH" as one token), indices should align.
+    
+    let colIndex = 1; // Start at 1 to skip the first empty/label column
+    
+    while (colIndex < locationLine.length) {
+        const rawLoc = locationLine[colIndex];
+        
+        if (rawLoc) {
+            // Check if this is a known location
+            const mappedLocation = LOCATION_CODE_MAP[rawLoc] || LOCATION_CODE_MAP[rawLoc.replace(/^"|"$/g, '')];
+            
             if (mappedLocation) {
-                headers.push({ location: mappedLocation, year: parseInt(yearLine[i]) });
-                headers.push({ location: mappedLocation, year: parseInt(yearLine[i+1]) });
-                headers.push({ location: mappedLocation, year: parseInt(yearLine[i+2]) });
+                // Found a location! The next 3 columns (colIndex, colIndex+1, colIndex+2) belong to it.
+                // We assume the yearLine is perfectly aligned (2023, 2024, 2025)
+                
+                headers.push({ location: mappedLocation, year: parseInt(yearLine[colIndex]) });
+                headers.push({ location: mappedLocation, year: parseInt(yearLine[colIndex + 1]) });
+                headers.push({ location: mappedLocation, year: parseInt(yearLine[colIndex + 2]) });
+                
+                colIndex += 3; // Jump forward 3 columns
+            } else {
+                // Unknown location token? Just skip one.
+                // But wait, if it's empty string, it's likely a gap.
+                colIndex++; 
             }
+        } else {
+            colIndex++;
         }
     }
 
     const yearlyData: { [year: number]: { [location: string]: PerformanceData } } = {};
 
     for (let i = 2; i < lines.length; i++) {
-        const dataLine = lines[i].split(',').map(s => s.trim().replace(/"/g, ''));
-        const kpiName = dataLine[0];
+        const dataLine = splitCSVLine(lines[i]);
+        const kpiName = dataLine[0].replace(/^"|"$/g, '');
         const kpi = KPI_NAME_MAP[kpiName];
         if (!kpi) continue;
 
-        for (let j = 1; j < dataLine.length; j++) {
-            const header = headers[j - 1];
-            if (!header || !header.location) continue;
-
-            const valueStr = dataLine[j];
-            if (!valueStr || valueStr === '-') continue;
-
-            let value = parseFloat(valueStr.replace(/[\s$,%]/g, ''));
+        // Process data columns. headers array is dense (0, 1, 2...).
+        // Data columns start at index 1.
+        // headers[0] corresponds to dataLine[1].
+        
+        for (let j = 0; j < headers.length; j++) {
+            const header = headers[j];
+            if (!header) continue;
+            
+            // Map header index to data column index (offset by 1 because Col 0 is Label)
+            // Note: The 'headers' array was built by skipping gaps.
+            // We need to be careful. Does dataLine contain the gaps?
+            // Yes, dataLine comes from splitCSVLine, so it has all empty columns too.
+            
+            // We need to map back to original indices.
+            // Actually, let's redo the loop to iterate through dataLine and pick up headers sparsely.
+            // No, that's hard because headers are sparse.
+            
+            // ALTERNATIVE: Re-scan header line to get exact indices.
+        }
+    }
+    
+    // --- RE-IMPLEMENTATION OF DATA PARSING WITH EXACT INDICES ---
+    // This is safer: we determine the exact column index for each Store+Year first.
+    const columnMapping: { [colIndex: number]: { location: string, year: number } } = {};
+    
+    let locColIndex = 1;
+    while (locColIndex < locationLine.length) {
+        const rawLoc = locationLine[locColIndex];
+        if (rawLoc) {
+             const mappedLocation = LOCATION_CODE_MAP[rawLoc] || LOCATION_CODE_MAP[rawLoc.replace(/^"|"$/g, '')];
+             if (mappedLocation) {
+                 // Map the next 3 columns
+                 columnMapping[locColIndex] = { location: mappedLocation, year: parseInt(yearLine[locColIndex]) };
+                 columnMapping[locColIndex + 1] = { location: mappedLocation, year: parseInt(yearLine[locColIndex + 1]) };
+                 columnMapping[locColIndex + 2] = { location: mappedLocation, year: parseInt(yearLine[locColIndex + 2]) };
+                 locColIndex += 3;
+             } else {
+                 locColIndex++;
+             }
+        } else {
+            locColIndex++;
+        }
+    }
+    
+    // Now iterate data
+    for (let i = 2; i < lines.length; i++) {
+        const dataLine = splitCSVLine(lines[i]);
+        const kpiName = dataLine[0].replace(/^"|"$/g, '');
+        const kpi = KPI_NAME_MAP[kpiName];
+        if (!kpi) continue;
+        
+        for (let c = 1; c < dataLine.length; c++) {
+            const mapping = columnMapping[c];
+            if (!mapping) continue; // Skip columns that aren't mapped to a store/year
+            
+            const valueStr = dataLine[c];
+            if (!valueStr || valueStr === '-' || valueStr.trim() === '$-') continue;
+            
+            let value = parseFloat(valueStr.replace(/[\s$,%"]/g, ''));
             if (isNaN(value)) continue;
 
             if (valueStr.includes('%') || kpi === Kpi.CulinaryAuditScore) {
                 value /= 100;
             }
-
-            if (!yearlyData[header.year]) yearlyData[header.year] = {};
-            if (!yearlyData[header.year][header.location]) yearlyData[header.year][header.location] = {};
             
-            yearlyData[header.year][header.location][kpi] = value;
+            // Assign
+            if (!yearlyData[mapping.year]) yearlyData[mapping.year] = {};
+            if (!yearlyData[mapping.year][mapping.location]) yearlyData[mapping.year][mapping.location] = {};
+            yearlyData[mapping.year][mapping.location][kpi] = value;
         }
     }
     
     console.log("Transforming yearly data into weekly format...");
     const weeklyPerformanceData: { storeId: string; weekStartDate: Date; data: PerformanceData }[] = [];
-    
-    // Use inlined function
     const allFiscalPeriods = generateFiscalPeriodsLocal(2023, 2026); 
-    
-    console.log(`DEBUG: Generated ${allFiscalPeriods.length} total fiscal periods.`);
-    if (allFiscalPeriods.length > 0) {
-        console.log(`DEBUG: First period label: "${allFiscalPeriods[0].label}"`);
-        console.log(`DEBUG: Last period label: "${allFiscalPeriods[allFiscalPeriods.length - 1].label}"`);
-    } else {
-        console.error("DEBUG ERROR: No fiscal periods generated!");
-    }
 
     for (const yearStr in yearlyData) {
         const year = parseInt(yearStr);
@@ -209,7 +295,6 @@ const parseAndTransformData = () => {
 
         console.log(`DEBUG: Processing Year: ${year} from CSV...`);
 
-        // --- FILTERING LOGIC ---
         if (YEARS_TO_SEED.length > 0 && !YEARS_TO_SEED.includes(year)) {
             console.log(`DEBUG: Skipping ${year} (not in YEARS_TO_SEED filter)`);
             continue;
@@ -222,22 +307,45 @@ const parseAndTransformData = () => {
             console.warn(`Could not find any fiscal weeks for ${searchLabel}. Skipping year.`);
             continue;
         }
-        
-        console.log(`DEBUG: Found ${weeksInYear.length} weeks for ${searchLabel}`);
 
         const locations = yearlyData[year];
         for (const location in locations) {
             const locationYearlyData = locations[location];
             
             weeksInYear.forEach(week => {
+                // --- GAINESVILLE OPENING LOGIC ---
+                // Gainesville opens June 2025. Data before that should be 0.
+                if (location === 'Gainesville, GA' && year === 2025) {
+                    const openingDate = new Date('2025-06-01');
+                    if (week.startDate < openingDate) {
+                        // Create empty record with 0s
+                        const zeroData: PerformanceData = {};
+                        for(const k in locationYearlyData) zeroData[k as Kpi] = 0;
+                        
+                        weeklyPerformanceData.push({
+                            storeId: location,
+                            weekStartDate: week.startDate,
+                            data: zeroData
+                        });
+                        return; // Skip normal processing
+                    }
+                }
+                
                 const weeklyData: PerformanceData = {};
                 for (const kpiStr in locationYearlyData) {
                     const kpi = kpiStr as Kpi;
                     const yearlyValue = locationYearlyData[kpi]!;
                     
-                    // For currency, distribute evenly. For percentages/averages, apply the same value.
+                    // For Gainesville post-opening, we need to adjust the division logic
+                    // If annual Sales is $X, and it's open for ~30 weeks (June-Dec),
+                    // divide by 30, not 52.
+                    let divisor = weeksInYear.length;
+                    if (location === 'Gainesville, GA' && year === 2025) {
+                        divisor = 30; // Approx weeks from June to Dec
+                    }
+
                     if (kpi === Kpi.Sales) {
-                        weeklyData[kpi] = yearlyValue / weeksInYear.length;
+                        weeklyData[kpi] = yearlyValue / divisor;
                     } else {
                         weeklyData[kpi] = yearlyValue;
                     }
