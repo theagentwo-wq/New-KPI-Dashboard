@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { marked } from 'marked';
 import { Icon } from './Icon';
 import { Kpi, View, DataItem } from '../types';
@@ -32,7 +32,7 @@ const formatValue = (value: number, kpi: Kpi) => {
 // Primary KPIs for C-Suite level view
 const STRATEGIC_KPIS = [Kpi.Sales, Kpi.SOP, Kpi.PrimeCost];
 
-export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, currentView, allStoresData, directorAggregates }) => {
+export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, allStoresData, directorAggregates }) => {
     const [activeKpi, setActiveKpi] = useState<Kpi>(Kpi.Sales);
     const [analysis, setAnalysis] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -195,7 +195,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
                         The "Anchors" <span className="text-xs font-normal text-slate-500">(Bottom 3 Performers)</span>
                     </h4>
                     <div className="space-y-2">
-                        {anchors.map((store, i) => (
+                        {anchors.map((store) => (
                             <div key={store.name} className="bg-red-900/10 p-3 rounded border border-red-900/30 flex items-center justify-between">
                                 <span className="text-sm text-slate-300 font-medium truncate max-w-[140px]" title={store.name}>{store.name}</span>
                                 <span className="text-sm font-bold text-red-400 font-mono">{formatValue(store.value, activeKpi)}</span>

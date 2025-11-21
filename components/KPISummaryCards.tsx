@@ -17,7 +17,7 @@ const cardVariants: any = {
     visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
 
-const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: () => void, index: number }> = ({ kpi, value, isSelected, onSelect, index }) => {
+const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: () => void }> = ({ kpi, value, isSelected, onSelect }) => {
     const config = KPI_CONFIG[kpi];
     const animatedValue = useAnimatedNumber(value);
 
@@ -114,7 +114,7 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
     if (!data) {
         return (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {kpisToShow.map((kpi, i) => (
+                {kpisToShow.map((kpi) => (
                     <div key={kpi} className="p-4 rounded-xl bg-slate-800/40 border border-slate-700 animate-pulse h-28">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-9 h-9 bg-slate-700 rounded-lg"></div>
@@ -136,7 +136,7 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
                 animate: "visible"
             } as any)}
         >
-            {kpisToShow.map((kpi, index) => {
+            {kpisToShow.map((kpi) => {
                 const value = data[kpi];
                 if (value === undefined || isNaN(value)) return null;
                 
@@ -147,7 +147,6 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
                         value={value}
                         isSelected={selectedKpi === kpi}
                         onSelect={() => onKpiSelect(kpi)}
-                        index={index}
                     />
                 );
             })}

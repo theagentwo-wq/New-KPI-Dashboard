@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { View, Period, FinancialLineItem, StorePerformanceData, ComparisonMode } from '../types';
+import { View, Period, FinancialLineItem } from '../types';
 import { ALL_STORES, DIRECTORS } from '../constants';
-import { getInitialPeriod, getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
+import { getInitialPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from '../components/Icon';
 import { getPerformanceData } from '../services/firebaseService';
 
@@ -197,12 +196,6 @@ export const FinancialsPage: React.FC = () => {
                                     if (items.length === 0) return null;
                                     const isExpanded = expandedCategories.includes(category);
                                     
-                                    // Calculate totals for the category header line
-                                    // Filter for indent 0 items usually, or sum everything if structure implies it
-                                    // For simplicity here, we assume the items list contains both totals and children.
-                                    // A better approach usually involves summing children.
-                                    // Let's just render the items provided by the logic.
-                                    
                                     return (
                                         <React.Fragment key={category}>
                                             {/* Category Header */}
@@ -218,7 +211,6 @@ export const FinancialsPage: React.FC = () => {
                                             {isExpanded && items.map((item, idx) => {
                                                 const netSales = financialData.find(i => i.name === 'Net Sales')?.actual || 1; // Avoid div by zero
                                                 const variance = item.actual - (item.budget || 0);
-                                                const isPositiveVar = variance >= 0;
                                                 
                                                 // Variance Color Logic:
                                                 // Sales: Positive = Good (Green)
@@ -231,7 +223,7 @@ export const FinancialsPage: React.FC = () => {
                                                 return (
                                                     <tr key={`${category}-${idx}`} className="hover:bg-slate-700/20 border-b border-slate-700/30 last:border-0">
                                                         <td className="px-6 py-2">
-                                                            <div style={{ paddingLeft: `${item.indent * 1.5}rem` }} className={`${item.indent === 0 ? 'font-semibold text-white' : 'text-slate-400'}`}>
+                                                            <div style={{ paddingLeft: `${(item.indent || 0) * 1.5}rem` }} className={`${item.indent === 0 ? 'font-semibold text-white' : 'text-slate-400'}`}>
                                                                 {item.name}
                                                             </div>
                                                         </td>
