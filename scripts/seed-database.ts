@@ -1,5 +1,5 @@
 // This script is designed to be run from the command line to seed the database with historical data.
-// Usage: npm run seed:db (or 'netlify env:exec npm run seed:db' for cloud keys)
+// Usage: npm run seed:db (or 'netlify dev:exec npm run seed:db' for cloud keys)
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
