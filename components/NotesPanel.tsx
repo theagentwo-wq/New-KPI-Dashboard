@@ -47,6 +47,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   // Speech to Text State
   const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false); // Track intent to listen across closures
   const recognitionRef = useRef<any>(null);
 
   const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'Month')!, [mainDashboardPeriod]);
@@ -91,51 +92,66 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   // --- Speech Recognition Setup ---
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
+    // Check browser support
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
 
-        recognitionRef.current.onresult = (event: any) => {
-            let interimTranscript = '';
-            let finalTranscript = '';
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
 
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-            
-            if (finalTranscript) {
-                setContent(prev => {
-                    // Add a space if we are appending to existing text
-                    const spacer = prev && !prev.endsWith(' ') ? ' ' : '';
-                    return prev + spacer + finalTranscript;
-                });
-            }
-        };
+    recognition.onresult = (event: any) => {
+        let finalTranscript = '';
 
-        recognitionRef.current.onerror = (event: any) => {
-            console.error("Speech recognition error", event.error);
-            setIsListening(false);
-        };
-        
-        recognitionRef.current.onend = () => {
-            // If we are supposed to be listening but it stopped (silence), restart. 
-            // If manually stopped, isListening will be false.
-            if (isListening) {
-                try {
-                    recognitionRef.current.start();
-                } catch (e) {
-                    setIsListening(false);
-                }
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
             }
         }
+        
+        if (finalTranscript) {
+            setContent(prev => {
+                const trimmedPrev = prev.trim();
+                const spacer = trimmedPrev.length > 0 ? ' ' : '';
+                return trimmedPrev + spacer + finalTranscript;
+            });
+        }
+    };
+
+    recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        // If permission denied or serious error, stop trying
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            isListeningRef.current = false;
+            setIsListening(false);
+        }
+    };
+    
+    recognition.onend = () => {
+        // Only restart if the user still wants to be listening (intent is true)
+        if (isListeningRef.current) {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error("Failed to restart recognition", e);
+                isListeningRef.current = false;
+                setIsListening(false);
+            }
+        } else {
+            setIsListening(false);
+        }
     }
-  }, [isListening]);
+
+    recognitionRef.current = recognition;
+
+    return () => {
+        if (recognition) {
+            recognition.onend = null; // Prevent restart on unmount
+            recognition.stop();
+        }
+    };
+  }, []);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -144,14 +160,20 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
 
     if (isListening) {
-        recognitionRef.current.stop();
+        // User wants to stop
+        isListeningRef.current = false;
         setIsListening(false);
+        recognitionRef.current.stop();
     } else {
+        // User wants to start
+        isListeningRef.current = true;
+        setIsListening(true);
         try {
             recognitionRef.current.start();
-            setIsListening(true);
         } catch (e) {
             console.error("Failed to start speech recognition:", e);
+            isListeningRef.current = false;
+            setIsListening(false);
         }
     }
   };
