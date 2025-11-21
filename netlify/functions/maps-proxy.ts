@@ -1,7 +1,5 @@
 // netlify/functions/maps-proxy.ts
 
-import fetch from 'node-fetch';
-
 // Type definitions for Google Maps API responses to ensure type safety
 interface FindPlaceResponse {
   candidates?: { place_id: string }[];

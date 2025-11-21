@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import fetch from 'node-fetch';
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
