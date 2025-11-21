@@ -45,9 +45,11 @@ const ImportStatusIndicator: React.FC<ImportStatusIndicatorProps> = ({ job, onEx
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
+            {...({
+                initial: { opacity: 0, y: 50 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 50 }
+            } as any)}
             className="fixed bottom-4 right-4 z-50"
         >
             <div className="bg-slate-800/80 backdrop-blur-md border border-slate-600 rounded-lg shadow-2xl text-slate-200 w-80 overflow-hidden">
@@ -377,10 +379,12 @@ const App: React.FC = () => {
                 <AnimatePresence mode="wait">
                     <motion.main
                         key={currentPage}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        {...({
+                            initial: { opacity: 0, y: 20 },
+                            animate: { opacity: 1, y: 0 },
+                            exit: { opacity: 0, y: -20 },
+                            transition: { duration: 0.3 }
+                        } as any)}
                         className="h-full"
                     >
                         {currentPage === 'Dashboard' && (

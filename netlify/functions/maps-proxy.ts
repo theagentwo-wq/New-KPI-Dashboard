@@ -43,8 +43,8 @@ export const handler = async (event: any) => {
 
     // Create a controller to abort external requests if they take too long
     const controller = new AbortController();
-    // Set a timeout of 8000ms (8s) to ensure we respond before Netlify's 10s hard limit
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Set a timeout of 7000ms (7s) to be safe within Netlify's 10s limit
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     try {
         const body = JSON.parse(event.body || '{}');
@@ -79,13 +79,19 @@ export const handler = async (event: any) => {
         const findPlaceResponse = await safeFetch(findPlaceUrl);
         
         if (!findPlaceResponse.ok) {
-            throw new Error(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
+            // Log the error but don't crash the UI
+            console.warn(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
+            return {
+                statusCode: 200, // Return 200 with empty data to graceful degrade
+                headers,
+                body: JSON.stringify({ data: { name: 'Location Details Unavailable', rating: 0, photoUrls: [] } })
+            }
         }
         
         const findPlaceData = await findPlaceResponse.json() as FindPlaceResponse;
 
         if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-            return { 
+             return { 
                 statusCode: 404, 
                 headers, 
                 body: JSON.stringify({ 
@@ -101,7 +107,7 @@ export const handler = async (event: any) => {
         const detailsResponse = await safeFetch(detailsUrl);
         
         if (!detailsResponse.ok) {
-            throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
+             throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
         }
         
         const detailsData = await detailsResponse.json() as PlaceDetailsResponse;

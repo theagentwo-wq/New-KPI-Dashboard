@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { useSpring, MotionValue } from 'framer-motion';
+import { useSpring } from 'framer-motion';
 
-export const useAnimatedNumber = (value: number): MotionValue<number> => {
+export const useAnimatedNumber = (value: number): any => {
   const spring = useSpring(value, {
     mass: 0.8,
     stiffness: 75,

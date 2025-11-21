@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,7 +69,8 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     // 3. Identify "Anchors" (Bottom 3 Stores) for active KPI
     const anchors = useMemo(() => {
         return Object.entries(allStoresData).map(([name, item]) => {
-            return { name, value: item.actual[activeKpi] || 0 };
+            const actual = 'actual' in item ? item.actual : item.aggregated;
+            return { name, value: actual[activeKpi] || 0 };
         })
         .sort((a, b) => KPI_CONFIG[activeKpi].higherIsBetter ? a.value - b.value : b.value - a.value) // Sort ascending (worst first) for HigherIsBetter
         .slice(0, 3);
@@ -132,8 +134,10 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
                          {/* Note: This total changes based on the active KPI selected above, giving immediate feedback */}
                          {activeKpi === kpi && (
                              <motion.span 
-                                initial={{ opacity: 0, y: 5 }} 
-                                animate={{ opacity: 1, y: 0 }}
+                                {...({
+                                    initial: { opacity: 0, y: 5 },
+                                    animate: { opacity: 1, y: 0 }
+                                } as any)}
                                 className="text-lg font-bold text-white block"
                              >
                                  {formatValue(companyTotal, kpi)}
@@ -169,9 +173,11 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
                                         {/* Simple Bar */}
                                         <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                                             <motion.div 
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${percent}%` }}
-                                                transition={{ duration: 0.5, delay: i * 0.1 }}
+                                                {...({
+                                                    initial: { width: 0 },
+                                                    animate: { width: `${percent}%` },
+                                                    transition: { duration: 0.5, delay: i * 0.1 }
+                                                } as any)}
                                                 className="h-full bg-cyan-600 rounded-full"
                                             />
                                         </div>
@@ -225,8 +231,10 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
                     </button>
                 ) : (
                     <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
+                        {...({
+                            initial: { height: 0, opacity: 0 },
+                            animate: { height: 'auto', opacity: 1 }
+                        } as any)}
                         className="bg-slate-900/80 border border-slate-700 rounded-lg max-h-48 overflow-y-auto custom-scrollbar p-4 relative"
                     >
                         <button onClick={() => setAnalysis('')} className="absolute top-2 right-2 text-slate-500 hover:text-white">

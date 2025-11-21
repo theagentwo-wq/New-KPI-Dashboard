@@ -12,7 +12,7 @@ if (process.env.FIREBASE_CLIENT_CONFIG) {
     console.log(`✅ FIREBASE_CLIENT_CONFIG detected in environment.`);
 } else {
     // 2. If not, try to find .env.local
-    const envPath = path.resolve(process.cwd(), '.env.local');
+    const envPath = path.resolve((process as any).cwd(), '.env.local');
     console.log(`Environment variable not found. Looking for config at: ${envPath}`);
 
     if (fs.existsSync(envPath)) {
@@ -28,7 +28,7 @@ if (process.env.FIREBASE_CLIENT_CONFIG) {
 if (!process.env.FIREBASE_CLIENT_CONFIG) {
     console.error(`❌ FIREBASE_CLIENT_CONFIG is MISSING.`);
     console.error(`   If running locally without a file, use: netlify env:exec npm run seed:budgets`);
-    process.exit(1);
+    (process as any).exit(1);
 }
 console.log(`-------------------------\n`);
 
@@ -64,7 +64,7 @@ const seedBudgets = async () => {
     const status = await initializeFirebaseService();
     if (status.status === 'error') {
         console.error("Failed to connect to Firebase:", status.message);
-        process.exit(1);
+        (process as any).exit(1);
     }
     console.log("Firebase connected.");
 
@@ -104,7 +104,7 @@ const seedBudgets = async () => {
     } catch (error) {
         console.error("\n\x1b[31m%s\x1b[0m", "❌ An error occurred during budget data seeding:");
         console.error(error);
-        process.exit(1);
+        (process as any).exit(1);
     }
 };
 

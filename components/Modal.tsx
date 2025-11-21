@@ -27,17 +27,21 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...({
+            initial: { opacity: 0 },
+            animate: { opacity: 1 },
+            exit: { opacity: 0 }
+          } as any)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            {...({
+              initial: { scale: 0.9, opacity: 0 },
+              animate: { scale: 1, opacity: 1 },
+              exit: { scale: 0.9, opacity: 0 },
+              transition: { type: 'spring', stiffness: 300, damping: 30 }
+            } as any)}
             className={`bg-slate-800/60 backdrop-blur-2xl rounded-lg shadow-2xl text-slate-200 border border-slate-600/80 flex flex-col max-h-[90vh] ${getSizeClass()}`}
             onClick={(e) => e.stopPropagation()}
           >

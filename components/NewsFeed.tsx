@@ -21,11 +21,13 @@ const ArticleCard: React.FC<{ article: Article, onSelect: () => void }> = ({ art
 
     return (
         <motion.div
-            layout
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            {...({
+                layout: true,
+                initial: { opacity: 0, scale: 0.9 },
+                animate: { opacity: 1, scale: 1 },
+                exit: { opacity: 0, scale: 0.9 },
+                transition: { type: 'spring', stiffness: 300, damping: 25 }
+            } as any)}
             onClick={onSelect}
             className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 hover:border-cyan-500 cursor-pointer flex flex-col justify-between h-full group"
         >
@@ -135,7 +137,7 @@ export const NewsFeed: React.FC = () => {
             </div>
         ) : (
             <motion.div
-                layout
+                {...({ layout: true } as any)}
                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
             >
                 <AnimatePresence>

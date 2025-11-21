@@ -28,7 +28,7 @@ const NavLink: React.FC<{
 }> = ({ icon, label, isActive, isCollapsed, onClick }) => (
   <motion.button
     onClick={onClick}
-    whileHover={{ backgroundColor: 'rgba(51, 65, 85, 0.7)' }}
+    {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.7)' } } as any)}
     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
       isActive ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300'
     } ${isCollapsed ? 'justify-center' : ''}`}
@@ -50,7 +50,7 @@ const DirectorLink: React.FC<{
     <motion.div 
         className={`w-full flex items-center justify-between pl-4 pr-2 py-1.5 rounded-md transition-colors text-sm ${ isActive ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700/50' } ${isCollapsed ? 'pl-2' : ''}`}
         title={isCollapsed ? label : ''}
-        whileHover={{ backgroundColor: 'rgba(51, 65, 85, 0.9)' }}
+        {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.9)' } } as any)}
     >
         <button onClick={onClick} className={`flex items-center gap-3 flex-1 ${isCollapsed ? 'justify-center' : ''}`}>
             {director && <img src={director.photo} alt={director.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />}
@@ -69,8 +69,10 @@ const DirectorLink: React.FC<{
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenAlerts, onOpenDataEntry, onOpenScenarioModeler, onOpenExecutiveSummary, onOpenStrategyHub }) => {
   return (
     <motion.aside 
-      animate={{ width: isCollapsed ? '5rem' : '16rem' }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      {...({
+        animate: { width: isCollapsed ? '5rem' : '16rem' },
+        transition: { duration: 0.3, ease: 'easeInOut' }
+      } as any)}
       className="bg-slate-800 border-r border-slate-700 flex flex-col p-4 space-y-6"
     >
       <div className={`flex items-center gap-3 h-10 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>

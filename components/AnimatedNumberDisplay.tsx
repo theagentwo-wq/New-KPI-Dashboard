@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MotionValue } from 'framer-motion';
 
 interface AnimatedNumberDisplayProps {
-  value: MotionValue<number>;
+  value: any;
   formatter: (value: number) => string;
 }
 
@@ -10,7 +9,7 @@ export const AnimatedNumberDisplay: React.FC<AnimatedNumberDisplayProps> = ({ va
   const [displayValue, setDisplayValue] = useState(formatter(value.get()));
 
   useEffect(() => {
-    const unsubscribe = value.onChange((latest) => {
+    const unsubscribe = value.onChange((latest: number) => {
       setDisplayValue(formatter(latest));
     });
     return () => unsubscribe();

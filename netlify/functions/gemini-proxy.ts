@@ -50,8 +50,8 @@ export const handler: Handler = async (event, _context) => {
 
     let prompt = '';
     let responsePayload: any = {};
-    // Default to flash for speed in sync calls
-    const model = 'gemini-2.5-flash';
+    // Explicitly use flash-latest for speed in sync calls
+    const model = 'gemini-2.5-flash-latest';
 
     // --- Context Enrichment ---
     const today = new Date();

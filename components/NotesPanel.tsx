@@ -332,10 +332,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           filteredNotes.map((note: Note) => (
             <motion.div 
               key={note.id} 
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.2 } }}
+              {...({
+                layout: true,
+                initial: { opacity: 0, y: 20 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, transition: { duration: 0.2 } }
+              } as any)}
               className="bg-slate-700/50 p-3 rounded-md"
             >
               {editingNoteId === note.id ? (

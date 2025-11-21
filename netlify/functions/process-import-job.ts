@@ -93,17 +93,19 @@ export const handler: Handler = async (event, _context) => {
         const universalPrompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document.
     
     **CRITICAL INSTRUCTIONS:**
-    1.  **DETECT DYNAMIC SHEETS:** First, examine the structure of the document. If you see text indicating a dropdown menu, a filter control, or instructions to select a store/entity to view its data, set the 'isDynamicSheet' flag to true. If it's just a static table, set 'isDynamicSheet' to false.
-    2.  **CLASSIFY DATA TYPE:** Determine if the data represents 'Actuals' (historical, weekly performance) or a 'Budget' (monthly targets).
-    3.  **EXTRACT DATA (The most important part):**
-        *   **If 'Actuals':** Extract the 'Store Name', 'Week Start Date', and the top-level KPIs (Sales, SOP, Prime Cost, etc.).
-        *   **CRITICAL - FULL P&L:** If the document contains a detailed Profit & Loss statement (rows like 'Dairy', 'Poultry', 'FOH Hourly', 'Supplies'), you MUST extract these rows into the 'pnl' array for each store/week.
-            *   Map each row to a 'category': 'Sales', 'COGS', 'Labor', 'Operating Expenses', or 'Other'.
-            *   Determine 'indent' level based on the visual hierarchy (0 for headers like 'Food COGS', 1 for items like 'Dairy').
-            *   Extract both 'actual' and 'budget' values if present.
-        *   **If 'Budget':** Extract the 'Store Name', 'Year', 'Month', and all target KPI values.
-    4.  **HANDLE COMPLEX FILES:** Process data for all stores and weeks found. Ignore "Total" or "Grand Total" summary rows.
-    5.  **FORMAT OUTPUT:** Return JSON strictly following the schema. Convert percentages to decimals (e.g., 18.5% -> 0.185).`;
+    1.  **DETECT DYNAMIC SHEETS:** If you see text indicating a dropdown menu or filter control, set 'isDynamicSheet' to true. Otherwise false.
+    2.  **CLASSIFY DATA TYPE:** Determine if 'Actuals' or 'Budget'.
+    3.  **EXTRACT DATA:**
+        *   **If 'Actuals':** Extract 'Store Name', 'Week Start Date', and top-level KPIs (Sales, SOP, Prime Cost, etc.).
+        *   **FULL P&L EXTRACTION:** Scan the document for a detailed Profit & Loss statement.
+            *   Extract every line item into the 'pnl' array.
+            *   **Name:** The row label (e.g., "Dairy", "Liquor COGS", "FOH Hourly Labor").
+            *   **Category:** Assign one of: 'Sales', 'COGS', 'Labor', 'Operating Expenses', 'Other'. Use your accounting knowledge.
+            *   **Indent:** Infer hierarchy from the visual layout. Headers like "Food COGS Total" are level 0. Sub-items like "Dairy" are level 1 or 2.
+            *   **Values:** Extract 'actual' and 'budget' columns. Convert percentages to decimals (22% -> 0.22).
+        *   **If 'Budget':** Extract 'Store Name', 'Year', 'Month', and KPI values.
+    4.  **PROCESS ALL:** Handle data for all stores and weeks found in the file.
+    5.  **FORMAT:** Return strictly JSON.`;
         
         // 3. Call Gemini
         let aiResponse;
