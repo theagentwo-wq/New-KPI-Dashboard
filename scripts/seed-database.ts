@@ -5,6 +5,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config } from 'dotenv';
 import process from 'node:process';
+import { addDays, addWeeks, format } from 'date-fns';
 
 console.log(`\n--- Environment Setup ---`);
 
@@ -34,8 +35,7 @@ if (!process.env.FIREBASE_CLIENT_CONFIG) {
 console.log(`-------------------------\n`);
 
 import { initializeFirebaseService } from '../services/firebaseService';
-import { Kpi, PerformanceData } from '../types';
-import { generateFiscalPeriods } from '../utils/dateUtils';
+import { Kpi, PerformanceData, Period } from '../types';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 
@@ -45,6 +45,50 @@ import 'firebase/compat/firestore';
 // and run the script multiple times.
 const YEARS_TO_SEED: number[] = [2023]; 
 // Example: const YEARS_TO_SEED = [2023];
+
+// --- INLINED DATE LOGIC (To prevent import issues) ---
+const FY2026_START_DATE = new Date('2025-12-29T00:00:00');
+const WEEKS_IN_YEAR = 52;
+
+const getFiscalYearStartDate = (year: number): Date => {
+  const yearDiff = year - 2026;
+  return addWeeks(FY2026_START_DATE, yearDiff * WEEKS_IN_YEAR);
+};
+
+const generateFiscalPeriodsLocal = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+  console.log(`DEBUG: Generating periods from ${startYear} to ${endYear}...`);
+  
+  for (let year = startYear; year <= endYear; year++) {
+    let currentWeekStart = getFiscalYearStartDate(year);
+    const yearEndDate = addDays(addWeeks(currentWeekStart, 52), -1);
+    
+    periods.push({ type: 'Year', label: `FY${year}`, startDate: currentWeekStart, endDate: yearEndDate });
+    
+    const monthLengths = [4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 5];
+    let weekInYearCounter = 1;
+
+    for (let q = 0; q < 4; q++) {
+        for (let m = 0; m < 3; m++) {
+            const monthWeeks = monthLengths[q*3+m];
+            for(let w = 0; w < monthWeeks; w++){
+                const weekStartDate = currentWeekStart;
+                const weekEndDate = addDays(addWeeks(weekStartDate, 1), -1);
+                 periods.push({ 
+                     type: 'Week', 
+                     label: `W${weekInYearCounter} FY${year} (${format(weekStartDate, 'MMM d')})`, 
+                     startDate: weekStartDate, 
+                     endDate: weekEndDate 
+                 });
+                currentWeekStart = addWeeks(currentWeekStart, 1);
+                weekInYearCounter++;
+            }
+        }
+    }
+  }
+  return periods;
+};
+// ----------------------------------------------------
 
 const HISTORICAL_DATA_CSV = `
 ,L001-DT Asheville,,,L002-South Asheville,,,L003-Knoxville,,,"L004-Greenville, SC",,,L005-Chattanooga,,,L008-Raleigh,,,L009-Myrtle Beach,,,L010-Arlington,,,L011-Virginia Beach,,,L012-Franklin,,,L014-Denver,,,L015-Frisco,,,L016-Boise,,,L017-Charlotte,,,L018-Grand Rapids,,,L019-Milwaukee,,,L020-Pittsburgh,,,L021-Des Moines,,,"L022-Columbus, OH",,,L023-Indianapolis,,,L024-Las Colinas,,,L025-Omaha,,,L026-Huntsville,,,"L027-Columbia, SC",,,"L028-Gainesville, GA",,,L029-Lenexa,,,L030-Farragut,,,Total,,
@@ -147,24 +191,39 @@ const parseAndTransformData = () => {
     
     console.log("Transforming yearly data into weekly format...");
     const weeklyPerformanceData: { storeId: string; weekStartDate: Date; data: PerformanceData }[] = [];
-    // Generate enough years to cover historical data
-    const allFiscalPeriods = generateFiscalPeriods(2023, 2025);
+    
+    // Use inlined function
+    const allFiscalPeriods = generateFiscalPeriodsLocal(2023, 2026); 
+    
+    console.log(`DEBUG: Generated ${allFiscalPeriods.length} total fiscal periods.`);
+    if (allFiscalPeriods.length > 0) {
+        console.log(`DEBUG: First period label: "${allFiscalPeriods[0].label}"`);
+        console.log(`DEBUG: Last period label: "${allFiscalPeriods[allFiscalPeriods.length - 1].label}"`);
+    } else {
+        console.error("DEBUG ERROR: No fiscal periods generated!");
+    }
 
     for (const yearStr in yearlyData) {
         const year = parseInt(yearStr);
         if (isNaN(year)) continue;
 
+        console.log(`DEBUG: Processing Year: ${year} from CSV...`);
+
         // --- FILTERING LOGIC ---
         if (YEARS_TO_SEED.length > 0 && !YEARS_TO_SEED.includes(year)) {
+            console.log(`DEBUG: Skipping ${year} (not in YEARS_TO_SEED filter)`);
             continue;
         }
 
-        const weeksInYear = allFiscalPeriods.filter(p => p.type === 'Week' && p.label.includes(`FY${year}`));
+        const searchLabel = `FY${year}`;
+        const weeksInYear = allFiscalPeriods.filter(p => p.type === 'Week' && p.label.includes(searchLabel));
 
         if (weeksInYear.length === 0) {
-            console.warn(`Could not find any fiscal weeks for FY${year}. Skipping year.`);
+            console.warn(`Could not find any fiscal weeks for ${searchLabel}. Skipping year.`);
             continue;
         }
+        
+        console.log(`DEBUG: Found ${weeksInYear.length} weeks for ${searchLabel}`);
 
         const locations = yearlyData[year];
         for (const location in locations) {

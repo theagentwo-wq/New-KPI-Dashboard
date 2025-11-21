@@ -1,39 +1,62 @@
 import { addDays, addWeeks, format, getYear } from 'date-fns';
 import { Period } from '../types';
 
+// Start of FY2026 is Dec 29, 2025
 const FY2026_START_DATE = new Date('2025-12-29T00:00:00');
 const WEEKS_IN_YEAR = 52;
 
 const getFiscalYearStartDate = (year: number): Date => {
   const yearDiff = year - 2026;
+  // addWeeks handles negative numbers correctly to go back in time
   return addWeeks(FY2026_START_DATE, yearDiff * WEEKS_IN_YEAR);
 };
 
 export const generateFiscalPeriods = (startYear: number, endYear: number): Period[] => {
   const periods: Period[] = [];
   for (let year = startYear; year <= endYear; year++) {
-    const yearStartDate = getFiscalYearStartDate(year);
-    const yearEndDate = addDays(addWeeks(yearStartDate, 52), -1);
-    periods.push({ type: 'Year', label: `FY${year}`, startDate: yearStartDate, endDate: yearEndDate });
-    let currentWeekStart = yearStartDate;
+    let currentWeekStart = getFiscalYearStartDate(year);
+    
+    // Fiscal year is roughly 52 weeks. 
+    // We define year boundary as start date to start date + 52 weeks - 1 day
+    const yearEndDate = addDays(addWeeks(currentWeekStart, 52), -1);
+    
+    periods.push({ 
+        type: 'Year', 
+        label: `FY${year}`, 
+        startDate: currentWeekStart, 
+        endDate: yearEndDate 
+    });
+    
+    // Standard 4-4-5 Calendar Pattern
     const monthLengths = [4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 5];
+    
     let monthCounter = 1;
     let quarterCounter = 1;
+    let weekInYearCounter = 1;
+
     for (let q = 0; q < 4; q++) {
         const quarterStartDate = currentWeekStart;
         const quarterWeeks = monthLengths[q*3] + monthLengths[q*3+1] + monthLengths[q*3+2];
         const quarterEndDate = addDays(addWeeks(quarterStartDate, quarterWeeks), -1);
         periods.push({ type: 'Quarter', label: `Q${quarterCounter} FY${year}`, startDate: quarterStartDate, endDate: quarterEndDate });
+
         for (let m = 0; m < 3; m++) {
             const monthStartDate = currentWeekStart;
             const monthWeeks = monthLengths[q*3+m];
             const monthEndDate = addDays(addWeeks(monthStartDate, monthWeeks), -1);
             periods.push({ type: 'Month', label: `P${monthCounter} FY${year}`, startDate: monthStartDate, endDate: monthEndDate });
+
             for(let w = 0; w < monthWeeks; w++){
                 const weekStartDate = currentWeekStart;
                 const weekEndDate = addDays(addWeeks(weekStartDate, 1), -1);
-                 periods.push({ type: 'Week', label: `Week of ${format(weekStartDate, 'MMM d, yyyy')}`, startDate: weekStartDate, endDate: weekEndDate });
+                 periods.push({ 
+                     type: 'Week', 
+                     label: `W${weekInYearCounter} FY${year} (${format(weekStartDate, 'MMM d')})`, 
+                     startDate: weekStartDate, 
+                     endDate: weekEndDate 
+                 });
                 currentWeekStart = addWeeks(currentWeekStart, 1);
+                weekInYearCounter++;
             }
             monthCounter++;
         }
@@ -70,11 +93,8 @@ export const getMonthlyPeriodForDate = (date: Date): Period | undefined => {
     return ALL_PERIODS.find(p => p.type === 'Month' && date >= p.startDate && date <= p.endDate);
 };
 
-// --- NEW Holiday Awareness Logic ---
+// --- Holiday Awareness Logic ---
 
-// Function to get the Nth day of a specific week in a month
-// dayOfWeek: 0=Sun, 1=Mon, ..., 6=Sat
-// week: 1=1st, 2=2nd, ..., 4=4th, 5=last
 const getNthDayOfWeek = (year: number, month: number, dayOfWeek: number, week: number): Date => {
   const date = new Date(year, month, 1);
   const firstDay = date.getDay();
@@ -104,23 +124,16 @@ const getHolidaysForYear = (year: number): Map<string, string> => {
     holidays.set(`${year}-12-25`, "Christmas Day");
 
     // Floating Holidays
-    // Martin Luther King, Jr. Day (Third Monday in January)
     holidays.set(format(getNthDayOfWeek(year, 0, 1, 3), 'yyyy-MM-dd'), "Martin Luther King, Jr. Day");
-    // Presidents' Day (Third Monday in February)
     holidays.set(format(getNthDayOfWeek(year, 1, 1, 3), 'yyyy-MM-dd'), "Presidents' Day");
-    // Memorial Day (Last Monday in May)
     holidays.set(format(getNthDayOfWeek(year, 4, 1, 5), 'yyyy-MM-dd'), "Memorial Day");
-    // Juneteenth
     if (year >= 2021) holidays.set(`${year}-06-19`, "Juneteenth");
-    // Labor Day (First Monday in September)
     holidays.set(format(getNthDayOfWeek(year, 8, 1, 1), 'yyyy-MM-dd'), "Labor Day");
-    // Thanksgiving Day (Fourth Thursday in November)
     holidays.set(format(getNthDayOfWeek(year, 10, 4, 4), 'yyyy-MM-dd'), "Thanksgiving Day");
 
     return holidays;
 };
 
-// Cache holidays by year to avoid recalculating
 const holidayCache: { [year: number]: Map<string, string> } = {};
 
 export const isHoliday = (date: Date): string | null => {
