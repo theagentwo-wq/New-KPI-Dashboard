@@ -106,7 +106,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             };
             fetchInitialData();
         } else {
-            resetState();
+            if (!storeDetails && isOpen) {
+                setPlaceDetailsError("Address information unavailable for this location.");
+            }
+            if (!isOpen) resetState();
         }
     }, [isOpen, location, storeDetails]);
 
@@ -167,8 +170,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     ] as const;
     
     const renderVisualContent = () => {
+        if (!storeDetails) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Location data missing.</h4><p className="text-slate-500 text-xs mt-1">Address details not found for {location}.</p></div>;
+
         if (activeVisualTab === 'streetview') {
-            if (!mapsApiKey || !storeDetails) return <LoadingSpinner message="Loading Street View..." />;
+            if (!mapsApiKey) return <LoadingSpinner message="Loading Street View..." />;
             const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${mapsApiKey}&location=${storeDetails.lat},${storeDetails.lon}&heading=210&pitch=10&fov=75`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
