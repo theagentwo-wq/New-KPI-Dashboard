@@ -138,6 +138,13 @@ export type DataItem = {
     variance: PerformanceData;
 };
 
+export interface StrategicAnalysisData {
+    location: string;
+    primaryMetric: number;
+    secondaryMetric: number;
+    rank: number;
+}
+
 export interface Deployment {
   id: string;
   directorId: View;

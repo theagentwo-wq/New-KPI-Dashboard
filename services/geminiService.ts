@@ -1,5 +1,4 @@
-
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo, StrategicAnalysisData } from '../types';
 
 export interface PlaceDetails {
     name: string;
@@ -147,6 +146,10 @@ export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: 
 export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
     const result = await callAIApi('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
     return result.content || "Could not generate quadrant analysis.";
+};
+export const getStrategicRankingsAnalysis = async (data: StrategicAnalysisData[], periodLabel: string, kpis: { primary: Kpi, secondary: Kpi }): Promise<string> => {
+    const result = await callAIApi('getStrategicRankingsAnalysis', { data, periodLabel, kpis });
+    return result.content || "Could not generate analysis.";
 };
 export const getLocationMarketAnalysis = async (location: string): Promise<string> => {
     const result = await callAIApi('getLocationMarketAnalysis', { location });

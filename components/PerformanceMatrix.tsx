@@ -1,21 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
-import { getQuadrantAnalysis } from '../services/geminiService';
+import { motion, AnimatePresence } from 'framer-motion';
 import { marked } from 'marked';
 import { Icon } from './Icon';
-// FIX: Import DataItem from types.ts
-import { Kpi, View, DataItem } from '../types';
+import { Kpi, View, DataItem, StrategicAnalysisData } from '../types';
 import { KPI_CONFIG } from '../constants';
-
-type ChartDataPoint = {
-    name: string;
-    x: number;
-    y: number;
-    z: number;
-};
-
-// FIX: Removed local DataItem type definition as it's now in types.ts
+import { getStrategicRankingsAnalysis } from '../services/geminiService';
 
 interface PerformanceMatrixProps {
     periodLabel: string;
@@ -24,11 +14,11 @@ interface PerformanceMatrixProps {
     directorAggregates: { [directorName: string]: DataItem };
 }
 
-const formatAxisTick = (value: number, kpi: Kpi) => {
+const formatValue = (value: number, kpi: Kpi) => {
     const config = KPI_CONFIG[kpi];
     switch(config.format) {
         case 'currency':
-            return value >= 1000 || value <= -1000 ? `${(value/1000).toFixed(0)}k` : `$${value.toFixed(0)}`;
+            return value >= 1000 || value <= -1000 ? `${(value/1000).toFixed(1)}k` : `$${value.toFixed(0)}`;
         case 'percent':
             return `${(value * 100).toFixed(1)}%`;
         case 'number':
@@ -38,160 +28,209 @@ const formatAxisTick = (value: number, kpi: Kpi) => {
     }
 };
 
-const CustomTooltipContent = ({ active, payload, kpiLabels }: any) => {
-    if (active && payload && payload.length) {
-        const data = payload[0].payload;
-        return (
-            <div className="p-2.5 bg-slate-900 border border-slate-700 rounded-md shadow-lg text-sm">
-                <p className="font-bold text-slate-200 mb-1">{data.name}</p>
-                <p className="text-cyan-400">{kpiLabels.y} Var: <span className="font-semibold">{formatAxisTick(data.y, kpiLabels.y)}</span></p>
-                <p className="text-cyan-400">{kpiLabels.x} Var: <span className="font-semibold">{formatAxisTick(data.x, kpiLabels.x)}</span></p>
-                <p className="text-cyan-400">{kpiLabels.z} Actual: <span className="font-semibold">{formatAxisTick(data.z, kpiLabels.z)}</span></p>
-            </div>
-        );
+const getColorForMetric = (value: number, kpi: Kpi, variance?: number) => {
+    // If variance is provided, use that for coloring (Green/Red based on goodness)
+    if (variance !== undefined) {
+        const { higherIsBetter } = KPI_CONFIG[kpi];
+        const isGood = higherIsBetter ? variance >= 0 : variance <= 0;
+        // Return colors suitable for the glass effect
+        return isGood 
+            ? 'linear-gradient(90deg, rgba(34, 211, 238, 0.1) 0%, rgba(34, 211, 238, 0.4) 100%)' // Cyan/Greenish
+            : 'linear-gradient(90deg, rgba(248, 113, 113, 0.1) 0%, rgba(248, 113, 113, 0.4) 100%)'; // Red
     }
-    return null;
+    return 'linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.4) 100%)'; // Default Blue
 };
-
-const getQuadrantColor = (x: number, y: number, xKpi: Kpi) => {
-    const isXCostKpi = KPI_CONFIG[xKpi].higherIsBetter === false;
-    const xIsGood = isXCostKpi ? x < 0 : x > 0;
-    const yIsGood = y > 0;
-
-    if (xIsGood && yIsGood) return '#4ade80'; // Green (Stars)
-    if (!xIsGood && yIsGood) return '#facc15'; // Yellow (Growth Focus)
-    if (xIsGood && !yIsGood) return '#60a5fa'; // Blue (Profit Focus)
-    return '#f87171'; // Red (Needs Attention)
-};
-
-const growthKpis = [Kpi.Sales, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
-const efficiencyKpis = [Kpi.SOP, Kpi.PrimeCost, Kpi.FoodCost, Kpi.VariableLabor];
-const contextKpis = [Kpi.Sales, Kpi.AvgReviews, Kpi.CulinaryAuditScore];
 
 export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabel, currentView, allStoresData, directorAggregates }) => {
     const [analysis, setAnalysis] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     
-    const [yAxisKpi, setYAxisKpi] = useState<Kpi>(Kpi.Sales);
-    const [xAxisKpi, setXAxisKpi] = useState<Kpi>(Kpi.SOP);
-    const [zAxisKpi, setZAxisKpi] = useState<Kpi>(Kpi.AvgReviews);
-    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+    // Renamed state to match the new "Rankings" mental model
+    const [primaryKpi, setPrimaryKpi] = useState<Kpi>(Kpi.Sales); // Determines Order & Bar Length
+    const [secondaryKpi, setSecondaryKpi] = useState<Kpi>(Kpi.SOP); // Determines Color/Context
 
-    useEffect(() => {
+    const chartData = useMemo(() => {
         const sourceData = currentView === 'Total Company' ? directorAggregates : allStoresData;
         
-        // FIX: Cast the result of Object.entries to correctly type `item` as DataItem.
-        // This resolves errors where `item` was inferred as `unknown`, preventing property access.
-        const dataPoints = (Object.entries(sourceData) as [string, DataItem][]).map(([name, item]) => {
+        const data = (Object.entries(sourceData) as [string, DataItem][]).map(([name, item]) => {
             const actual = 'aggregated' in item ? item.aggregated : item.actual;
             const comparison = item.comparison;
+            const variance = item.variance;
 
-            if (!actual || !comparison) return null;
+            if (!actual) return null;
 
-            const yVar = (actual[yAxisKpi] || 0) - (comparison[yAxisKpi] || 0);
-            const xVar = (actual[xAxisKpi] || 0) - (comparison[xAxisKpi] || 0);
+            const primaryVal = actual[primaryKpi] || 0;
+            const secondaryVal = actual[secondaryKpi] || 0;
+            const secondaryVar = variance?.[secondaryKpi]; // Use variance for coloring if available
 
             return {
-                name: name,
-                y: yVar,
-                x: xVar,
-                z: actual[zAxisKpi] || 0
+                name,
+                primary: primaryVal,
+                secondary: secondaryVal,
+                secondaryVariance: secondaryVar
             };
-        }).filter((item): item is ChartDataPoint => item !== null && !isNaN(item.x) && !isNaN(item.y) && !isNaN(item.z));
+        }).filter((item): item is { name: string, primary: number, secondary: number, secondaryVariance?: number } => item !== null);
 
-        setChartData(dataPoints);
-    }, [currentView, directorAggregates, allStoresData, xAxisKpi, yAxisKpi, zAxisKpi]);
+        // Sort by Primary KPI
+        const { higherIsBetter } = KPI_CONFIG[primaryKpi];
+        return data.sort((a, b) => higherIsBetter ? b.primary - a.primary : a.primary - b.primary);
 
+    }, [currentView, directorAggregates, allStoresData, primaryKpi, secondaryKpi]);
+
+    // Calculate max value for bar width scaling
+    const maxValue = useMemo(() => Math.max(...chartData.map(d => d.primary), 0.01), [chartData]);
 
     const handleAnalyze = async () => {
         setIsLoading(true);
         setAnalysis('');
-        const result = await getQuadrantAnalysis(chartData, periodLabel, { x: xAxisKpi, y: yAxisKpi, z: zAxisKpi });
+        
+        // Prepare simplified data for AI to reduce token usage and improve focus
+        const top3 = chartData.slice(0, 3);
+        const bottom3 = chartData.slice(-3);
+        const aiPayload: StrategicAnalysisData[] = [...top3, ...bottom3].map((d, i) => ({
+            location: d.name,
+            primaryMetric: d.primary,
+            secondaryMetric: d.secondary,
+            rank: i + 1 // Rough rank, inaccurate for bottom 3 but gives context
+        }));
+
+        const result = await getStrategicRankingsAnalysis(
+            aiPayload, 
+            periodLabel, 
+            { primary: primaryKpi, secondary: secondaryKpi }
+        );
+        
         const html = await marked.parse(result);
         setAnalysis(html);
         setIsLoading(false);
     };
-    
-    const zDomain = useMemo(() => {
-        if (chartData.length === 0) return [1, 5];
-        const zValues = chartData.map(d => d.z);
-        return [Math.min(...zValues, 0), Math.max(...zValues, 1)];
-    }, [chartData]);
-    
-    const kpiLabels = { x: xAxisKpi, y: yAxisKpi, z: zAxisKpi };
 
     const containerClass = isFullScreen
-        ? "fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md p-8 flex flex-col"
-        : "bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col";
+        ? "fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl p-8 flex flex-col overflow-hidden"
+        : "bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col h-[500px]"; // Fixed height for scrolling
 
-    const matrixContent = (
-         <div className={containerClass}>
-            <div className="flex items-start justify-between">
+    const renderContent = () => (
+        <div className={containerClass}>
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4 flex-shrink-0">
                 <div>
-                    <h3 className="text-lg font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">Strategic Analysis Hub</h3>
-                    <p className="text-xs text-slate-400 mb-1">{`Displaying: ${currentView} for ${periodLabel}`}</p>
-                    <p className="text-xs text-slate-400 mb-4">{`${yAxisKpi} Var. vs. ${xAxisKpi} Var.`}</p>
+                    <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">Strategic Analysis Hub</h3>
+                    <p className="text-xs text-slate-400">{currentView} • {periodLabel}</p>
                 </div>
-                <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white">
+                <button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white transition-colors">
                     <Icon name={isFullScreen ? 'compress' : 'expand'} className="w-5 h-5" />
                 </button>
             </div>
             
-            <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                <select value={yAxisKpi} onChange={(e) => setYAxisKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded p-1 focus:ring-cyan-500 focus:border-cyan-500">
-                     {growthKpis.map(kpi => <option key={kpi} value={kpi}>{kpi} (Y)</option>)}
-                </select>
-                <select value={xAxisKpi} onChange={(e) => setXAxisKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded p-1 focus:ring-cyan-500 focus:border-cyan-500">
-                    {efficiencyKpis.map(kpi => <option key={kpi} value={kpi}>{kpi} (X)</option>)}
-                </select>
-                <select value={zAxisKpi} onChange={(e) => setZAxisKpi(e.target.value as Kpi)} className="bg-slate-700 text-white border border-slate-600 rounded p-1 focus:ring-cyan-500 focus:border-cyan-500">
-                    {contextKpis.map(kpi => <option key={kpi} value={kpi}>{kpi} (Size)</option>)}
-                </select>
+            {/* Controls */}
+            <div className="grid grid-cols-2 gap-4 text-sm mb-4 flex-shrink-0 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                <div>
+                    <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Rank By (Bar Length)</label>
+                    <select value={primaryKpi} onChange={(e) => setPrimaryKpi(e.target.value as Kpi)} className="w-full bg-slate-800 text-white border border-slate-600 rounded p-1.5 focus:ring-cyan-500 focus:border-cyan-500 text-sm font-medium">
+                         {Object.values(Kpi).map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Context (Color/Variance)</label>
+                    <select value={secondaryKpi} onChange={(e) => setSecondaryKpi(e.target.value as Kpi)} className="w-full bg-slate-800 text-white border border-slate-600 rounded p-1.5 focus:ring-cyan-500 focus:border-cyan-500 text-sm font-medium">
+                        {Object.values(Kpi).map(kpi => <option key={kpi} value={kpi}>{kpi}</option>)}
+                    </select>
+                </div>
             </div>
             
-            <div className={isFullScreen ? 'flex-1' : 'h-[250px]'}>
-                 <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis type="number" dataKey="x" name={xAxisKpi} domain={['auto', 'auto']} tickFormatter={(val) => formatAxisTick(val, xAxisKpi)} stroke="#9ca3af" />
-                        <YAxis type="number" dataKey="y" name={yAxisKpi} domain={['auto', 'auto']} tickFormatter={(val) => formatAxisTick(val, yAxisKpi)} stroke="#9ca3af" />
-                        <ZAxis type="number" dataKey="z" name={zAxisKpi} range={[50, 500]} domain={zDomain} />
-                        <Tooltip content={<CustomTooltipContent kpiLabels={kpiLabels} />} cursor={{ strokeDasharray: '3 3' }} />
-                        <ReferenceLine y={0} stroke="#64748b" strokeDasharray="4 4" />
-                        <ReferenceLine x={0} stroke="#64748b" strokeDasharray="4 4" />
-                        <Scatter name="Locations" data={chartData} >
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={getQuadrantColor(entry.x, entry.y, xAxisKpi)} className="opacity-70 transition-colors" />
-                            ))}
-                        </Scatter>
-                    </ScatterChart>
-                </ResponsiveContainer>
+            {/* Dynamic Bar Chart */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 relative">
+                 <div className="space-y-3">
+                    <AnimatePresence>
+                        {chartData.map((item, index) => (
+                            <motion.div 
+                                key={item.name}
+                                layout
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+                                className="relative group"
+                            >
+                                {/* 3D-ish Bar Container */}
+                                <div className="flex items-center gap-3 relative z-10">
+                                    <div className="w-32 flex-shrink-0 text-right">
+                                        <p className="text-xs font-bold text-slate-300 truncate" title={item.name}>{item.name}</p>
+                                        <p className="text-[10px] text-slate-500">{formatValue(item.secondary, secondaryKpi)} <span className="text-[9px] uppercase text-slate-600">({secondaryKpi})</span></p>
+                                    </div>
+                                    
+                                    <div className="flex-1 h-8 bg-slate-900/50 rounded-r-md relative border-l border-slate-700">
+                                        {/* The Bar Itself */}
+                                        <motion.div 
+                                            className="h-full rounded-r-sm relative shadow-[2px_2px_5px_rgba(0,0,0,0.3)]"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(item.primary / maxValue) * 100}%` }}
+                                            transition={{ duration: 0.6, ease: "easeOut" }}
+                                            style={{ 
+                                                background: getColorForMetric(item.secondary, secondaryKpi, item.secondaryVariance),
+                                                borderRight: '1px solid rgba(255,255,255,0.1)',
+                                                borderTop: '1px solid rgba(255,255,255,0.1)'
+                                            }}
+                                        >
+                                            {/* Shine Effect */}
+                                            <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                                            
+                                            {/* Value Label inside bar or pushed out */}
+                                            <div className={`absolute top-1/2 -translate-y-1/2 px-2 text-xs font-bold text-shadow-sm whitespace-nowrap ${ (item.primary / maxValue) < 0.2 ? 'left-full text-slate-300 pl-2' : 'right-0 text-white/90'}`}>
+                                                {formatValue(item.primary, primaryKpi)}
+                                            </div>
+                                        </motion.div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                 </div>
             </div>
 
-            <div className="mt-4">
+            {/* AI Action */}
+            <div className="mt-4 pt-4 border-t border-slate-700 flex-shrink-0">
                 <button 
                     onClick={handleAnalyze} 
                     disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 p-2 bg-slate-700 hover:bg-cyan-600 text-slate-200 font-semibold rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-cyan-600 hover:to-blue-600 text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg border border-slate-600 hover:border-cyan-400 group"
                 >
-                    <Icon name="sparkles" className="w-5 h-5" />
-                    {isLoading ? 'Analyzing...' : `Analyze Quadrants`}
+                    {isLoading ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Analyzing Strategy...</span>
+                        </>
+                    ) : (
+                        <>
+                            <Icon name="brain" className="w-5 h-5 text-cyan-400 group-hover:text-white transition-colors" />
+                            <span>Generate Strategic Insights</span>
+                        </>
+                    )}
                 </button>
             </div>
-            {analysis && (
-                <div className="mt-4 p-3 bg-slate-900 border border-slate-700 rounded-md max-h-48 overflow-y-auto custom-scrollbar">
-                     <div 
-                        className="prose prose-sm prose-invert max-w-none text-slate-200" 
-                        dangerouslySetInnerHTML={{ __html: analysis }}
-                      ></div>
-                </div>
-            )}
+            
+            {/* AI Output Area */}
+            <AnimatePresence>
+                {analysis && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mt-4 p-4 bg-slate-900/80 border border-slate-700 rounded-lg max-h-64 overflow-y-auto custom-scrollbar shadow-inner"
+                    >
+                         <div 
+                            className="prose prose-sm prose-invert max-w-none text-slate-300" 
+                            dangerouslySetInnerHTML={{ __html: analysis }}
+                          ></div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 
     if (isFullScreen) {
-        return createPortal(matrixContent, document.body);
+        return createPortal(renderContent(), document.body);
     }
-    return matrixContent;
+    return renderContent();
 };
