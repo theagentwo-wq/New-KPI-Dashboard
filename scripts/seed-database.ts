@@ -1,18 +1,24 @@
 // This script is designed to be run from the command line to seed the database with historical data.
 // Usage: npm run seed:db
 
-// FIX: Removed `import process from 'node:process';` to resolve TypeScript errors.
-// The global `process` object is used instead, which is available in the Node.js runtime.
 import 'dotenv/config'; // Load environment variables from .env.local
+import process from 'node:process';
 import { initializeFirebaseService } from '../services/firebaseService';
 import { Kpi, PerformanceData } from '../types';
 import { generateFiscalPeriods } from '../utils/dateUtils';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 
+// --- CONFIGURATION ---
+// If this array is empty, ALL years found in the CSV will be processed.
+// To prevent timeouts with large datasets, add specific years here (e.g., [2023]) 
+// and run the script multiple times.
+const YEARS_TO_SEED: number[] = []; 
+// Example: const YEARS_TO_SEED = [2023];
+
 const HISTORICAL_DATA_CSV = `
 ,L001-DT Asheville,,,L002-South Asheville,,,L003-Knoxville,,,"L004-Greenville, SC",,,L005-Chattanooga,,,L008-Raleigh,,,L009-Myrtle Beach,,,L010-Arlington,,,L011-Virginia Beach,,,L012-Franklin,,,L014-Denver,,,L015-Frisco,,,L016-Boise,,,L017-Charlotte,,,L018-Grand Rapids,,,L019-Milwaukee,,,L020-Pittsburgh,,,L021-Des Moines,,,"L022-Columbus, OH",,,L023-Indianapolis,,,L024-Las Colinas,,,L025-Omaha,,,L026-Huntsville,,,"L027-Columbia, SC",,,"L028-Gainesville, GA",,,L029-Lenexa,,,L030-Farragut,,,Total,,
-,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025
+,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025,2023,2024,2025
 Total Revenue," $7,459,341 "," $4,916,701 "," $3,430,083 "," $3,144,505 "," $2,378,389 "," $1,877,568 "," $5,307,075 "," $4,785,389 "," $3,710,144 "," $4,512,693 "," $4,154,925 "," $3,239,420 "," $3,159,856 "," $2,802,417 "," $2,149,483 "," $3,922,264 "," $3,404,057 "," $2,306,700 "," $3,471,154 "," $2,886,923 "," $2,233,585 "," $3,269,234 "," $2,638,155 "," $1,833,387 "," $3,715,781 "," $3,220,792 "," $2,385,040 "," $3,915,780 "," $3,304,177 "," $2,384,000 "," $4,220,654 "," $3,274,169 "," $2,298,461 "," $4,804,833 "," $3,471,371 "," $2,481,927 "," $3,375,863 "," $2,764,041 "," $2,117,067 "," $4,928,559 "," $3,840,446 "," $2,717,029 "," $5,178,389 "," $4,449,967 "," $3,337,603 "," $4,642,775 "," $3,850,128 "," $2,903,050 "," $3,447,736 "," $2,379,365 "," $1,743,647 "," $2,674,641 "," $1,799,721 "," $1,477,975 "," $3,960,671 "," $2,729,773 "," $1,890,548 "," $2,990,612 "," $2,704,450 "," $1,822,481 "," $1,509,621 "," $2,182,935 "," $1,782,569 "," $543,885 "," $2,665,923 "," $1,830,780 ", $-   ," $748,421 "," $3,549,155 ", $-   , $-   ," $3,722,613 ", $-   , $-   ," $1,640,033 ", $-   , $-   ," $1,598,514 ", $-   , $-   ," $354,010 "," $84,155,920 "," $71,352,630 "," $62,816,871 "
 Food COGS,22.8%,22.5%,24.1%,23.2%,24.0%,26.6%,22.1%,22.4%,25.5%,21.9%,22.0%,24.0%,22.9%,23.6%,25.5%,21.7%,22.2%,24.5%,24.8%,24.3%,26.0%,22.8%,22.2%,24.1%,23.8%,24.0%,25.4%,23.1%,22.5%,24.5%,21.4%,21.3%,24.1%,23.4%,23.1%,23.8%,23.7%,23.7%,24.9%,23.8%,23.7%,25.1%,22.7%,22.9%,24.2%,23.5%,23.1%,25.0%,25.2%,24.8%,27.4%,24.2%,24.9%,24.1%,25.1%,24.0%,24.9%,24.1%,23.4%,25.5%,26.7%,23.0%,24.5%,26.9%,24.1%,25.3%,0.0%,29.4%,25.4%,0.0%,0.0%,27.2%,0.0%,0.0%,29.5%,0.0%,0.0%,29.0%,0.0%,0.0%,29.3%,23.3%,23.3%,25.3%
 Total Variable Labor,26.1%,25.8%,23.7%,23.7%,26.2%,28.3%,21.3%,22.2%,21.9%,23.2%,23.1%,22.5%,23.4%,23.8%,23.9%,22.9%,22.9%,23.6%,27.5%,26.5%,25.8%,26.5%,25.9%,24.2%,26.1%,24.8%,24.5%,24.4%,24.7%,23.9%,32.0%,34.4%,36.0%,22.7%,23.5%,24.6%,26.3%,26.9%,25.2%,29.1%,27.1%,25.9%,24.7%,23.7%,23.4%,25.2%,24.5%,23.8%,27.2%,26.8%,28.5%,27.5%,32.7%,28.1%,26.5%,25.6%,27.6%,31.0%,27.4%,27.1%,37.9%,28.1%,27.6%,36.9%,28.6%,30.0%,0.0%,37.5%,25.3%,0.0%,0.0%,26.1%,0.0%,0.0%,34.0%,0.0%,0.0%,27.1%,0.0%,0.0%,25.9%,26.0%,25.9%,25.8%
@@ -111,11 +117,17 @@ const parseAndTransformData = () => {
     
     console.log("Transforming yearly data into weekly format...");
     const weeklyPerformanceData: { storeId: string; weekStartDate: Date; data: PerformanceData }[] = [];
+    // Generate enough years to cover historical data
     const allFiscalPeriods = generateFiscalPeriods(2023, 2025);
 
     for (const yearStr in yearlyData) {
         const year = parseInt(yearStr);
         if (isNaN(year)) continue;
+
+        // --- FILTERING LOGIC ---
+        if (YEARS_TO_SEED.length > 0 && !YEARS_TO_SEED.includes(year)) {
+            continue;
+        }
 
         const weeksInYear = allFiscalPeriods.filter(p => p.type === 'Week' && p.label.includes(`FY${year}`));
 
@@ -166,7 +178,11 @@ const seedDatabase = async () => {
 
     const dataToSeed = parseAndTransformData();
     if (dataToSeed.length === 0) {
-        console.error("No data was parsed. Aborting seed.");
+        if (YEARS_TO_SEED.length > 0) {
+             console.error(`No data was parsed for the selected years: ${YEARS_TO_SEED.join(', ')}. Check the CSV and your filter.`);
+        } else {
+             console.error("No data was parsed. Aborting seed.");
+        }
         process.exit(1);
     }
 

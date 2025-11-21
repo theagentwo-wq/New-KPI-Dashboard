@@ -1,13 +1,18 @@
 // This script is designed to be run from the command line to seed the database with budget data.
 // Usage: npm run seed:budgets
 
-// FIX: Removed `import process from 'node:process';` to resolve TypeScript errors.
-// The global `process` object is used instead, which is available in the Node.js runtime.
 import 'dotenv/config'; // Load environment variables from .env.local
+import process from 'node:process'; // Add import to fix process.exit type error
 import { initializeFirebaseService } from '../services/firebaseService';
 import { Kpi } from '../types';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
+
+// --- CONFIGURATION ---
+// To prevent timeouts if you add a lot of data later, use this to filter by year.
+// Leave empty to seed all years.
+const YEARS_TO_SEED: number[] = []; 
+// Example: const YEARS_TO_SEED = [2025];
 
 // Manually transcribed data from the user's provided image for Downtown Asheville, October 2025
 const budgetData = [
@@ -34,8 +39,13 @@ const seedBudgets = async () => {
     }
     console.log("Firebase connected.");
 
-    if (budgetData.length === 0) {
-        console.log("No budget data to seed. Exiting.");
+    // Filter data based on configuration
+    const filteredData = YEARS_TO_SEED.length > 0 
+        ? budgetData.filter(b => YEARS_TO_SEED.includes(b.year))
+        : budgetData;
+
+    if (filteredData.length === 0) {
+        console.log(`No budget data found${YEARS_TO_SEED.length > 0 ? ` for years ${YEARS_TO_SEED.join(', ')}` : ''}. Exiting.`);
         return;
     }
 
@@ -43,9 +53,9 @@ const seedBudgets = async () => {
     const budgetsCollection = db.collection('budgets');
     const batch = db.batch();
     
-    console.log(`Preparing to write ${budgetData.length} budget document(s) to Firestore...`);
+    console.log(`Preparing to write ${filteredData.length} budget document(s) to Firestore...`);
 
-    budgetData.forEach(budget => {
+    filteredData.forEach(budget => {
         const docId = `${budget.storeId}_${budget.year}_${budget.month}`;
         const docRef = budgetsCollection.doc(docId);
         
