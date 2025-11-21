@@ -12,7 +12,12 @@ interface KPISummaryCardsProps {
     onKpiSelect: (kpi: Kpi) => void;
 }
 
-const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: () => void }> = ({ kpi, value, isSelected, onSelect }) => {
+const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
+
+const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: () => void, index: number }> = ({ kpi, value, isSelected, onSelect, index }) => {
     const config = KPI_CONFIG[kpi];
     const animatedValue = useAnimatedNumber(value);
 
@@ -31,23 +36,52 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
     
     return (
         <motion.div
+            variants={cardVariants}
+            layout
             onClick={onSelect}
-            className={`p-4 rounded-lg cursor-pointer transition-all duration-300 relative overflow-hidden ${
+            className={`group relative p-4 rounded-xl cursor-pointer overflow-hidden border transition-colors duration-300 ${
                 isSelected 
-                ? 'bg-slate-700/80 ring-2 ring-cyan-400 shadow-lg shadow-cyan-900/50' 
-                : 'bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700'
+                ? 'bg-slate-800 border-cyan-500 shadow-lg shadow-cyan-900/20' 
+                : 'bg-slate-800/40 border-slate-700 hover:bg-slate-800/60 hover:border-slate-600'
             }`}
-            whileHover={{ y: -5 }}
+            whileHover={{ y: -4, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
         >
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Icon name={KPI_ICON_MAP[kpi]} className="w-5 h-5 text-slate-400" />
-                    <h4 className="text-sm font-semibold text-slate-300">{kpi}</h4>
+            {/* Animated Background Gradient for Selected State */}
+            {isSelected && (
+                <motion.div 
+                    className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-blue-500/10 pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                />
+            )}
+            
+            {/* Glow Effect on Hover */}
+            <div className="absolute -inset-px bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl opacity-0 group-hover:opacity-10 blur transition-opacity duration-500 -z-10" />
+
+            <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500/20 text-cyan-300' : 'bg-slate-700/50 text-slate-400 group-hover:text-slate-200 group-hover:bg-slate-700'}`}>
+                            <Icon name={KPI_ICON_MAP[kpi]} className="w-5 h-5" />
+                        </div>
+                        <h4 className={`text-sm font-semibold ${isSelected ? 'text-cyan-100' : 'text-slate-400 group-hover:text-slate-200'}`}>{kpi}</h4>
+                    </div>
+                    {isSelected && (
+                        <motion.div 
+                            layoutId="active-indicator"
+                            className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                        />
+                    )}
+                </div>
+                
+                <div className="flex items-end justify-between">
+                    <p className={`text-2xl font-bold tracking-tight ${isSelected ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
+                        <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
+                    </p>
                 </div>
             </div>
-            <p className="text-3xl font-bold text-white mt-2">
-                <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
-            </p>
         </motion.div>
     );
 };
@@ -59,16 +93,30 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
         Kpi.PrimeCost,
         Kpi.FoodCost,
         Kpi.VariableLabor,
-        Kpi.AvgReviews
+        Kpi.AvgReviews,
+        Kpi.CulinaryAuditScore
     ];
+
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.05
+            }
+        }
+    };
 
     if (!data) {
         return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {kpisToShow.map(kpi => (
-                    <div key={kpi} className="p-4 rounded-lg bg-slate-800 border border-slate-700 animate-pulse h-24">
-                        <div className="h-4 bg-slate-700 rounded w-3/4 mb-4"></div>
-                        <div className="h-8 bg-slate-700 rounded w-1/2"></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {kpisToShow.map((kpi, i) => (
+                    <div key={kpi} className="p-4 rounded-xl bg-slate-800/40 border border-slate-700 animate-pulse h-28">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-9 h-9 bg-slate-700 rounded-lg"></div>
+                            <div className="h-4 bg-slate-700 rounded w-24"></div>
+                        </div>
+                        <div className="h-8 bg-slate-700 rounded w-16"></div>
                     </div>
                 ))}
             </div>
@@ -76,8 +124,13 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
     }
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {kpisToShow.map(kpi => {
+        <motion.div 
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
+            {kpisToShow.map((kpi, index) => {
                 const value = data[kpi];
                 if (value === undefined || isNaN(value)) return null;
                 
@@ -88,9 +141,10 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
                         value={value}
                         isSelected={selectedKpi === kpi}
                         onSelect={() => onKpiSelect(kpi)}
+                        index={index}
                     />
                 );
             })}
-        </div>
+        </motion.div>
     );
 };
