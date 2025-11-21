@@ -2,7 +2,7 @@
 // Usage: npm run seed:budgets
 
 import 'dotenv/config'; // Load environment variables from .env.local
-import process from 'node:process'; // Add import to fix process.exit type error
+import { exit } from 'node:process';
 import { initializeFirebaseService } from '../services/firebaseService';
 import { Kpi } from '../types';
 import firebase from 'firebase/compat/app';
@@ -35,7 +35,7 @@ const seedBudgets = async () => {
     const status = await initializeFirebaseService();
     if (status.status === 'error') {
         console.error("Failed to connect to Firebase:", status.message);
-        process.exit(1);
+        exit(1);
     }
     console.log("Firebase connected.");
 
@@ -75,7 +75,7 @@ const seedBudgets = async () => {
     } catch (error) {
         console.error("\n\x1b[31m%s\x1b[0m", "❌ An error occurred during budget data seeding:");
         console.error(error);
-        process.exit(1);
+        exit(1);
     }
 };
 
