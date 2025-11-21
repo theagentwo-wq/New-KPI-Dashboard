@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo, StrategicAnalysisData } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo } from '../types';
 
 export interface PlaceDetails {
     name: string;
