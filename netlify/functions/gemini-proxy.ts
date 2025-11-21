@@ -232,6 +232,83 @@ EACH IDEA MUST INCLUDE:
            responsePayload = { content: response.text };
            break;
        }
+
+       // --- MISSING HANDLERS (Fix for 502/501 Errors) ---
+
+       case 'getSalesForecast': {
+          const { location, weatherForecast } = payload;
+          prompt = `You are an expert restaurant demand planner. 
+          Generate a 7-day sales forecast for a restaurant in ${location} based on the following weather forecast:
+          ${JSON.stringify(weatherForecast)}
+          
+          Return a JSON array of objects with keys: "date", "predictedSales" (number), "weatherDescription" (string).
+          Assume baseline daily sales of $5500. Adjust up for good weather (sunny/cloudy) and weekends. Adjust down for bad weather (rain/snow).`;
+          const response = await ai.models.generateContent({ 
+              model: 'gemini-2.5-flash', 
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          responsePayload = { forecast: JSON.parse(response.text || '[]') };
+          break;
+      }
+      
+      case 'getVarianceAnalysis': {
+          const { location, kpi, variance, allKpis } = payload;
+          prompt = `Analyze the ${variance > 0 ? 'positive' : 'negative'} variance of ${(variance * 100).toFixed(1)}% for ${kpi} at ${location}.
+          Context (Other KPIs): ${JSON.stringify(allKpis)}
+          Provide a 1-sentence potential root cause and 1-sentence recommendation.`;
+          const response = await ai.models.generateContent({ model, contents: prompt });
+          responsePayload = { content: response.text };
+          break;
+      }
+
+      case 'getInsights': {
+          const { data, query } = payload;
+          prompt = `Answer this question based on the data provided: "${query}"\nData: ${JSON.stringify(data)}`;
+          const response = await ai.models.generateContent({ model, contents: prompt });
+          responsePayload = { content: response.text };
+          break;
+      }
+      
+      case 'getTrendAnalysis': {
+           const { historicalData } = payload;
+           prompt = `Analyze these historical trends: ${JSON.stringify(historicalData)}. Identify 3 key patterns.`;
+           const response = await ai.models.generateContent({ model, contents: prompt });
+           responsePayload = { content: response.text };
+           break;
+      }
+
+      case 'getDirectorPerformanceSnapshot': {
+          const { directorName, directorData } = payload;
+          prompt = `Provide a performance snapshot for ${directorName} based on: ${JSON.stringify(directorData)}.`;
+          const response = await ai.models.generateContent({ model, contents: prompt });
+          responsePayload = { content: response.text };
+          break;
+      }
+
+      case 'getAnomalyDetections': {
+          const { allStoresData } = payload;
+          prompt = `Identify anomalies in this store data: ${JSON.stringify(allStoresData)}. Return JSON array of objects: { id, location, kpi, deviation (number), summary, analysis }.`;
+          const response = await ai.models.generateContent({ 
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          responsePayload = { anomalies: JSON.parse(response.text || '[]') };
+          break;
+      }
+
+      case 'runWhatIfScenario': {
+          const { data, userPrompt } = payload;
+          prompt = `Model this scenario: "${userPrompt}" based on current data: ${JSON.stringify(data)}. Return JSON: { analysis: string, args: object }`;
+          const response = await ai.models.generateContent({ 
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+          });
+          responsePayload = JSON.parse(response.text || '{}');
+          break;
+      }
       
       default:
         return { 
