@@ -3,7 +3,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
 
-import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment } from '../types';
+import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FinancialLineItem } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 
@@ -178,6 +178,7 @@ export const batchImportActualsData = async (data: any[]): Promise<void> => {
                  return;
             }
 
+            // Extract standard KPIs for the Dashboard
             const performanceData: PerformanceData = {};
             for (const key in row) {
                 const kpi = key as Kpi;
@@ -198,14 +199,37 @@ export const batchImportActualsData = async (data: any[]): Promise<void> => {
                 }
             }
 
-            if (Object.keys(performanceData).length > 0) {
+            // NEW: Handle detailed P&L data if present
+            const pnlData: FinancialLineItem[] = [];
+            if (row.pnl && Array.isArray(row.pnl)) {
+                row.pnl.forEach((item: any) => {
+                    if (item.name && (item.actual !== undefined || item.budget !== undefined)) {
+                         pnlData.push({
+                             name: item.name,
+                             actual: typeof item.actual === 'string' ? parseFloat(item.actual.replace(/[\$,]/g, '')) : (item.actual || 0),
+                             budget: typeof item.budget === 'string' ? parseFloat(item.budget.replace(/[\$,]/g, '')) : (item.budget || 0),
+                             category: item.category || 'Other',
+                             indent: item.indent || 0
+                         });
+                    }
+                });
+            }
+
+            if (Object.keys(performanceData).length > 0 || pnlData.length > 0) {
                  const docId = `${storeId}_${weekStartDate.toISOString().split('T')[0]}`;
                  const docRef = actualsCollection!.doc(docId);
-                 batch.set(docRef, {
+                 
+                 const updateData: any = {
                     storeId,
                     weekStartDate: firebase.firestore.Timestamp.fromDate(weekStartDate),
                     data: performanceData
-                }, { merge: true });
+                 };
+                 
+                 if (pnlData.length > 0) {
+                     updateData.pnl = pnlData;
+                 }
+
+                 batch.set(docRef, updateData, { merge: true });
             }
         } else {
              console.warn(`AI output for Actuals missing 'Store Name' or 'Week Start Date'. Row: ${JSON.stringify(row)}`);

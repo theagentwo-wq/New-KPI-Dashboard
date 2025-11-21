@@ -15,6 +15,7 @@ import { DataEntryPage } from '@/pages/DataEntryPage.tsx';
 import { StrategyHubModal, ActiveAnalysisJob } from '@/components/StrategyHubModal.tsx';
 import { Icon } from '@/components/Icon.tsx';
 import { AnalysisStatusIndicator } from '@/components/AnalysisStatusIndicator.tsx';
+import { FinancialsPage } from '@/pages/FinancialsPage.tsx';
 
 // --- Co-located ImportStatusIndicator Component to prevent build errors ---
 interface ImportStatusIndicatorProps {
@@ -102,7 +103,7 @@ const App: React.FC = () => {
     const [dbStatus, setDbStatus] = useState<FirebaseStatus>({ status: 'initializing' });
     const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     
-    const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry'>('Dashboard');
+    const [currentPage, setCurrentPage] = useState<'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry' | 'Financials'>('Dashboard');
     const [currentView, setCurrentView] = useState<View>('Total Company');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
@@ -399,6 +400,7 @@ const App: React.FC = () => {
                                 setIsExecutiveSummaryOpen={setExecutiveSummaryOpen}
                             />
                         )}
+                        {currentPage === 'Financials' && <FinancialsPage />}
                         {currentPage === 'Budget Planner' && <BudgetPlanner allBudgets={budgets} onUpdateBudget={handleUpdateBudget} />}
                         {currentPage === 'Goal Setter' && <GoalSetter goals={goals} onSetGoal={handleSetGoal} />}
                         {currentPage === 'News' && <NewsFeedPage />}

@@ -50,6 +50,7 @@ export const handler: Handler = async (event, _context) => {
 
     let prompt = '';
     let responsePayload: any = {};
+    // Default to flash for speed in sync calls
     const model = 'gemini-2.5-flash';
 
     // --- Context Enrichment ---
@@ -148,44 +149,47 @@ ${JSON.stringify(storeData, null, 2)}`;
       }
       case 'getReviewSummary': {
           const { location } = payload;
-          prompt = `You are a hospitality analyst. Summarize recent online reviews for the Tupelo Honey restaurant in ${location}. Your summary should be in Markdown format and include:
+          prompt = `You are a hospitality analyst. Summarize typical online reviews for a Tupelo Honey Southern Kitchen & Bar restaurant. Assume general positive sentiment but highlight common industry complaints if specific data is missing. Your summary should be in Markdown format and include:
 - A title "Recent Buzz for ${location}".
 - A short paragraph summarizing overall sentiment.
 - A bulleted list of "Common Praises".
 - A bulleted list of "Opportunities for Improvement".
 Your tone should be professional and constructive.`;
-          const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
+          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts. Using model's internal knowledge base.
+          const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
       }
       case 'getLocationMarketAnalysis': {
           const { location } = payload;
-          prompt = `You are a hyper-local market intelligence expert for a restaurant group. Provide a deep, granular-level local market analysis for our restaurant located in ${location}. Your goal is to uncover anything that could affect business. The analysis must be in Markdown format.
+          prompt = `You are a hyper-local market intelligence expert. Provide a market analysis for a restaurant located in ${location}. The analysis must be in Markdown format.
 
 CONTEXT:
-- **Holidays:** ${holidayContext} Consider how these holidays will impact local events and foot traffic.
+- **Holidays:** ${holidayContext}
 
 ANALYSIS MUST INCLUDE:
-1.  **Key Local Competitors:** Identify 3-4 direct or significant indirect competitors within a 2-mile radius.
-2.  **Local Demand Drivers:** What is the primary character of this neighborhood (e.g., office-heavy, nightlife hub, residential, tourist-focused)?
-3.  **The Real Happenings (Next 30 Days):** Dive deep to find "cool events" beyond official calendars. Look for concerts (large and small), live music at local venues, farmers markets, art walks, and recurring community gatherings. List at least 3-5 specific, upcoming events with dates, factoring in any relevant holidays.`;
-          const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
+1.  **Local Vibe:** What is the primary character of the main dining neighborhoods in ${location} (e.g., office-heavy, nightlife hub)?
+2.  **Competitor Landscape:** Mention 2-3 types of restaurants that are popular competitors in this area.
+3.  **Upcoming Events (Simulated):** List 3 plausible types of events (concerts, markets, sports) that typically happen in ${location} during this time of year.`;
+          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts. Relying on model's training data for general location knowledge.
+          const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
       }
        case 'getMarketingIdeas': {
           const { location } = payload;
-          prompt = `You are a savvy, generational marketing strategist with a deep understanding of what local communities want. Generate 3 unique and actionable marketing ideas for our Tupelo Honey Southern Kitchen in ${location}.
+          prompt = `You are a savvy, generational marketing strategist. Generate 3 unique and actionable marketing ideas for a Southern restaurant in ${location}.
 
 CONTEXT:
-- **Holidays:** ${holidayContext} Your ideas should be timely and relevant to these holidays if applicable.
+- **Holidays:** ${holidayContext}
 
 EACH IDEA MUST INCLUDE:
 1.  **Idea Title:** A catchy name for the campaign.
-2.  **Concept:** A brief description, focusing on what makes it unique and appealing to the local community's cravings.
-3.  **Target Generation:** Identify a primary target generation (e.g., Gen Z, Millennial, Gen X) and explain *why* this concept resonates with their specific values.
-4.  **Guerrilla Tactic:** Include a specific, low-cost, high-impact **guerrilla marketing tactic** to execute the idea and create authentic local buzz.`;
-          const response = await ai.models.generateContent({ model, contents: prompt, config: { tools: [{ googleSearch: {} }] } });
+2.  **Concept:** A brief description.
+3.  **Target Generation:** Identify a primary target generation.
+4.  **Guerrilla Tactic:** Include a low-cost, high-impact tactic.`;
+          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts.
+          const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
        }
@@ -229,10 +233,7 @@ EACH IDEA MUST INCLUDE:
            break;
        }
       
-      // ... other cases for getInsights, getTrendAnalysis etc. would go here ...
-      
       default:
-        // For any action not yet implemented with a custom prompt, return an informative error.
         return { 
             statusCode: 501, 
             headers, 

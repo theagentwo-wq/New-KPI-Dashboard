@@ -43,8 +43,8 @@ export const handler = async (event: any) => {
 
     // Create a controller to abort external requests if they take too long
     const controller = new AbortController();
-    // Set a timeout of 9000ms (9s) to ensure we respond before Netlify's 10s hard limit
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    // Set a timeout of 8000ms (8s) to ensure we respond before Netlify's 10s hard limit
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
         const body = JSON.parse(event.body || '{}');
@@ -56,14 +56,21 @@ export const handler = async (event: any) => {
 
         // Helper for fetch with timeout and standard headers
         const safeFetch = async (url: string) => {
-            const response = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'User-Agent': 'Operations-KPI-Dashboard/1.0',
-                    'Accept': 'application/json'
+            try {
+                const response = await fetch(url, {
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Operations-KPI-Dashboard/1.0',
+                        'Accept': 'application/json'
+                    }
+                });
+                return response;
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    throw new Error("External API timeout");
                 }
-            });
-            return response;
+                throw err;
+            }
         };
 
         // Step 1: Find the Place ID
@@ -78,12 +85,11 @@ export const handler = async (event: any) => {
         const findPlaceData = await findPlaceResponse.json() as FindPlaceResponse;
 
         if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-            // Return 404 but with a valid JSON body, avoiding 502
             return { 
                 statusCode: 404, 
                 headers, 
                 body: JSON.stringify({ 
-                    error: `Could not find a Google Maps location for "${address}".`,
+                    error: `Could not find location for "${address}".`,
                     details: `${findPlaceData.status} - ${findPlaceData.error_message || 'No candidates found'}`
                 }) 
             };
@@ -127,12 +133,11 @@ export const handler = async (event: any) => {
     } catch (error: any) {
         console.error('Error in maps-proxy function:', error);
         
-        // Handle Timeouts specifically
-        if (error.name === 'AbortError') {
+        if (error.message === "External API timeout") {
             return {
                 statusCode: 504,
                 headers,
-                body: JSON.stringify({ error: "Request to Google Maps timed out (9s limit)." })
+                body: JSON.stringify({ error: "Google Maps API request timed out." })
             };
         }
 

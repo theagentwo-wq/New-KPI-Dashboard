@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { Kpi, PerformanceData } from '../types';
 import { KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 import { Icon } from './Icon';
@@ -12,7 +12,7 @@ interface KPISummaryCardsProps {
     onKpiSelect: (kpi: Kpi) => void;
 }
 
-const cardVariants = {
+const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };

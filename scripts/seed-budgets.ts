@@ -4,7 +4,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { config } from 'dotenv';
-import process from 'node:process';
 
 console.log(`\n--- Environment Setup ---`);
 

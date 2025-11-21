@@ -12,10 +12,19 @@ export type PerformanceData = {
   [key in Kpi]?: number; // Make properties optional
 };
 
+export interface FinancialLineItem {
+  name: string;
+  actual: number;
+  budget?: number;
+  category: 'Sales' | 'COGS' | 'Labor' | 'Operating Expenses' | 'Other';
+  indent?: number; // For visual hierarchy (0 = main, 1 = sub)
+}
+
 export interface StorePerformanceData {
   storeId: string;
   weekStartDate: Date;
   data: PerformanceData;
+  pnl?: FinancialLineItem[]; // Added specifically for the full P&L view
 }
 
 export interface Period {

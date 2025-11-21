@@ -49,23 +49,63 @@ export const handler: Handler = async (event, _context) => {
         
         const { jobType } = jobDetails;
 
+        // 1. Define Schemas
         const kpiProperties = {
             "Sales": { type: Type.NUMBER }, "SOP": { type: Type.NUMBER }, "Prime Cost": { type: Type.NUMBER }, "Avg. Reviews": { type: Type.NUMBER }, "Food Cost": { type: Type.NUMBER }, "Variable Labor": { type: Type.NUMBER }, "Culinary Audit Score": { type: Type.NUMBER },
         };
-        const actualsDataSchema = { type: Type.OBJECT, properties: { "Store Name": { type: Type.STRING }, "Week Start Date": { type: Type.STRING }, ...kpiProperties }, required: ["Store Name", "Week Start Date"] };
+
+        const pnlItemSchema = {
+            type: Type.OBJECT,
+            properties: {
+                name: { type: Type.STRING, description: "Name of the P&L line item (e.g., 'Dairy', 'FOH Hourly')" },
+                actual: { type: Type.NUMBER, description: "Actual value in dollars or percentage (decimal)" },
+                budget: { type: Type.NUMBER, description: "Budget value in dollars or percentage (decimal)" },
+                category: { type: Type.STRING, enum: ["Sales", "COGS", "Labor", "Operating Expenses", "Other"], description: "Major P&L category" },
+                indent: { type: Type.NUMBER, description: "0 for main category, 1 for sub-category, 2 for item" }
+            },
+            required: ["name", "actual", "category"]
+        };
+
+        const actualsDataSchema = { 
+            type: Type.OBJECT, 
+            properties: { 
+                "Store Name": { type: Type.STRING }, 
+                "Week Start Date": { type: Type.STRING }, 
+                ...kpiProperties,
+                "pnl": { type: Type.ARRAY, items: pnlItemSchema, description: "Full hierarchical P&L data for this store/week if available." }
+            }, 
+            required: ["Store Name", "Week Start Date"] 
+        };
+        
         const budgetDataSchema = { type: Type.OBJECT, properties: { "Store Name": { type: Type.STRING }, "Year": { type: Type.NUMBER }, "Month": { type: Type.NUMBER }, ...kpiProperties }, required: ["Store Name", "Year", "Month"] };
+        
+        const universalSchema = { 
+            type: Type.OBJECT, 
+            properties: { 
+                isDynamicSheet: { type: Type.BOOLEAN }, 
+                dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] }, 
+                data: { type: Type.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } } 
+            }, 
+            required: ["dataType", "data", "isDynamicSheet"] 
+        };
+
+        // 2. Build the Prompt
         const universalPrompt = `You are an expert financial analyst for a restaurant group. Analyze the provided document.
     
     **CRITICAL INSTRUCTIONS:**
-    1.  **DETECT DYNAMIC SHEETS:** First, examine the structure of the document. If you see text indicating a dropdown menu, a filter control, or instructions to select a store/entity to view its data, set the 'isDynamicSheet' flag to true. This is crucial. If it's just a static table of data for one or more entities without interactive elements, set 'isDynamicSheet' to false.
-    2.  **CLASSIFY DATA TYPE:** Next, determine if the data represents 'Actuals' (historical, weekly performance data) or a 'Budget' (a forward-looking plan with monthly targets). Your primary clue is the time granularity (weekly vs. monthly) and keywords like "Budget", "Plan", "Actuals", "Report".
-    3.  **EXTRACT DATA:** Based on the classification, extract all relevant financial data. If 'isDynamicSheet' is true, extract data for the currently visible store only.
-        *   **If 'Actuals':** Extract the 'Store Name', 'Week Start Date' (calculate if a 'Week Ending' date is given, assuming weeks start on Monday), and all KPI values for each row.
+    1.  **DETECT DYNAMIC SHEETS:** First, examine the structure of the document. If you see text indicating a dropdown menu, a filter control, or instructions to select a store/entity to view its data, set the 'isDynamicSheet' flag to true. If it's just a static table, set 'isDynamicSheet' to false.
+    2.  **CLASSIFY DATA TYPE:** Determine if the data represents 'Actuals' (historical, weekly performance) or a 'Budget' (monthly targets).
+    3.  **EXTRACT DATA (The most important part):**
+        *   **If 'Actuals':** Extract the 'Store Name', 'Week Start Date', and the top-level KPIs (Sales, SOP, Prime Cost, etc.).
+        *   **CRITICAL - FULL P&L:** If the document contains a detailed Profit & Loss statement (rows like 'Dairy', 'Poultry', 'FOH Hourly', 'Supplies'), you MUST extract these rows into the 'pnl' array for each store/week.
+            *   Map each row to a 'category': 'Sales', 'COGS', 'Labor', 'Operating Expenses', or 'Other'.
+            *   Determine 'indent' level based on the visual hierarchy (0 for headers like 'Food COGS', 1 for items like 'Dairy').
+            *   Extract both 'actual' and 'budget' values if present.
         *   **If 'Budget':** Extract the 'Store Name', 'Year', 'Month', and all target KPI values.
-    4.  **HANDLE COMPLEX FILES:** The document may contain data for multiple stores and multiple time periods (e.g., a multi-year budget). Process all of them. Ignore any summary rows like "Total" or "Grand Total".
-    5.  **FORMAT OUTPUT:** Return a JSON object with two fields: 'dataType' (either "Actuals" or "Budget") and 'data' (an array of JSON objects strictly following the correct schema for that data type). Ensure all percentages are returned as numbers (e.g., 18.5% becomes 18.5).`;
-        const universalSchema = { type: Type.OBJECT, properties: { isDynamicSheet: { type: Type.BOOLEAN }, dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] }, data: { type: Type.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } } }, required: ["dataType", "data", "isDynamicSheet"] };
-
+    4.  **HANDLE COMPLEX FILES:** Process data for all stores and weeks found. Ignore "Total" or "Grand Total" summary rows.
+    5.  **FORMAT OUTPUT:** Return JSON strictly following the schema. Convert percentages to decimals (e.g., 18.5% -> 0.185).`;
+        
+        // 3. Call Gemini
         let aiResponse;
 
         if (jobType === 'document') {
