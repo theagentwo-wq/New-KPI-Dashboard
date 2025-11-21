@@ -13,7 +13,7 @@ import { PerformanceMatrix } from '../components/PerformanceMatrix';
 import { FirebaseStatus } from '../services/firebaseService';
 import { Modal } from '../components/Modal';
 import { ExecutiveSummaryModal } from '../components/ExecutiveSummaryModal';
-import { getPerformanceData } from '../services/firebaseService';
+import { getPerformanceData, getBudgets } from '../services/firebaseService';
 import { KPISummaryCards } from '../components/KPISummaryCards';
 
 interface DashboardPageProps {
@@ -34,7 +34,7 @@ interface DashboardPageProps {
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ 
     currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, 
-    setLoadedData, budgets, isAlertsModalOpen, setIsAlertsModalOpen,
+    setLoadedData, budgets: initialBudgets, isAlertsModalOpen, setIsAlertsModalOpen,
     isExecutiveSummaryOpen, setIsExecutiveSummaryOpen 
 }) => {
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
@@ -43,6 +43,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
     const [selectedKpi, setSelectedKpi] = useState<Kpi>(Kpi.Sales);
+    const [fetchedBudgets, setFetchedBudgets] = useState<Budget[]>(initialBudgets);
 
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isReviewModalOpen, setReviewModalOpen] = useState(false);
@@ -51,14 +52,33 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
     const [comparisonData, setComparisonData] = useState<StorePerformanceData[]>([]);
 
-     useEffect(() => {
-        const fetchCurrentPeriodData = async () => {
-            const data = await getPerformanceData(currentPeriod.startDate, currentPeriod.endDate);
-            setLoadedData(data);
+    // Enhanced data fetching to handle multi-year periods (e.g., Q4 crossing years)
+    useEffect(() => {
+        const fetchCurrentPeriodDataAndBudgets = async () => {
+            if (dbStatus.status !== 'connected') return;
+
+            const startYear = currentPeriod.startDate.getFullYear();
+            const endYear = currentPeriod.endDate.getFullYear();
+            const yearsToFetch = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+
+            const promises: Promise<any>[] = [
+                getPerformanceData(currentPeriod.startDate, currentPeriod.endDate)
+            ];
+
+            yearsToFetch.forEach(year => {
+                promises.push(getBudgets(year));
+            });
+
+            const results = await Promise.all(promises);
+            const performanceData = results[0];
+            // Combine all budget results (indices 1+)
+            const allFetchedBudgets = results.slice(1).flat();
+
+            setLoadedData(performanceData);
+            setFetchedBudgets(allFetchedBudgets);
         };
-        if (dbStatus.status === 'connected') {
-            fetchCurrentPeriodData();
-        }
+
+        fetchCurrentPeriodDataAndBudgets();
     }, [currentPeriod, dbStatus.status, setLoadedData]);
 
     const comparisonPeriod = useMemo(() => {
@@ -140,41 +160,119 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         mode: ComparisonMode,
         period: Period
     ) => {
-        const result: { [storeId: string]: { actual: PerformanceData; comparison?: PerformanceData; variance: PerformanceData; } } = {};
-
-        actualData.forEach(storeData => {
-            const storeId = storeData.storeId;
-            const actual = storeData.data;
-            let comparison: PerformanceData | undefined = {};
+        // Aggregation Helper: Sums currency/counts, Averages percentages
+        const aggregateList = (list: StorePerformanceData[]) => {
+            const storeMap: { [id: string]: { sums: PerformanceData, counts: { [k in Kpi]?: number } } } = {};
             
+            list.forEach(item => {
+                const { storeId, data } = item;
+                if (!storeMap[storeId]) {
+                    storeMap[storeId] = { sums: {}, counts: {} };
+                }
+                
+                (Object.keys(data) as Kpi[]).forEach(kpi => {
+                    const value = data[kpi];
+                    if (value !== undefined) {
+                        storeMap[storeId].sums[kpi] = (storeMap[storeId].sums[kpi] || 0) + value;
+                        storeMap[storeId].counts[kpi] = (storeMap[storeId].counts[kpi] || 0) + 1;
+                    }
+                });
+            });
+
+            const result: { [id: string]: PerformanceData } = {};
+            Object.keys(storeMap).forEach(storeId => {
+                const { sums, counts } = storeMap[storeId];
+                result[storeId] = {};
+                (Object.keys(sums) as Kpi[]).forEach(kpi => {
+                    const config = KPI_CONFIG[kpi];
+                    if (config.format === 'currency') {
+                        // Sum for currency (Sales)
+                        result[storeId]![kpi] = sums[kpi];
+                    } else {
+                        // Average for percentages/numbers (SOP, Prime Cost, Reviews)
+                        const count = counts[kpi] || 1;
+                        result[storeId]![kpi] = (sums[kpi] || 0) / count;
+                    }
+                });
+            });
+            return result;
+        };
+
+        const actualsAggregated = aggregateList(actualData);
+        const comparisonsAggregated = aggregateList(comparisonStoreData);
+
+        // Budget Aggregation
+        let budgetAggregated: { [id: string]: PerformanceData } = {};
+        if (mode === 'vs. Budget') {
+             // Identify budgets that fall within the period's date range
+             const relevantBudgets = budgetData.filter(b => {
+                 // Construct a date for the middle of the budget month to check overlap
+                 const budgetDate = new Date(b.year, b.month - 1, 15); 
+                 return budgetDate >= period.startDate && budgetDate <= period.endDate;
+             });
+
+             const storeBudgetMap: { [id: string]: { sums: PerformanceData, counts: { [k in Kpi]?: number } } } = {};
+             relevantBudgets.forEach(b => {
+                 const { storeId, targets } = b;
+                 if (!storeBudgetMap[storeId]) storeBudgetMap[storeId] = { sums: {}, counts: {} };
+                 (Object.keys(targets) as Kpi[]).forEach(kpi => {
+                     const val = targets[kpi];
+                     if (val !== undefined) {
+                         storeBudgetMap[storeId].sums[kpi] = (storeBudgetMap[storeId].sums[kpi] || 0) + val;
+                         storeBudgetMap[storeId].counts[kpi] = (storeBudgetMap[storeId].counts[kpi] || 0) + 1;
+                     }
+                 });
+             });
+             
+             Object.keys(storeBudgetMap).forEach(storeId => {
+                const { sums, counts } = storeBudgetMap[storeId];
+                budgetAggregated[storeId] = {};
+                (Object.keys(sums) as Kpi[]).forEach(kpi => {
+                    const config = KPI_CONFIG[kpi];
+                    if (config.format === 'currency') {
+                        budgetAggregated[storeId]![kpi] = sums[kpi];
+                    } else {
+                        const count = counts[kpi] || 1;
+                        budgetAggregated[storeId]![kpi] = (sums[kpi] || 0) / count;
+                    }
+                });
+            });
+        }
+
+        const finalResult: { [storeId: string]: { actual: PerformanceData; comparison?: PerformanceData; variance: PerformanceData; } } = {};
+        
+        // Use actuals as the base key set.
+        Object.keys(actualsAggregated).forEach(storeId => {
+            const actual = actualsAggregated[storeId];
+            let comparison: PerformanceData | undefined;
+
             if (mode === 'vs. Budget') {
-                const month = period.startDate.getUTCMonth() + 1; // 1-12
-                const year = period.startDate.getUTCFullYear();
-                const budget = budgetData.find((b: Budget) => b.storeId === storeId && b.year === year && b.month === month);
-                comparison = budget?.targets;
+                comparison = budgetAggregated[storeId];
             } else {
-                const comparisonStore = comparisonStoreData.find((c: StorePerformanceData) => c.storeId === storeId);
-                comparison = comparisonStore?.data;
+                comparison = comparisonsAggregated[storeId];
             }
 
             const variance: PerformanceData = {};
-            Object.values(Kpi).forEach(kpi => {
+            (Object.keys(actual) as Kpi[]).forEach(kpi => {
                 const actualValue = actual[kpi];
                 const comparisonValue = comparison?.[kpi];
+                
                 if (actualValue !== undefined && comparisonValue !== undefined) {
+                    // Simple subtraction for variance
                     variance[kpi] = actualValue - comparisonValue;
                 }
             });
-            result[storeId] = { actual, comparison, variance };
+
+            finalResult[storeId] = { actual, comparison, variance };
         });
 
-        return result;
+        return finalResult;
 
     }, []);
 
     const allStoresProcessedData = useMemo(() => {
-        return processDataForTable(loadedData, comparisonData, budgets, comparisonMode, currentPeriod);
-    }, [loadedData, comparisonData, budgets, comparisonMode, currentPeriod, processDataForTable]);
+        return processDataForTable(loadedData, comparisonData, fetchedBudgets, comparisonMode, currentPeriod);
+    }, [loadedData, comparisonData, fetchedBudgets, comparisonMode, currentPeriod, processDataForTable]);
     
     const processedDataForTable = useMemo(() => {
         const filtered: { [key: string]: any } = {};
@@ -240,7 +338,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             });
             return aggregated;
         }
-        // FIX: Use a type guard to safely access the 'aggregated' property on the 'DataItem' union type.
+        
         const directorData = directorAggregates[currentView];
         if (directorData && 'aggregated' in directorData) {
             return directorData.aggregated;
