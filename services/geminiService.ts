@@ -147,9 +147,9 @@ export const getQuadrantAnalysis = async (data: any[], periodLabel: string, kpiA
     const result = await callAIApi('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
     return result.content || "Could not generate quadrant analysis.";
 };
-export const getStrategicRankingsAnalysis = async (data: StrategicAnalysisData[], periodLabel: string, kpis: { primary: Kpi, secondary: Kpi }): Promise<string> => {
-    const result = await callAIApi('getStrategicRankingsAnalysis', { data, periodLabel, kpis });
-    return result.content || "Could not generate analysis.";
+export const getStrategicExecutiveAnalysis = async (kpi: Kpi, periodLabel: string, companyTotal: number, directorData: any[], laggards: any[]): Promise<string> => {
+    const result = await callAIApi('getStrategicExecutiveAnalysis', { kpi, periodLabel, companyTotal, directorData, laggards });
+    return result.content || "Could not generate executive analysis.";
 };
 export const getLocationMarketAnalysis = async (location: string): Promise<string> => {
     const result = await callAIApi('getLocationMarketAnalysis', { location });

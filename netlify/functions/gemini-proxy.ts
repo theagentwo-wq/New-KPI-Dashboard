@@ -181,22 +181,26 @@ EACH IDEA MUST INCLUDE:
            responsePayload = { content: response.text };
            break;
        }
-       case 'getStrategicRankingsAnalysis': {
-           const { data, periodLabel, kpis } = payload;
-           prompt = `You are a strategic operations analyst. I am providing a ranked list of restaurant locations for the period "${periodLabel}".
+       case 'getStrategicExecutiveAnalysis': {
+           const { kpi, periodLabel, companyTotal, directorData, laggards } = payload;
+           prompt = `You are the Chief Financial Officer (CFO) of a restaurant group. You are writing a brief, high-level analysis for the CEO.
            
-           **Primary Metric (Ranking Basis):** ${kpis.primary}
-           **Secondary Metric (Context/Color):** ${kpis.secondary}
+           **Focus Metric:** ${kpi}
+           **Period:** ${periodLabel}
+           **Company Total:** ${companyTotal}
            
-           **Data (Top & Bottom Performers):**
-           ${JSON.stringify(data, null, 2)}
+           **Regional Performance (Director Breakdown):**
+           ${JSON.stringify(directorData, null, 2)}
+           
+           **The "Anchors" (Bottom 3 Stores pulling us down):**
+           ${JSON.stringify(laggards, null, 2)}
            
            **Instructions:**
-           1.  **Analyze the Leaders:** Why are the top 3 locations successful? Is there a correlation between the primary and secondary metrics?
-           2.  **Analyze the Laggards:** Look at the bottom 3. Are they failing in both metrics, or is there a mismatch (e.g., High Sales but very poor Profit)?
-           3.  **Strategic Action:** Provide 1 specific, high-impact strategic directive for the Area Director to address the disparity.
+           1.  **Financial Impact:** In 1-2 sentences, assess the company's position on this metric. Is it a risk to profitability?
+           2.  **Leadership Focus:** Identify which Director needs to take immediate action. Don't just list data; hold them accountable.
+           3.  **The Anchor Plan:** Provide ONE specific, aggressive instruction for the worst-performing store (the "Anchor") to turn this metric around immediately.
            
-           Keep the output concise and formatted in Markdown.`;
+           Keep the tone professional, direct, and financially minded. Use Markdown.`;
            const response = await ai.models.generateContent({ model, contents: prompt });
            responsePayload = { content: response.text };
            break;
