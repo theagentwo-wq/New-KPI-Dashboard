@@ -84,6 +84,30 @@ export const handler: Handler = async (event, _context) => {
       }
 
       // --- Synchronous AI Generation ---
+      case 'chatWithStrategy': {
+          const { context, userQuery, mode } = payload;
+          
+          let systemInst = "You are a helpful business strategy assistant.";
+          if (mode === 'Financial') systemInst = "You are a strict CFO assistant. Focus on numbers, margins, and ROI.";
+          if (mode === 'Operational') systemInst = "You are an Operations Director assistant. Focus on execution and efficiency.";
+          if (mode === 'Marketing') systemInst = "You are a Marketing Strategist assistant. Focus on brand and growth.";
+
+          prompt = `
+          ${systemInst}
+          
+          CONTEXT (Previous Analysis):
+          ${context}
+          
+          USER QUESTION:
+          ${userQuery}
+          
+          Provide a concise, Markdown-formatted answer based on the context provided. Do not hallucinate data not present in the context or implied by it.
+          `;
+          const response = await ai.models.generateContent({ model, contents: prompt });
+          responsePayload = { content: response.text };
+          break;
+      }
+
       case 'getExecutiveSummary': {
           const { data, view, periodLabel } = payload;
           prompt = `You are an expert restaurant operations analyst. Analyze the following aggregated KPI data for Tupelo Honey Southern Kitchen for the period "${periodLabel}" and the view "${view}". Provide a concise executive summary (2-3 paragraphs) highlighting the most significant wins, challenges, and key areas for focus. The data represents director-level aggregates. Your analysis should be sharp, insightful, and tailored for an executive audience. Data:\n${JSON.stringify(data, null, 2)}`;

@@ -1,29 +1,20 @@
-import { GoogleGenAI } from "@google/genai";
-import fetch from 'node-fetch';
-import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
-import { Handler } from '@netlify/functions';
+const { GoogleGenAI } = require("@google/genai");
+const fetch = require('node-fetch');
+const { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } = require('../../services/firebaseService');
 
-declare var Buffer: any;
-
-async function streamToBuffer(stream: any): Promise<any> {
-    const chunks: any[] = [];
+async function streamToBuffer(stream) {
+    const chunks = [];
     return new Promise((resolve, reject) => {
-        stream.on('data', (chunk: any) => chunks.push(chunk));
-        stream.on('error', (err: any) => reject(err));
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('error', (err) => reject(err));
         stream.on('end', () => resolve(Buffer.concat(chunks)));
     });
 }
 
-export const handler: Handler = async (event, _context) => {
-    // This is a background function, so we don't return a response to the client.
-    // We handle errors by updating the job status in Firestore.
-
+exports.handler = async (event) => {
     const status = await initializeFirebaseService();
-    if (status.status === 'error') {
+    if(status.status === 'error') {
         console.error("Firebase init failed in background function:", status.message);
-        // Can't update Firestore if it failed to init, so we just log and exit.
         return { statusCode: 500 };
     }
 
@@ -33,15 +24,15 @@ export const handler: Handler = async (event, _context) => {
         return { statusCode: 400 };
     }
 
-    let jobDetails: any = {};
+    let jobDetails = {};
 
     try {
-        // Use Firebase v8 compat syntax for consistency.
-        const db = firebase.firestore();
-        const docRef = db.collection("analysis_jobs").doc(jobId);
-        const docSnap = await docRef.get();
+        const { getFirestore, doc, getDoc } = require('firebase/firestore');
+        const db = getFirestore();
+        const docRef = doc(db, "analysis_jobs", jobId);
+        const docSnap = await getDoc(docRef);
 
-        if (!docSnap.exists) {
+        if (!docSnap.exists()) {
             throw new Error(`Job document ${jobId} not found.`);
         }
         jobDetails = docSnap.data();
@@ -50,9 +41,6 @@ export const handler: Handler = async (event, _context) => {
 
         const { fileUrl, mimeType, fileName, filePath, mode } = jobDetails;
         
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not configured on the server.");
-        }
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
         const fileResponse = await fetch(fileUrl);
@@ -106,7 +94,7 @@ export const handler: Handler = async (event, _context) => {
             ---`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', // Use Pro for deeper analysis
+            model: 'gemini-3-pro-preview', // Use Pro for deeper analysis in background
             contents: [
                 { text: prompt },
                 { inlineData: { mimeType, data: base64Data } }
@@ -115,18 +103,14 @@ export const handler: Handler = async (event, _context) => {
         
         await updateAnalysisJob(jobId, { status: 'complete', result: response.text });
 
-        // Clean up the file from Firebase Storage
-        if (filePath) {
-            await deleteFileByPath(filePath);
-        }
+        await deleteFileByPath(filePath);
 
         return { statusCode: 200 };
 
-    } catch (error: any) {
+    } catch (error) {
         console.error(`Error processing job ${jobId}:`, error);
         await updateAnalysisJob(jobId, { status: 'error', error: error.message });
         
-        // Cleanup file even on failure
         if (jobDetails.filePath) {
             await deleteFileByPath(jobDetails.filePath);
         }

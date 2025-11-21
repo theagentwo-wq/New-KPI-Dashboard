@@ -1,4 +1,4 @@
-import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo } from '../types';
+import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, Note, WeatherInfo, AnalysisMode } from '../types';
 
 export interface PlaceDetails {
     name: string;
@@ -28,9 +28,14 @@ async function callAIApi(action: string, payload: any): Promise<any> {
     }
 }
 
-export const startStrategicAnalysisJob = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string }): Promise<{ jobId: string }> => {
+export const startStrategicAnalysisJob = async (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string, mode: AnalysisMode }): Promise<{ jobId: string }> => {
     const result = await callAIApi('startStrategicAnalysis', payload);
     return result; 
+};
+
+export const chatWithStrategy = async (context: string, userQuery: string, mode: AnalysisMode): Promise<string> => {
+    const result = await callAIApi('chatWithStrategy', { context, userQuery, mode });
+    return result.content || "AI could not respond.";
 };
 
 export const startImportJob = async (payload: any, jobType: 'document' | 'text'): Promise<{ jobId: string }> => {
