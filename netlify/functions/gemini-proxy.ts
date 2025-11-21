@@ -50,8 +50,8 @@ export const handler: Handler = async (event, _context) => {
 
     let prompt = '';
     let responsePayload: any = {};
-    // Explicitly use flash-latest for speed in sync calls
-    const model = 'gemini-2.5-flash-latest';
+    // Use the stable flash model for speed and reliability
+    const model = 'gemini-2.5-flash';
 
     // --- Context Enrichment ---
     const today = new Date();
@@ -155,7 +155,7 @@ ${JSON.stringify(storeData, null, 2)}`;
 - A bulleted list of "Common Praises".
 - A bulleted list of "Opportunities for Improvement".
 Your tone should be professional and constructive.`;
-          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts. Using model's internal knowledge base.
+          // Rely on internal knowledge to prevent timeout errors with Google Search
           const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
@@ -171,7 +171,6 @@ ANALYSIS MUST INCLUDE:
 1.  **Local Vibe:** What is the primary character of the main dining neighborhoods in ${location} (e.g., office-heavy, nightlife hub)?
 2.  **Competitor Landscape:** Mention 2-3 types of restaurants that are popular competitors in this area.
 3.  **Upcoming Events (Simulated):** List 3 plausible types of events (concerts, markets, sports) that typically happen in ${location} during this time of year.`;
-          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts. Relying on model's training data for general location knowledge.
           const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
@@ -188,7 +187,6 @@ EACH IDEA MUST INCLUDE:
 2.  **Concept:** A brief description.
 3.  **Target Generation:** Identify a primary target generation.
 4.  **Guerrilla Tactic:** Include a low-cost, high-impact tactic.`;
-          // OPTIMIZATION: Removed 'googleSearch' tool to prevent 502 timeouts.
           const response = await ai.models.generateContent({ model, contents: prompt });
           responsePayload = { content: response.text };
           break;
@@ -233,7 +231,7 @@ EACH IDEA MUST INCLUDE:
            break;
        }
 
-       // --- MISSING HANDLERS (Fix for 502/501 Errors) ---
+       // --- RESTORED MISSING HANDLERS ---
 
        case 'getSalesForecast': {
           const { location, weatherForecast } = payload;
@@ -244,7 +242,7 @@ EACH IDEA MUST INCLUDE:
           Return a JSON array of objects with keys: "date", "predictedSales" (number), "weatherDescription" (string).
           Assume baseline daily sales of $5500. Adjust up for good weather (sunny/cloudy) and weekends. Adjust down for bad weather (rain/snow).`;
           const response = await ai.models.generateContent({ 
-              model: 'gemini-2.5-flash', 
+              model, 
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
@@ -290,7 +288,7 @@ EACH IDEA MUST INCLUDE:
           const { allStoresData } = payload;
           prompt = `Identify anomalies in this store data: ${JSON.stringify(allStoresData)}. Return JSON array of objects: { id, location, kpi, deviation (number), summary, analysis }.`;
           const response = await ai.models.generateContent({ 
-              model: 'gemini-2.5-flash',
+              model,
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
@@ -302,7 +300,7 @@ EACH IDEA MUST INCLUDE:
           const { data, userPrompt } = payload;
           prompt = `Model this scenario: "${userPrompt}" based on current data: ${JSON.stringify(data)}. Return JSON: { analysis: string, args: object }`;
           const response = await ai.models.generateContent({ 
-              model: 'gemini-2.5-flash',
+              model,
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
