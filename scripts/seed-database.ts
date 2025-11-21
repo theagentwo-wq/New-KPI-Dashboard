@@ -43,7 +43,7 @@ import 'firebase/compat/firestore';
 // If this array is empty, ALL years found in the CSV will be processed.
 // To prevent timeouts with large datasets, add specific years here (e.g., [2023]) 
 // and run the script multiple times.
-const YEARS_TO_SEED: number[] = [2024]; 
+const YEARS_TO_SEED: number[] = [2025]; 
 // Example: const YEARS_TO_SEED = [2023];
 
 // --- INLINED DATE LOGIC (To prevent import issues) ---
