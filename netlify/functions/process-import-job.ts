@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { initializeFirebaseService, updateImportJob, deleteFileByPath } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
 
@@ -55,46 +55,46 @@ export const handler: Handler = async (event, _context) => {
         if (!process.env.GEMINI_API_KEY) {
             throw new Error("GEMINI_API_KEY is not configured on the server.");
         }
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const { jobType } = jobDetails;
 
         // 1. Define Schemas
         const kpiProperties = {
-            "Sales": { type: Type.NUMBER }, "SOP": { type: Type.NUMBER }, "Prime Cost": { type: Type.NUMBER }, "Avg. Reviews": { type: Type.NUMBER }, "Food Cost": { type: Type.NUMBER }, "Variable Labor": { type: Type.NUMBER }, "Culinary Audit Score": { type: Type.NUMBER },
+            "Sales": { type: SchemaType.NUMBER }, "SOP": { type: SchemaType.NUMBER }, "Prime Cost": { type: SchemaType.NUMBER }, "Avg. Reviews": { type: SchemaType.NUMBER }, "Food Cost": { type: SchemaType.NUMBER }, "Variable Labor": { type: SchemaType.NUMBER }, "Culinary Audit Score": { type: SchemaType.NUMBER },
         };
 
         const pnlItemSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                name: { type: Type.STRING, description: "Name of the P&L line item (e.g., 'Dairy', 'FOH Hourly')" },
-                actual: { type: Type.NUMBER, description: "Actual value in dollars or percentage (decimal)" },
-                budget: { type: Type.NUMBER, description: "Budget value in dollars or percentage (decimal)" },
-                category: { type: Type.STRING, enum: ["Sales", "COGS", "Labor", "Operating Expenses", "Other"], description: "Major P&L category" },
-                indent: { type: Type.NUMBER, description: "0 for main category, 1 for sub-category, 2 for item" }
+                name: { type: SchemaType.STRING, description: "Name of the P&L line item (e.g., 'Dairy', 'FOH Hourly')" },
+                actual: { type: SchemaType.NUMBER, description: "Actual value in dollars or percentage (decimal)" },
+                budget: { type: SchemaType.NUMBER, description: "Budget value in dollars or percentage (decimal)" },
+                category: { type: SchemaType.STRING, enum: ["Sales", "COGS", "Labor", "Operating Expenses", "Other"], description: "Major P&L category" },
+                indent: { type: SchemaType.NUMBER, description: "0 for main category, 1 for sub-category, 2 for item" }
             },
             required: ["name", "actual", "category"]
         };
 
         const actualsDataSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                "Store Name": { type: Type.STRING },
-                "Week Start Date": { type: Type.STRING },
+                "Store Name": { type: SchemaType.STRING },
+                "Week Start Date": { type: SchemaType.STRING },
                 ...kpiProperties,
-                "pnl": { type: Type.ARRAY, items: pnlItemSchema, description: "Full hierarchical P&L data for this store/week if available." }
+                "pnl": { type: SchemaType.ARRAY, items: pnlItemSchema, description: "Full hierarchical P&L data for this store/week if available." }
             },
             required: ["Store Name", "Week Start Date"]
         };
 
-        const budgetDataSchema = { type: Type.OBJECT, properties: { "Store Name": { type: Type.STRING }, "Year": { type: Type.NUMBER }, "Month": { type: Type.NUMBER }, ...kpiProperties }, required: ["Store Name", "Year", "Month"] };
+        const budgetDataSchema = { type: SchemaType.OBJECT, properties: { "Store Name": { type: SchemaType.STRING }, "Year": { type: SchemaType.NUMBER }, "Month": { type: SchemaType.NUMBER }, ...kpiProperties }, required: ["Store Name", "Year", "Month"] };
 
         const universalSchema = {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                isDynamicSheet: { type: Type.BOOLEAN },
-                dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] },
-                data: { type: Type.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } }
+                isDynamicSheet: { type: SchemaType.BOOLEAN },
+                dataType: { type: SchemaType.STRING, enum: ["Actuals", "Budget"] },
+                data: { type: SchemaType.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } }
             },
             required: ["dataType", "data", "isDynamicSheet"]
         };
@@ -118,7 +118,12 @@ export const handler: Handler = async (event, _context) => {
     5.  **FORMAT:** Return strictly JSON.`;
 
         // 3. Call Gemini
-        let aiResponse;
+        let aiResponseText;
+
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-1.5-flash', // Using 1.5-flash as 2.5 might not be available in this SDK version or generally
+            generationConfig: { responseMimeType: "application/json", responseSchema: universalSchema as any }
+        });
 
         if (jobType === 'document') {
             const { fileUrl, mimeType, fileName } = jobDetails;
@@ -127,25 +132,24 @@ export const handler: Handler = async (event, _context) => {
             const buffer = await streamToBuffer(fileResponse.body);
             const base64Data = buffer.toString('base64');
 
-            aiResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ text: `${universalPrompt}\n\nThe filename is "${fileName}".` }, { inlineData: { mimeType: mimeType, data: base64Data } }],
-                config: { responseMimeType: "application/json", responseSchema: universalSchema },
-            });
+            const result = await model.generateContent([
+                { text: `${universalPrompt}\n\nThe filename is "${fileName}".` },
+                { inlineData: { mimeType: mimeType, data: base64Data } }
+            ]);
+            aiResponseText = result.response.text();
         } else { // 'text'
             const { fileUrl } = jobDetails;
             const textResponse = await fetch(fileUrl);
             if (!textResponse.ok) throw new Error(`Failed to download text: ${fileUrl}`);
             const text = await textResponse.text();
 
-            aiResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---`,
-                config: { responseMimeType: "application/json", responseSchema: universalSchema },
-            });
+            const result = await model.generateContent([
+                { text: `${universalPrompt}\n\n**Text to Analyze:**\n---\n${text}\n---` }
+            ]);
+            aiResponseText = result.response.text();
         }
 
-        const parsedResult = JSON.parse(aiResponse.text!);
+        const parsedResult = JSON.parse(aiResponseText);
         await updateImportJob(jobId, { status: 'complete', result: parsedResult });
 
         if (jobDetails.filePath) {

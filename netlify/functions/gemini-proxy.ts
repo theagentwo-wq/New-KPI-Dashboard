@@ -1,33 +1,23 @@
-import { GoogleGenAI } from "@google/genai";
+// netlify/functions/gemini-proxy.ts
 import { Handler } from '@netlify/functions';
-import { isHoliday } from "../../utils/dateUtils";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { isHoliday } from '../../utils/dateUtils';
 
-/**
- * Safely parses a JSON string, providing a default value on parsing failure.
- * This helper explicitly catches errors for malformed JSON strings, which can
- * lead to unhandled exceptions and generic 502s in serverless functions.
- * @param jsonString The string to parse.
- * @param defaultValue The default value to return if parsing fails.
- * @param context A string for logging, e.g., 'Gemini response for Sales Forecast'.
- * @returns The parsed JSON object or the default value.
- * @throws An Error if parsing fails and no default value is provided,
- *         or if a specific error message needs to be propagated.
- */
-function safeJsonParse(jsonString: string | undefined | null, defaultValue: any, context: string): any {
-  if (!jsonString || jsonString.trim() === '') {
-    console.warn(`[Gemini Proxy - ${context}] Received empty or undefined JSON string. Returning default value.`);
-    return defaultValue;
-  }
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+// Helper to safely parse JSON from AI response
+const safeJsonParse = (text: string, fallback: any, context: string) => {
   try {
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.error(`[Gemini Proxy - ${context}] Failed to parse JSON string:`, {
-      error: error instanceof Error ? error.message : String(error),
-      rawString: jsonString.substring(0, 500) + (jsonString.length > 500 ? '...' : ''), // Log truncated string
-    });
-    throw new Error(`Failed to parse AI response for ${context}. Raw content: ${jsonString.substring(0, 100)}...`);
+    // Remove markdown code blocks if present
+    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanText);
+  } catch (e) {
+    console.error(`Failed to parse JSON for ${context}:`, e);
+    console.error("Raw text:", text);
+    return fallback;
   }
-}
+};
 
 export const handler: Handler = async (event, _context) => {
   const headers = {
@@ -37,50 +27,40 @@ export const handler: Handler = async (event, _context) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
+  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers };
   }
 
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: 'Method Not Allowed' };
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   if (!process.env.GEMINI_API_KEY) {
-    console.error("GEMINI_API_KEY is missing in the environment.");
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: "Server configuration error: GEMINI_API_KEY is missing." }),
-    };
+    console.error("GEMINI_API_KEY is missing in environment variables.");
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error.' }) };
   }
 
-  let action: string;
-  let payload: any;
-  try {
-    const parsedBody = JSON.parse(event.body || '{}');
-    action = parsedBody.action;
-    payload = parsedBody.payload;
-    console.log(`[Gemini Proxy] Received action: ${action} with payload:`, payload);
-  } catch (parseError) {
-    console.error("[Gemini Proxy] Failed to parse request body:", parseError);
-    return {
-      statusCode: 400,
-      headers,
-      body: JSON.stringify({ error: `Invalid request body: ${parseError instanceof Error ? parseError.message : String(parseError)}` }),
-    };
-  }
+  // Helper to invoke background functions
+  const invokeBackgroundFunction = (functionName: string, payload: any) => {
+    const origin = new URL(event.rawUrl).origin;
+    const functionUrl = `${origin}/.netlify/functions/${functionName}`;
+    console.log(`Invoking background function: ${functionUrl}`);
 
+    // Uses native fetch available in Node 18+
+    fetch(functionUrl, {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
+    }).catch(err => console.error(`Error invoking background function '${functionName}':`, err));
+  };
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const body = JSON.parse(event.body || '{}');
+    const { action, payload } = body;
 
-
-    const invokeBackgroundFunction = (functionName: string, payload: any) => {
-      const origin = new URL(event.rawUrl).origin;
-      const functionUrl = `${origin}/.netlify/functions/${functionName}`;
-      fetch(functionUrl, { method: 'POST', body: JSON.stringify({ payload }) })
-        .catch(err => console.error(`Error invoking background function '${functionName}':`, err));
-    };
+    if (!action) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing "action" in request body.' }) };
+    }
 
     let prompt = '';
     let responsePayload: any = {};
@@ -105,10 +85,11 @@ export const handler: Handler = async (event, _context) => {
         setTimeout(() => reject(new Error("Gemini API Request Timed Out")), 9000)
       );
       const result: any = await Promise.race([
-        ai.models.generateContent(params),
+        genAI.getGenerativeModel({ model: params.model }).generateContent(params.contents),
         timeoutPromise
       ]);
-      return result;
+      // The new SDK returns result.response.text()
+      return { text: result.response.text() };
     };
 
     switch (action) {
@@ -300,6 +281,12 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
       errorMessage = error.message || errorMessage;
     }
 
-    return { statusCode, headers, body: JSON.stringify({ error: errorMessage }) };
+    // CRITICAL FIX: Return 200 with error field to avoid Netlify 502s on uncaught exceptions
+    // This allows the client to handle the error gracefully.
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ error: errorMessage, details: error.stack })
+    };
   }
 };

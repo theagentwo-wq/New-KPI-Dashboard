@@ -1,5 +1,3 @@
-import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-
 // netlify/functions/rss-proxy.ts
 var RSS_FEEDS = [
   { name: "Restaurant Business", url: "https://www.restaurantbusinessonline.com/rss/headlines" },
@@ -28,7 +26,8 @@ var parseRssFeed = (xml, sourceName) => {
   const getTagContent = (itemXml, tagName) => {
     const tagRegex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`);
     const match = itemXml.match(tagRegex);
-    if (!match || typeof match[1] === "undefined") return "";
+    if (!match || typeof match[1] === "undefined")
+      return "";
     let content = match[1].trim();
     if (content.startsWith("<![CDATA[") && content.endsWith("]]>")) {
       content = content.substring(9, content.length - 3);

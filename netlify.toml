@@ -1,5 +1,10 @@
+[build]
 command = "npm run build"
 publish = "dist"
+functions = "functions-dist"
+
+[functions]
+node_bundler = "esbuild"
 directory = "functions-dist"
 timeout = 26
 

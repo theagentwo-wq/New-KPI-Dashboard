@@ -1,5 +1,3 @@
-import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-
 // netlify/functions/debug-status.ts
 var handler = async (event, context) => {
   return {

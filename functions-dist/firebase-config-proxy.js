@@ -1,5 +1,3 @@
-import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-
 // netlify/functions/firebase-config-proxy.ts
 var handler = async () => {
   const headers = {

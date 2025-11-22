@@ -1,4 +1,3 @@
-import { createRequire } from 'module'; const require = createRequire(import.meta.url);
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -8,7 +7,8 @@ var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
+  if (typeof require !== "undefined")
+    return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
 var __esm = (fn, res) => function __init() {
@@ -2452,7 +2452,8 @@ var init_bloom_blob_es2018 = __esm({
         f.prototype = new c();
         f.prototype.constructor = f;
         f.C = function(d, e, g) {
-          for (var b = Array(arguments.length - 2), r = 2; r < arguments.length; r++) b[r - 2] = arguments[r];
+          for (var b = Array(arguments.length - 2), r = 2; r < arguments.length; r++)
+            b[r - 2] = arguments[r];
           return a.prototype[e].apply(d, b);
         };
       }
@@ -2478,8 +2479,12 @@ var init_bloom_blob_es2018 = __esm({
       function n(f, a, c) {
         c || (c = 0);
         var d = Array(16);
-        if ("string" === typeof a) for (var e = 0; 16 > e; ++e) d[e] = a.charCodeAt(c++) | a.charCodeAt(c++) << 8 | a.charCodeAt(c++) << 16 | a.charCodeAt(c++) << 24;
-        else for (e = 0; 16 > e; ++e) d[e] = a[c++] | a[c++] << 8 | a[c++] << 16 | a[c++] << 24;
+        if ("string" === typeof a)
+          for (var e = 0; 16 > e; ++e)
+            d[e] = a.charCodeAt(c++) | a.charCodeAt(c++) << 8 | a.charCodeAt(c++) << 16 | a.charCodeAt(c++) << 24;
+        else
+          for (e = 0; 16 > e; ++e)
+            d[e] = a[c++] | a[c++] << 8 | a[c++] << 16 | a[c++] << 24;
         a = f.g[0];
         c = f.g[1];
         e = f.g[2];
@@ -2619,19 +2624,24 @@ var init_bloom_blob_es2018 = __esm({
       m.prototype.u = function(f, a) {
         void 0 === a && (a = f.length);
         for (var c = a - this.blockSize, d = this.B, e = this.h, g = 0; g < a; ) {
-          if (0 == e) for (; g <= c; ) n(this, f, g), g += this.blockSize;
-          if ("string" === typeof f) for (; g < a; ) {
-            if (d[e++] = f.charCodeAt(g++), e == this.blockSize) {
-              n(this, d);
-              e = 0;
-              break;
+          if (0 == e)
+            for (; g <= c; )
+              n(this, f, g), g += this.blockSize;
+          if ("string" === typeof f)
+            for (; g < a; ) {
+              if (d[e++] = f.charCodeAt(g++), e == this.blockSize) {
+                n(this, d);
+                e = 0;
+                break;
+              }
             }
-          }
-          else for (; g < a; ) if (d[e++] = f[g++], e == this.blockSize) {
-            n(this, d);
-            e = 0;
-            break;
-          }
+          else
+            for (; g < a; )
+              if (d[e++] = f[g++], e == this.blockSize) {
+                n(this, d);
+                e = 0;
+                break;
+              }
         }
         this.h = e;
         this.o += a;
@@ -2639,12 +2649,16 @@ var init_bloom_blob_es2018 = __esm({
       m.prototype.v = function() {
         var f = Array((56 > this.h ? this.blockSize : 2 * this.blockSize) - this.h);
         f[0] = 128;
-        for (var a = 1; a < f.length - 8; ++a) f[a] = 0;
+        for (var a = 1; a < f.length - 8; ++a)
+          f[a] = 0;
         var c = 8 * this.o;
-        for (a = f.length - 8; a < f.length; ++a) f[a] = c & 255, c /= 256;
+        for (a = f.length - 8; a < f.length; ++a)
+          f[a] = c & 255, c /= 256;
         this.u(f);
         f = Array(16);
-        for (a = c = 0; 4 > a; ++a) for (var d = 0; 32 > d; d += 8) f[c++] = this.g[a] >>> d & 255;
+        for (a = c = 0; 4 > a; ++a)
+          for (var d = 0; 32 > d; d += 8)
+            f[c++] = this.g[a] >>> d & 255;
         return f;
       };
       function p(f, a) {
@@ -2666,17 +2680,24 @@ var init_bloom_blob_es2018 = __esm({
         }) : new t([f | 0], 0 > f ? -1 : 0);
       }
       function v(f) {
-        if (isNaN(f) || !isFinite(f)) return w;
-        if (0 > f) return x(v(-f));
-        for (var a = [], c = 1, d = 0; f >= c; d++) a[d] = f / c | 0, c *= 4294967296;
+        if (isNaN(f) || !isFinite(f))
+          return w;
+        if (0 > f)
+          return x(v(-f));
+        for (var a = [], c = 1, d = 0; f >= c; d++)
+          a[d] = f / c | 0, c *= 4294967296;
         return new t(a, 0);
       }
       function y(f, a) {
-        if (0 == f.length) throw Error("number format error: empty string");
+        if (0 == f.length)
+          throw Error("number format error: empty string");
         a = a || 10;
-        if (2 > a || 36 < a) throw Error("radix out of range: " + a);
-        if ("-" == f.charAt(0)) return x(y(f.substring(1), a));
-        if (0 <= f.indexOf("-")) throw Error('number format error: interior "-" character');
+        if (2 > a || 36 < a)
+          throw Error("radix out of range: " + a);
+        if ("-" == f.charAt(0))
+          return x(y(f.substring(1), a));
+        if (0 <= f.indexOf("-"))
+          throw Error('number format error: interior "-" character');
         for (var c = v(Math.pow(a, 8)), d = w, e = 0; e < f.length; e += 8) {
           var g = Math.min(8, f.length - e), b = parseInt(f.substring(e, e + g), a);
           8 > g ? (g = v(Math.pow(a, g)), d = d.j(g).add(v(b))) : (d = d.j(c), d = d.add(v(b)));
@@ -2686,7 +2707,8 @@ var init_bloom_blob_es2018 = __esm({
       var w = u(0), z = u(1), A = u(16777216);
       h = t.prototype;
       h.m = function() {
-        if (B(this)) return -x(this).m();
+        if (B(this))
+          return -x(this).m();
         for (var f = 0, a = 1, c = 0; c < this.g.length; c++) {
           var d = this.i(c);
           f += (0 <= d ? d : 4294967296 + d) * a;
@@ -2696,16 +2718,21 @@ var init_bloom_blob_es2018 = __esm({
       };
       h.toString = function(f) {
         f = f || 10;
-        if (2 > f || 36 < f) throw Error("radix out of range: " + f);
-        if (C(this)) return "0";
-        if (B(this)) return "-" + x(this).toString(f);
+        if (2 > f || 36 < f)
+          throw Error("radix out of range: " + f);
+        if (C(this))
+          return "0";
+        if (B(this))
+          return "-" + x(this).toString(f);
         for (var a = v(Math.pow(f, 6)), c = this, d = ""; ; ) {
           var e = D(c, a).g;
           c = F(c, e.j(a));
           var g = ((0 < c.g.length ? c.g[0] : c.h) >>> 0).toString(f);
           c = e;
-          if (C(c)) return g + d;
-          for (; 6 > g.length; ) g = "0" + g;
+          if (C(c))
+            return g + d;
+          for (; 6 > g.length; )
+            g = "0" + g;
           d = g + d;
         }
       };
@@ -2713,8 +2740,11 @@ var init_bloom_blob_es2018 = __esm({
         return 0 > f ? 0 : f < this.g.length ? this.g[f] : this.h;
       };
       function C(f) {
-        if (0 != f.h) return false;
-        for (var a = 0; a < f.g.length; a++) if (0 != f.g[a]) return false;
+        if (0 != f.h)
+          return false;
+        for (var a = 0; a < f.g.length; a++)
+          if (0 != f.g[a])
+            return false;
         return true;
       }
       function B(f) {
@@ -2725,7 +2755,8 @@ var init_bloom_blob_es2018 = __esm({
         return B(f) ? -1 : C(f) ? 0 : 1;
       };
       function x(f) {
-        for (var a = f.g.length, c = [], d = 0; d < a; d++) c[d] = ~f.g[d];
+        for (var a = f.g.length, c = [], d = 0; d < a; d++)
+          c[d] = ~f.g[d];
         return new t(c, ~f.h).add(z);
       }
       h.abs = function() {
@@ -2745,41 +2776,56 @@ var init_bloom_blob_es2018 = __esm({
         return f.add(x(a));
       }
       h.j = function(f) {
-        if (C(this) || C(f)) return w;
-        if (B(this)) return B(f) ? x(this).j(x(f)) : x(x(this).j(f));
-        if (B(f)) return x(this.j(x(f)));
-        if (0 > this.l(A) && 0 > f.l(A)) return v(this.m() * f.m());
-        for (var a = this.g.length + f.g.length, c = [], d = 0; d < 2 * a; d++) c[d] = 0;
-        for (d = 0; d < this.g.length; d++) for (var e = 0; e < f.g.length; e++) {
-          var g = this.i(d) >>> 16, b = this.i(d) & 65535, r = f.i(e) >>> 16, E = f.i(e) & 65535;
-          c[2 * d + 2 * e] += b * E;
-          G(c, 2 * d + 2 * e);
-          c[2 * d + 2 * e + 1] += g * E;
-          G(c, 2 * d + 2 * e + 1);
-          c[2 * d + 2 * e + 1] += b * r;
-          G(c, 2 * d + 2 * e + 1);
-          c[2 * d + 2 * e + 2] += g * r;
-          G(c, 2 * d + 2 * e + 2);
-        }
-        for (d = 0; d < a; d++) c[d] = c[2 * d + 1] << 16 | c[2 * d];
-        for (d = a; d < 2 * a; d++) c[d] = 0;
+        if (C(this) || C(f))
+          return w;
+        if (B(this))
+          return B(f) ? x(this).j(x(f)) : x(x(this).j(f));
+        if (B(f))
+          return x(this.j(x(f)));
+        if (0 > this.l(A) && 0 > f.l(A))
+          return v(this.m() * f.m());
+        for (var a = this.g.length + f.g.length, c = [], d = 0; d < 2 * a; d++)
+          c[d] = 0;
+        for (d = 0; d < this.g.length; d++)
+          for (var e = 0; e < f.g.length; e++) {
+            var g = this.i(d) >>> 16, b = this.i(d) & 65535, r = f.i(e) >>> 16, E = f.i(e) & 65535;
+            c[2 * d + 2 * e] += b * E;
+            G(c, 2 * d + 2 * e);
+            c[2 * d + 2 * e + 1] += g * E;
+            G(c, 2 * d + 2 * e + 1);
+            c[2 * d + 2 * e + 1] += b * r;
+            G(c, 2 * d + 2 * e + 1);
+            c[2 * d + 2 * e + 2] += g * r;
+            G(c, 2 * d + 2 * e + 2);
+          }
+        for (d = 0; d < a; d++)
+          c[d] = c[2 * d + 1] << 16 | c[2 * d];
+        for (d = a; d < 2 * a; d++)
+          c[d] = 0;
         return new t(c, 0);
       };
       function G(f, a) {
-        for (; (f[a] & 65535) != f[a]; ) f[a + 1] += f[a] >>> 16, f[a] &= 65535, a++;
+        for (; (f[a] & 65535) != f[a]; )
+          f[a + 1] += f[a] >>> 16, f[a] &= 65535, a++;
       }
       function H(f, a) {
         this.g = f;
         this.h = a;
       }
       function D(f, a) {
-        if (C(a)) throw Error("division by zero");
-        if (C(f)) return new H(w, w);
-        if (B(f)) return a = D(x(f), a), new H(x(a.g), x(a.h));
-        if (B(a)) return a = D(f, x(a)), new H(x(a.g), a.h);
+        if (C(a))
+          throw Error("division by zero");
+        if (C(f))
+          return new H(w, w);
+        if (B(f))
+          return a = D(x(f), a), new H(x(a.g), x(a.h));
+        if (B(a))
+          return a = D(f, x(a)), new H(x(a.g), a.h);
         if (30 < f.g.length) {
-          if (B(f) || B(a)) throw Error("slowDivide_ only works with positive integers.");
-          for (var c = z, d = a; 0 >= d.l(f); ) c = I(c), d = I(d);
+          if (B(f) || B(a))
+            throw Error("slowDivide_ only works with positive integers.");
+          for (var c = z, d = a; 0 >= d.l(f); )
+            c = I(c), d = I(d);
           var e = J(c, 1), g = J(d, 1);
           d = J(d, 2);
           for (c = J(c, 2); !C(d); ) {
@@ -2796,7 +2842,8 @@ var init_bloom_blob_es2018 = __esm({
           d = Math.ceil(Math.log(c) / Math.LN2);
           d = 48 >= d ? 1 : Math.pow(2, d - 48);
           g = v(c);
-          for (b = g.j(a); B(b) || 0 < b.l(f); ) c -= d, g = v(c), b = g.j(a);
+          for (b = g.j(a); B(b) || 0 < b.l(f); )
+            c -= d, g = v(c), b = g.j(a);
           C(g) && (g = z);
           e = e.add(g);
           f = F(f, b);
@@ -2807,25 +2854,30 @@ var init_bloom_blob_es2018 = __esm({
         return D(this, f).h;
       };
       h.and = function(f) {
-        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++) c[d] = this.i(d) & f.i(d);
+        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++)
+          c[d] = this.i(d) & f.i(d);
         return new t(c, this.h & f.h);
       };
       h.or = function(f) {
-        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++) c[d] = this.i(d) | f.i(d);
+        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++)
+          c[d] = this.i(d) | f.i(d);
         return new t(c, this.h | f.h);
       };
       h.xor = function(f) {
-        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++) c[d] = this.i(d) ^ f.i(d);
+        for (var a = Math.max(this.g.length, f.g.length), c = [], d = 0; d < a; d++)
+          c[d] = this.i(d) ^ f.i(d);
         return new t(c, this.h ^ f.h);
       };
       function I(f) {
-        for (var a = f.g.length + 1, c = [], d = 0; d < a; d++) c[d] = f.i(d) << 1 | f.i(d - 1) >>> 31;
+        for (var a = f.g.length + 1, c = [], d = 0; d < a; d++)
+          c[d] = f.i(d) << 1 | f.i(d - 1) >>> 31;
         return new t(c, f.h);
       }
       function J(f, a) {
         var c = a >> 5;
         a %= 32;
-        for (var d = f.g.length - c, e = [], g = 0; g < d; g++) e[g] = 0 < a ? f.i(g + c) >>> a | f.i(g + c + 1) << 32 - a : f.i(g + c);
+        for (var d = f.g.length - c, e = [], g = 0; g < d; g++)
+          e[g] = 0 < a ? f.i(g + c) >>> a | f.i(g + c + 1) << 32 - a : f.i(g + c);
         return new t(e, f.h);
       }
       m.prototype.digest = m.prototype.v;
@@ -6447,171 +6499,175 @@ var require_float = __commonJS({
     "use strict";
     module2.exports = factory3(factory3);
     function factory3(exports3) {
-      if (typeof Float32Array !== "undefined") (function() {
-        var f32 = new Float32Array([-0]), f8b = new Uint8Array(f32.buffer), le = f8b[3] === 128;
-        function writeFloat_f32_cpy(val, buf, pos) {
-          f32[0] = val;
-          buf[pos] = f8b[0];
-          buf[pos + 1] = f8b[1];
-          buf[pos + 2] = f8b[2];
-          buf[pos + 3] = f8b[3];
-        }
-        function writeFloat_f32_rev(val, buf, pos) {
-          f32[0] = val;
-          buf[pos] = f8b[3];
-          buf[pos + 1] = f8b[2];
-          buf[pos + 2] = f8b[1];
-          buf[pos + 3] = f8b[0];
-        }
-        exports3.writeFloatLE = le ? writeFloat_f32_cpy : writeFloat_f32_rev;
-        exports3.writeFloatBE = le ? writeFloat_f32_rev : writeFloat_f32_cpy;
-        function readFloat_f32_cpy(buf, pos) {
-          f8b[0] = buf[pos];
-          f8b[1] = buf[pos + 1];
-          f8b[2] = buf[pos + 2];
-          f8b[3] = buf[pos + 3];
-          return f32[0];
-        }
-        function readFloat_f32_rev(buf, pos) {
-          f8b[3] = buf[pos];
-          f8b[2] = buf[pos + 1];
-          f8b[1] = buf[pos + 2];
-          f8b[0] = buf[pos + 3];
-          return f32[0];
-        }
-        exports3.readFloatLE = le ? readFloat_f32_cpy : readFloat_f32_rev;
-        exports3.readFloatBE = le ? readFloat_f32_rev : readFloat_f32_cpy;
-      })();
-      else (function() {
-        function writeFloat_ieee754(writeUint, val, buf, pos) {
-          var sign = val < 0 ? 1 : 0;
-          if (sign)
-            val = -val;
-          if (val === 0)
-            writeUint(1 / val > 0 ? (
-              /* positive */
-              0
-            ) : (
-              /* negative 0 */
-              2147483648
-            ), buf, pos);
-          else if (isNaN(val))
-            writeUint(2143289344, buf, pos);
-          else if (val > 34028234663852886e22)
-            writeUint((sign << 31 | 2139095040) >>> 0, buf, pos);
-          else if (val < 11754943508222875e-54)
-            writeUint((sign << 31 | Math.round(val / 1401298464324817e-60)) >>> 0, buf, pos);
-          else {
-            var exponent = Math.floor(Math.log(val) / Math.LN2), mantissa = Math.round(val * Math.pow(2, -exponent) * 8388608) & 8388607;
-            writeUint((sign << 31 | exponent + 127 << 23 | mantissa) >>> 0, buf, pos);
+      if (typeof Float32Array !== "undefined")
+        (function() {
+          var f32 = new Float32Array([-0]), f8b = new Uint8Array(f32.buffer), le = f8b[3] === 128;
+          function writeFloat_f32_cpy(val, buf, pos) {
+            f32[0] = val;
+            buf[pos] = f8b[0];
+            buf[pos + 1] = f8b[1];
+            buf[pos + 2] = f8b[2];
+            buf[pos + 3] = f8b[3];
           }
-        }
-        exports3.writeFloatLE = writeFloat_ieee754.bind(null, writeUintLE);
-        exports3.writeFloatBE = writeFloat_ieee754.bind(null, writeUintBE);
-        function readFloat_ieee754(readUint, buf, pos) {
-          var uint = readUint(buf, pos), sign = (uint >> 31) * 2 + 1, exponent = uint >>> 23 & 255, mantissa = uint & 8388607;
-          return exponent === 255 ? mantissa ? NaN : sign * Infinity : exponent === 0 ? sign * 1401298464324817e-60 * mantissa : sign * Math.pow(2, exponent - 150) * (mantissa + 8388608);
-        }
-        exports3.readFloatLE = readFloat_ieee754.bind(null, readUintLE);
-        exports3.readFloatBE = readFloat_ieee754.bind(null, readUintBE);
-      })();
-      if (typeof Float64Array !== "undefined") (function() {
-        var f64 = new Float64Array([-0]), f8b = new Uint8Array(f64.buffer), le = f8b[7] === 128;
-        function writeDouble_f64_cpy(val, buf, pos) {
-          f64[0] = val;
-          buf[pos] = f8b[0];
-          buf[pos + 1] = f8b[1];
-          buf[pos + 2] = f8b[2];
-          buf[pos + 3] = f8b[3];
-          buf[pos + 4] = f8b[4];
-          buf[pos + 5] = f8b[5];
-          buf[pos + 6] = f8b[6];
-          buf[pos + 7] = f8b[7];
-        }
-        function writeDouble_f64_rev(val, buf, pos) {
-          f64[0] = val;
-          buf[pos] = f8b[7];
-          buf[pos + 1] = f8b[6];
-          buf[pos + 2] = f8b[5];
-          buf[pos + 3] = f8b[4];
-          buf[pos + 4] = f8b[3];
-          buf[pos + 5] = f8b[2];
-          buf[pos + 6] = f8b[1];
-          buf[pos + 7] = f8b[0];
-        }
-        exports3.writeDoubleLE = le ? writeDouble_f64_cpy : writeDouble_f64_rev;
-        exports3.writeDoubleBE = le ? writeDouble_f64_rev : writeDouble_f64_cpy;
-        function readDouble_f64_cpy(buf, pos) {
-          f8b[0] = buf[pos];
-          f8b[1] = buf[pos + 1];
-          f8b[2] = buf[pos + 2];
-          f8b[3] = buf[pos + 3];
-          f8b[4] = buf[pos + 4];
-          f8b[5] = buf[pos + 5];
-          f8b[6] = buf[pos + 6];
-          f8b[7] = buf[pos + 7];
-          return f64[0];
-        }
-        function readDouble_f64_rev(buf, pos) {
-          f8b[7] = buf[pos];
-          f8b[6] = buf[pos + 1];
-          f8b[5] = buf[pos + 2];
-          f8b[4] = buf[pos + 3];
-          f8b[3] = buf[pos + 4];
-          f8b[2] = buf[pos + 5];
-          f8b[1] = buf[pos + 6];
-          f8b[0] = buf[pos + 7];
-          return f64[0];
-        }
-        exports3.readDoubleLE = le ? readDouble_f64_cpy : readDouble_f64_rev;
-        exports3.readDoubleBE = le ? readDouble_f64_rev : readDouble_f64_cpy;
-      })();
-      else (function() {
-        function writeDouble_ieee754(writeUint, off0, off1, val, buf, pos) {
-          var sign = val < 0 ? 1 : 0;
-          if (sign)
-            val = -val;
-          if (val === 0) {
-            writeUint(0, buf, pos + off0);
-            writeUint(1 / val > 0 ? (
-              /* positive */
-              0
-            ) : (
-              /* negative 0 */
-              2147483648
-            ), buf, pos + off1);
-          } else if (isNaN(val)) {
-            writeUint(0, buf, pos + off0);
-            writeUint(2146959360, buf, pos + off1);
-          } else if (val > 17976931348623157e292) {
-            writeUint(0, buf, pos + off0);
-            writeUint((sign << 31 | 2146435072) >>> 0, buf, pos + off1);
-          } else {
-            var mantissa;
-            if (val < 22250738585072014e-324) {
-              mantissa = val / 5e-324;
-              writeUint(mantissa >>> 0, buf, pos + off0);
-              writeUint((sign << 31 | mantissa / 4294967296) >>> 0, buf, pos + off1);
-            } else {
-              var exponent = Math.floor(Math.log(val) / Math.LN2);
-              if (exponent === 1024)
-                exponent = 1023;
-              mantissa = val * Math.pow(2, -exponent);
-              writeUint(mantissa * 4503599627370496 >>> 0, buf, pos + off0);
-              writeUint((sign << 31 | exponent + 1023 << 20 | mantissa * 1048576 & 1048575) >>> 0, buf, pos + off1);
+          function writeFloat_f32_rev(val, buf, pos) {
+            f32[0] = val;
+            buf[pos] = f8b[3];
+            buf[pos + 1] = f8b[2];
+            buf[pos + 2] = f8b[1];
+            buf[pos + 3] = f8b[0];
+          }
+          exports3.writeFloatLE = le ? writeFloat_f32_cpy : writeFloat_f32_rev;
+          exports3.writeFloatBE = le ? writeFloat_f32_rev : writeFloat_f32_cpy;
+          function readFloat_f32_cpy(buf, pos) {
+            f8b[0] = buf[pos];
+            f8b[1] = buf[pos + 1];
+            f8b[2] = buf[pos + 2];
+            f8b[3] = buf[pos + 3];
+            return f32[0];
+          }
+          function readFloat_f32_rev(buf, pos) {
+            f8b[3] = buf[pos];
+            f8b[2] = buf[pos + 1];
+            f8b[1] = buf[pos + 2];
+            f8b[0] = buf[pos + 3];
+            return f32[0];
+          }
+          exports3.readFloatLE = le ? readFloat_f32_cpy : readFloat_f32_rev;
+          exports3.readFloatBE = le ? readFloat_f32_rev : readFloat_f32_cpy;
+        })();
+      else
+        (function() {
+          function writeFloat_ieee754(writeUint, val, buf, pos) {
+            var sign = val < 0 ? 1 : 0;
+            if (sign)
+              val = -val;
+            if (val === 0)
+              writeUint(1 / val > 0 ? (
+                /* positive */
+                0
+              ) : (
+                /* negative 0 */
+                2147483648
+              ), buf, pos);
+            else if (isNaN(val))
+              writeUint(2143289344, buf, pos);
+            else if (val > 34028234663852886e22)
+              writeUint((sign << 31 | 2139095040) >>> 0, buf, pos);
+            else if (val < 11754943508222875e-54)
+              writeUint((sign << 31 | Math.round(val / 1401298464324817e-60)) >>> 0, buf, pos);
+            else {
+              var exponent = Math.floor(Math.log(val) / Math.LN2), mantissa = Math.round(val * Math.pow(2, -exponent) * 8388608) & 8388607;
+              writeUint((sign << 31 | exponent + 127 << 23 | mantissa) >>> 0, buf, pos);
             }
           }
-        }
-        exports3.writeDoubleLE = writeDouble_ieee754.bind(null, writeUintLE, 0, 4);
-        exports3.writeDoubleBE = writeDouble_ieee754.bind(null, writeUintBE, 4, 0);
-        function readDouble_ieee754(readUint, off0, off1, buf, pos) {
-          var lo = readUint(buf, pos + off0), hi = readUint(buf, pos + off1);
-          var sign = (hi >> 31) * 2 + 1, exponent = hi >>> 20 & 2047, mantissa = 4294967296 * (hi & 1048575) + lo;
-          return exponent === 2047 ? mantissa ? NaN : sign * Infinity : exponent === 0 ? sign * 5e-324 * mantissa : sign * Math.pow(2, exponent - 1075) * (mantissa + 4503599627370496);
-        }
-        exports3.readDoubleLE = readDouble_ieee754.bind(null, readUintLE, 0, 4);
-        exports3.readDoubleBE = readDouble_ieee754.bind(null, readUintBE, 4, 0);
-      })();
+          exports3.writeFloatLE = writeFloat_ieee754.bind(null, writeUintLE);
+          exports3.writeFloatBE = writeFloat_ieee754.bind(null, writeUintBE);
+          function readFloat_ieee754(readUint, buf, pos) {
+            var uint = readUint(buf, pos), sign = (uint >> 31) * 2 + 1, exponent = uint >>> 23 & 255, mantissa = uint & 8388607;
+            return exponent === 255 ? mantissa ? NaN : sign * Infinity : exponent === 0 ? sign * 1401298464324817e-60 * mantissa : sign * Math.pow(2, exponent - 150) * (mantissa + 8388608);
+          }
+          exports3.readFloatLE = readFloat_ieee754.bind(null, readUintLE);
+          exports3.readFloatBE = readFloat_ieee754.bind(null, readUintBE);
+        })();
+      if (typeof Float64Array !== "undefined")
+        (function() {
+          var f64 = new Float64Array([-0]), f8b = new Uint8Array(f64.buffer), le = f8b[7] === 128;
+          function writeDouble_f64_cpy(val, buf, pos) {
+            f64[0] = val;
+            buf[pos] = f8b[0];
+            buf[pos + 1] = f8b[1];
+            buf[pos + 2] = f8b[2];
+            buf[pos + 3] = f8b[3];
+            buf[pos + 4] = f8b[4];
+            buf[pos + 5] = f8b[5];
+            buf[pos + 6] = f8b[6];
+            buf[pos + 7] = f8b[7];
+          }
+          function writeDouble_f64_rev(val, buf, pos) {
+            f64[0] = val;
+            buf[pos] = f8b[7];
+            buf[pos + 1] = f8b[6];
+            buf[pos + 2] = f8b[5];
+            buf[pos + 3] = f8b[4];
+            buf[pos + 4] = f8b[3];
+            buf[pos + 5] = f8b[2];
+            buf[pos + 6] = f8b[1];
+            buf[pos + 7] = f8b[0];
+          }
+          exports3.writeDoubleLE = le ? writeDouble_f64_cpy : writeDouble_f64_rev;
+          exports3.writeDoubleBE = le ? writeDouble_f64_rev : writeDouble_f64_cpy;
+          function readDouble_f64_cpy(buf, pos) {
+            f8b[0] = buf[pos];
+            f8b[1] = buf[pos + 1];
+            f8b[2] = buf[pos + 2];
+            f8b[3] = buf[pos + 3];
+            f8b[4] = buf[pos + 4];
+            f8b[5] = buf[pos + 5];
+            f8b[6] = buf[pos + 6];
+            f8b[7] = buf[pos + 7];
+            return f64[0];
+          }
+          function readDouble_f64_rev(buf, pos) {
+            f8b[7] = buf[pos];
+            f8b[6] = buf[pos + 1];
+            f8b[5] = buf[pos + 2];
+            f8b[4] = buf[pos + 3];
+            f8b[3] = buf[pos + 4];
+            f8b[2] = buf[pos + 5];
+            f8b[1] = buf[pos + 6];
+            f8b[0] = buf[pos + 7];
+            return f64[0];
+          }
+          exports3.readDoubleLE = le ? readDouble_f64_cpy : readDouble_f64_rev;
+          exports3.readDoubleBE = le ? readDouble_f64_rev : readDouble_f64_cpy;
+        })();
+      else
+        (function() {
+          function writeDouble_ieee754(writeUint, off0, off1, val, buf, pos) {
+            var sign = val < 0 ? 1 : 0;
+            if (sign)
+              val = -val;
+            if (val === 0) {
+              writeUint(0, buf, pos + off0);
+              writeUint(1 / val > 0 ? (
+                /* positive */
+                0
+              ) : (
+                /* negative 0 */
+                2147483648
+              ), buf, pos + off1);
+            } else if (isNaN(val)) {
+              writeUint(0, buf, pos + off0);
+              writeUint(2146959360, buf, pos + off1);
+            } else if (val > 17976931348623157e292) {
+              writeUint(0, buf, pos + off0);
+              writeUint((sign << 31 | 2146435072) >>> 0, buf, pos + off1);
+            } else {
+              var mantissa;
+              if (val < 22250738585072014e-324) {
+                mantissa = val / 5e-324;
+                writeUint(mantissa >>> 0, buf, pos + off0);
+                writeUint((sign << 31 | mantissa / 4294967296) >>> 0, buf, pos + off1);
+              } else {
+                var exponent = Math.floor(Math.log(val) / Math.LN2);
+                if (exponent === 1024)
+                  exponent = 1023;
+                mantissa = val * Math.pow(2, -exponent);
+                writeUint(mantissa * 4503599627370496 >>> 0, buf, pos + off0);
+                writeUint((sign << 31 | exponent + 1023 << 20 | mantissa * 1048576 & 1048575) >>> 0, buf, pos + off1);
+              }
+            }
+          }
+          exports3.writeDoubleLE = writeDouble_ieee754.bind(null, writeUintLE, 0, 4);
+          exports3.writeDoubleBE = writeDouble_ieee754.bind(null, writeUintBE, 4, 0);
+          function readDouble_ieee754(readUint, off0, off1, buf, pos) {
+            var lo = readUint(buf, pos + off0), hi = readUint(buf, pos + off1);
+            var sign = (hi >> 31) * 2 + 1, exponent = hi >>> 20 & 2047, mantissa = 4294967296 * (hi & 1048575) + lo;
+            return exponent === 2047 ? mantissa ? NaN : sign * Infinity : exponent === 0 ? sign * 5e-324 * mantissa : sign * Math.pow(2, exponent - 1075) * (mantissa + 4503599627370496);
+          }
+          exports3.readDoubleLE = readDouble_ieee754.bind(null, readUintLE, 0, 4);
+          exports3.readDoubleBE = readDouble_ieee754.bind(null, readUintBE, 4, 0);
+        })();
       return exports3;
     }
     function writeUintLE(val, buf, pos) {
@@ -7241,8 +7297,9 @@ var require_writer_buffer = __commonJS({
       } : function writeBytesBuffer_copy(val, buf, pos) {
         if (val.copy)
           val.copy(buf, pos, 0, val.length);
-        else for (var i = 0; i < val.length; )
-          buf[pos++] = val[i++];
+        else
+          for (var i = 0; i < val.length; )
+            buf[pos++] = val[i++];
       };
     };
     BufferWriter.prototype.bytes = function write_bytes_buffer(value) {
@@ -7313,15 +7370,20 @@ var require_reader = __commonJS({
       var value = 4294967295;
       return function read_uint32() {
         value = (this.buf[this.pos] & 127) >>> 0;
-        if (this.buf[this.pos++] < 128) return value;
+        if (this.buf[this.pos++] < 128)
+          return value;
         value = (value | (this.buf[this.pos] & 127) << 7) >>> 0;
-        if (this.buf[this.pos++] < 128) return value;
+        if (this.buf[this.pos++] < 128)
+          return value;
         value = (value | (this.buf[this.pos] & 127) << 14) >>> 0;
-        if (this.buf[this.pos++] < 128) return value;
+        if (this.buf[this.pos++] < 128)
+          return value;
         value = (value | (this.buf[this.pos] & 127) << 21) >>> 0;
-        if (this.buf[this.pos++] < 128) return value;
+        if (this.buf[this.pos++] < 128)
+          return value;
         value = (value | (this.buf[this.pos] & 15) << 28) >>> 0;
-        if (this.buf[this.pos++] < 128) return value;
+        if (this.buf[this.pos++] < 128)
+          return value;
         if ((this.pos += 5) > this.len) {
           this.pos = this.len;
           throw indexOutOfRange(this, 10);
@@ -7962,7 +8024,8 @@ var require_namespace = __commonJS({
       return ptr;
     };
     Namespace.prototype.resolveAll = function resolveAll() {
-      if (!this._needsRecursiveResolve) return this;
+      if (!this._needsRecursiveResolve)
+        return this;
       this._resolveFeaturesRecursive(this._edition);
       var nested2 = this.nestedArray, i = 0;
       this.resolve();
@@ -7975,7 +8038,8 @@ var require_namespace = __commonJS({
       return this;
     };
     Namespace.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
-      if (!this._needsRecursiveFeatureResolution) return this;
+      if (!this._needsRecursiveFeatureResolution)
+        return this;
       this._needsRecursiveFeatureResolution = false;
       edition = this._edition || edition;
       ReflectionObject.prototype._resolveFeaturesRecursive.call(this, edition);
@@ -8254,7 +8318,8 @@ var require_service2 = __commonJS({
       return this.methods[name8] || Namespace.prototype.get.call(this, name8);
     };
     Service.prototype.resolveAll = function resolveAll() {
-      if (!this._needsRecursiveResolve) return this;
+      if (!this._needsRecursiveResolve)
+        return this;
       Namespace.prototype.resolve.call(this);
       var methods = this.methodsArray;
       for (var i = 0; i < methods.length; ++i)
@@ -8262,7 +8327,8 @@ var require_service2 = __commonJS({
       return this;
     };
     Service.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
-      if (!this._needsRecursiveFeatureResolution) return this;
+      if (!this._needsRecursiveFeatureResolution)
+        return this;
       edition = this._edition || edition;
       Namespace.prototype._resolveFeaturesRecursive.call(this, edition);
       this.methodsArray.forEach((method) => {
@@ -8369,29 +8435,43 @@ var require_decoder = __commonJS({
         gen("case %i: {", field.id);
         if (field.map) {
           gen("if(%s===util.emptyObject)", ref2)("%s={}", ref2)("var c2 = r.uint32()+r.pos");
-          if (types.defaults[field.keyType] !== void 0) gen("k=%j", types.defaults[field.keyType]);
-          else gen("k=null");
-          if (types.defaults[type] !== void 0) gen("value=%j", types.defaults[type]);
-          else gen("value=null");
+          if (types.defaults[field.keyType] !== void 0)
+            gen("k=%j", types.defaults[field.keyType]);
+          else
+            gen("k=null");
+          if (types.defaults[type] !== void 0)
+            gen("value=%j", types.defaults[type]);
+          else
+            gen("value=null");
           gen("while(r.pos<c2){")("var tag2=r.uint32()")("switch(tag2>>>3){")("case 1: k=r.%s(); break", field.keyType)("case 2:");
-          if (types.basic[type] === void 0) gen("value=types[%i].decode(r,r.uint32())", i);
-          else gen("value=r.%s()", type);
+          if (types.basic[type] === void 0)
+            gen("value=types[%i].decode(r,r.uint32())", i);
+          else
+            gen("value=r.%s()", type);
           gen("break")("default:")("r.skipType(tag2&7)")("break")("}")("}");
-          if (types.long[field.keyType] !== void 0) gen('%s[typeof k==="object"?util.longToHash(k):k]=value', ref2);
-          else gen("%s[k]=value", ref2);
+          if (types.long[field.keyType] !== void 0)
+            gen('%s[typeof k==="object"?util.longToHash(k):k]=value', ref2);
+          else
+            gen("%s[k]=value", ref2);
         } else if (field.repeated) {
           gen("if(!(%s&&%s.length))", ref2, ref2)("%s=[]", ref2);
-          if (types.packed[type] !== void 0) gen("if((t&7)===2){")("var c2=r.uint32()+r.pos")("while(r.pos<c2)")("%s.push(r.%s())", ref2, type)("}else");
-          if (types.basic[type] === void 0) gen(field.delimited ? "%s.push(types[%i].decode(r,undefined,((t&~7)|4)))" : "%s.push(types[%i].decode(r,r.uint32()))", ref2, i);
-          else gen("%s.push(r.%s())", ref2, type);
-        } else if (types.basic[type] === void 0) gen(field.delimited ? "%s=types[%i].decode(r,undefined,((t&~7)|4))" : "%s=types[%i].decode(r,r.uint32())", ref2, i);
-        else gen("%s=r.%s()", ref2, type);
+          if (types.packed[type] !== void 0)
+            gen("if((t&7)===2){")("var c2=r.uint32()+r.pos")("while(r.pos<c2)")("%s.push(r.%s())", ref2, type)("}else");
+          if (types.basic[type] === void 0)
+            gen(field.delimited ? "%s.push(types[%i].decode(r,undefined,((t&~7)|4)))" : "%s.push(types[%i].decode(r,r.uint32()))", ref2, i);
+          else
+            gen("%s.push(r.%s())", ref2, type);
+        } else if (types.basic[type] === void 0)
+          gen(field.delimited ? "%s=types[%i].decode(r,undefined,((t&~7)|4))" : "%s=types[%i].decode(r,r.uint32())", ref2, i);
+        else
+          gen("%s=r.%s()", ref2, type);
         gen("break")("}");
       }
       gen("default:")("r.skipType(t&7)")("break")("}")("}");
       for (i = 0; i < mtype._fieldsArray.length; ++i) {
         var rfield = mtype._fieldsArray[i];
-        if (rfield.required) gen("if(!m.hasOwnProperty(%j))", rfield.name)("throw util.ProtocolError(%j,{instance:m})", missing(rfield));
+        if (rfield.required)
+          gen("if(!m.hasOwnProperty(%j))", rfield.name)("throw util.ProtocolError(%j,{instance:m})", missing(rfield));
       }
       return gen("return m");
     }
@@ -8412,7 +8492,8 @@ var require_verifier = __commonJS({
       if (field.resolvedType) {
         if (field.resolvedType instanceof Enum) {
           gen("switch(%s){", ref2)("default:")("return%j", invalid(field, "enum value"));
-          for (var keys = Object.keys(field.resolvedType.values), j = 0; j < keys.length; ++j) gen("case %i:", field.resolvedType.values[keys[j]]);
+          for (var keys = Object.keys(field.resolvedType.values), j = 0; j < keys.length; ++j)
+            gen("case %i:", field.resolvedType.values[keys[j]]);
           gen("break")("}");
         } else {
           gen("{")("var e=types[%i].verify(%s);", fieldIndex, ref2)("if(e)")("return%j+e", field.name + ".")("}");
@@ -8475,11 +8556,13 @@ var require_verifier = __commonJS({
     function verifier(mtype) {
       var gen = util.codegen(["m"], mtype.name + "$verify")('if(typeof m!=="object"||m===null)')("return%j", "object expected");
       var oneofs = mtype.oneofsArray, seenFirstField = {};
-      if (oneofs.length) gen("var p={}");
+      if (oneofs.length)
+        gen("var p={}");
       for (var i = 0; i < /* initializes */
       mtype.fieldsArray.length; ++i) {
         var field = mtype._fieldsArray[i].resolve(), ref2 = "m" + util.safeProp(field.name);
-        if (field.optional) gen("if(%s!=null&&m.hasOwnProperty(%j)){", ref2, field.name);
+        if (field.optional)
+          gen("if(%s!=null&&m.hasOwnProperty(%j)){", ref2, field.name);
         if (field.map) {
           gen("if(!util.isObject(%s))", ref2)("return%j", invalid(field, "object"))("var k=Object.keys(%s)", ref2)("for(var i=0;i<k.length;++i){");
           genVerifyKey(gen, field, "k[i]");
@@ -8490,13 +8573,15 @@ var require_verifier = __commonJS({
         } else {
           if (field.partOf) {
             var oneofProp = util.safeProp(field.partOf.name);
-            if (seenFirstField[field.partOf.name] === 1) gen("if(p%s===1)", oneofProp)("return%j", field.partOf.name + ": multiple values");
+            if (seenFirstField[field.partOf.name] === 1)
+              gen("if(p%s===1)", oneofProp)("return%j", field.partOf.name + ": multiple values");
             seenFirstField[field.partOf.name] = 1;
             gen("p%s=1", oneofProp);
           }
           genVerifyValue(gen, field, i, ref2);
         }
-        if (field.optional) gen("}");
+        if (field.optional)
+          gen("}");
       }
       return gen("return null");
     }
@@ -8518,13 +8603,15 @@ var require_converter = __commonJS({
           for (var values = field.resolvedType.values, keys = Object.keys(values), i = 0; i < keys.length; ++i) {
             if (values[keys[i]] === field.typeDefault && !defaultAlreadyEmitted) {
               gen("default:")('if(typeof(d%s)==="number"){m%s=d%s;break}', prop, prop, prop);
-              if (!field.repeated) gen("break");
+              if (!field.repeated)
+                gen("break");
               defaultAlreadyEmitted = true;
             }
             gen("case%j:", keys[i])("case %i:", values[keys[i]])("m%s=%j", prop, values[keys[i]])("break");
           }
           gen("}");
-        } else gen('if(typeof d%s!=="object")', prop)("throw TypeError(%j)", field.fullName + ": object expected")("m%s=types[%i].fromObject(d%s)", prop, fieldIndex, prop);
+        } else
+          gen('if(typeof d%s!=="object")', prop)("throw TypeError(%j)", field.fullName + ": object expected")("m%s=types[%i].fromObject(d%s)", prop, fieldIndex, prop);
       } else {
         var isUnsigned = false;
         switch (field.type) {
@@ -8565,7 +8652,8 @@ var require_converter = __commonJS({
     converter.fromObject = function fromObject(mtype) {
       var fields = mtype.fieldsArray;
       var gen = util.codegen(["d"], mtype.name + "$fromObject")("if(d instanceof this.ctor)")("return d");
-      if (!fields.length) return gen("return new this.ctor");
+      if (!fields.length)
+        return gen("return new this.ctor");
       gen("var m=new this.ctor");
       for (var i = 0; i < fields.length; ++i) {
         var field = fields[i].resolve(), prop = util.safeProp(field.name);
@@ -8588,7 +8676,8 @@ var require_converter = __commonJS({
             prop + "[i]"
           )("}")("}");
         } else {
-          if (!(field.resolvedType instanceof Enum)) gen("if(d%s!=null){", prop);
+          if (!(field.resolvedType instanceof Enum))
+            gen("if(d%s!=null){", prop);
           genValuePartial_fromObject(
             gen,
             field,
@@ -8596,15 +8685,18 @@ var require_converter = __commonJS({
             i,
             prop
           );
-          if (!(field.resolvedType instanceof Enum)) gen("}");
+          if (!(field.resolvedType instanceof Enum))
+            gen("}");
         }
       }
       return gen("return m");
     };
     function genValuePartial_toObject(gen, field, fieldIndex, prop) {
       if (field.resolvedType) {
-        if (field.resolvedType instanceof Enum) gen("d%s=o.enums===String?(types[%i].values[m%s]===undefined?m%s:types[%i].values[m%s]):m%s", prop, fieldIndex, prop, prop, fieldIndex, prop, prop);
-        else gen("d%s=types[%i].toObject(m%s,o)", prop, fieldIndex, prop);
+        if (field.resolvedType instanceof Enum)
+          gen("d%s=o.enums===String?(types[%i].values[m%s]===undefined?m%s:types[%i].values[m%s]):m%s", prop, fieldIndex, prop, prop, fieldIndex, prop, prop);
+        else
+          gen("d%s=types[%i].toObject(m%s,o)", prop, fieldIndex, prop);
       } else {
         var isUnsigned = false;
         switch (field.type) {
@@ -8641,24 +8733,29 @@ var require_converter = __commonJS({
           (fields[i].resolve().repeated ? repeatedFields : fields[i].map ? mapFields : normalFields).push(fields[i]);
       if (repeatedFields.length) {
         gen("if(o.arrays||o.defaults){");
-        for (i = 0; i < repeatedFields.length; ++i) gen("d%s=[]", util.safeProp(repeatedFields[i].name));
+        for (i = 0; i < repeatedFields.length; ++i)
+          gen("d%s=[]", util.safeProp(repeatedFields[i].name));
         gen("}");
       }
       if (mapFields.length) {
         gen("if(o.objects||o.defaults){");
-        for (i = 0; i < mapFields.length; ++i) gen("d%s={}", util.safeProp(mapFields[i].name));
+        for (i = 0; i < mapFields.length; ++i)
+          gen("d%s={}", util.safeProp(mapFields[i].name));
         gen("}");
       }
       if (normalFields.length) {
         gen("if(o.defaults){");
         for (i = 0; i < normalFields.length; ++i) {
           var field = normalFields[i], prop = util.safeProp(field.name);
-          if (field.resolvedType instanceof Enum) gen("d%s=o.enums===String?%j:%j", prop, field.resolvedType.valuesById[field.typeDefault], field.typeDefault);
-          else if (field.long) gen("if(util.Long){")("var n=new util.Long(%i,%i,%j)", field.typeDefault.low, field.typeDefault.high, field.typeDefault.unsigned)("d%s=o.longs===String?n.toString():o.longs===Number?n.toNumber():n", prop)("}else")("d%s=o.longs===String?%j:%i", prop, field.typeDefault.toString(), field.typeDefault.toNumber());
+          if (field.resolvedType instanceof Enum)
+            gen("d%s=o.enums===String?%j:%j", prop, field.resolvedType.valuesById[field.typeDefault], field.typeDefault);
+          else if (field.long)
+            gen("if(util.Long){")("var n=new util.Long(%i,%i,%j)", field.typeDefault.low, field.typeDefault.high, field.typeDefault.unsigned)("d%s=o.longs===String?n.toString():o.longs===Number?n.toNumber():n", prop)("}else")("d%s=o.longs===String?%j:%i", prop, field.typeDefault.toString(), field.typeDefault.toNumber());
           else if (field.bytes) {
             var arrayDefault = "[" + Array.prototype.slice.call(field.typeDefault).join(",") + "]";
             gen("if(o.bytes===String)d%s=%j", prop, String.fromCharCode.apply(String, field.typeDefault))("else{")("d%s=%s", prop, arrayDefault)("if(o.bytes!==Array)d%s=util.newBuffer(d%s)", prop, prop)("}");
-          } else gen("d%s=%j", prop, field.typeDefault);
+          } else
+            gen("d%s=%j", prop, field.typeDefault);
         }
         gen("}");
       }
@@ -8696,7 +8793,8 @@ var require_converter = __commonJS({
             index,
             prop
           );
-          if (field.partOf) gen("if(o.oneofs)")("d%s=%j", util.safeProp(field.partOf.name), field.name);
+          if (field.partOf)
+            gen("if(o.oneofs)")("d%s=%j", util.safeProp(field.partOf.name), field.name);
         }
         gen("}");
       }
@@ -8870,8 +8968,10 @@ var require_type = __commonJS({
     Type.generateConstructor = function generateConstructor(mtype) {
       var gen = util.codegen(["p"], mtype.name);
       for (var i = 0, field; i < mtype.fieldsArray.length; ++i)
-        if ((field = mtype._fieldsArray[i]).map) gen("this%s={}", util.safeProp(field.name));
-        else if (field.repeated) gen("this%s=[]", util.safeProp(field.name));
+        if ((field = mtype._fieldsArray[i]).map)
+          gen("this%s={}", util.safeProp(field.name));
+        else if (field.repeated)
+          gen("this%s=[]", util.safeProp(field.name));
       return gen("if(p)for(var ks=Object.keys(p),i=0;i<ks.length;++i)if(p[ks[i]]!=null)")("this[ks[i]]=p[ks[i]]");
     };
     function clearCache(type) {
@@ -8941,7 +9041,8 @@ var require_type = __commonJS({
       ]);
     };
     Type.prototype.resolveAll = function resolveAll() {
-      if (!this._needsRecursiveResolve) return this;
+      if (!this._needsRecursiveResolve)
+        return this;
       Namespace.prototype.resolveAll.call(this);
       var oneofs = this.oneofsArray;
       i = 0;
@@ -8953,7 +9054,8 @@ var require_type = __commonJS({
       return this;
     };
     Type.prototype._resolveFeaturesRecursive = function _resolveFeaturesRecursive(edition) {
-      if (!this._needsRecursiveFeatureResolution) return this;
+      if (!this._needsRecursiveFeatureResolution)
+        return this;
       edition = this._edition || edition;
       Namespace.prototype._resolveFeaturesRecursive.call(this, edition);
       this.oneofsArray.forEach((oneof) => {
@@ -9152,7 +9254,8 @@ var require_root = __commonJS({
         var idx = filename2.lastIndexOf("google/protobuf/");
         if (idx > -1) {
           var altname = filename2.substring(idx);
-          if (altname in common) return altname;
+          if (altname in common)
+            return altname;
         }
         return null;
       }
@@ -9251,7 +9354,8 @@ var require_root = __commonJS({
       return this.load(filename, options, SYNC);
     };
     Root.prototype.resolveAll = function resolveAll() {
-      if (!this._needsRecursiveResolve) return this;
+      if (!this._needsRecursiveResolve)
+        return this;
       if (this.deferred.length)
         throw Error("unresolvable extensions: " + this.deferred.map(function(field) {
           return "'extend " + field.extend + "' in " + field.parent.fullName;
@@ -9496,7 +9600,8 @@ var require_types = __commonJS({
     function bake(values, offset) {
       var i = 0, o = {};
       offset |= 0;
-      while (i < values.length) o[s[i + offset]] = values[i++];
+      while (i < values.length)
+        o[s[i + offset]] = values[i++];
       return o;
     }
     types.basic = bake([
@@ -10085,7 +10190,8 @@ var require_object = __commonJS({
       if (/^features\./.test(name8)) {
         util.setProperty(this.options, name8, value, ifNotSet);
       } else if (!ifNotSet || this.options[name8] === void 0) {
-        if (this.getOption(name8) !== value) this.resolved = false;
+        if (this.getOption(name8) !== value)
+          this.resolved = false;
         this.options[name8] = value;
       }
       return this;
@@ -10270,8 +10376,10 @@ var require_encoder = __commonJS({
         ref2 = "m" + util.safeProp(field.name);
         if (field.map) {
           gen("if(%s!=null&&Object.hasOwnProperty.call(m,%j)){", ref2, field.name)("for(var ks=Object.keys(%s),i=0;i<ks.length;++i){", ref2)("w.uint32(%i).fork().uint32(%i).%s(ks[i])", (field.id << 3 | 2) >>> 0, 8 | types.mapKey[field.keyType], field.keyType);
-          if (wireType === void 0) gen("types[%i].encode(%s[ks[i]],w.uint32(18).fork()).ldelim().ldelim()", index, ref2);
-          else gen(".uint32(%i).%s(%s[ks[i]]).ldelim()", 16 | wireType, type, ref2);
+          if (wireType === void 0)
+            gen("types[%i].encode(%s[ks[i]],w.uint32(18).fork()).ldelim().ldelim()", index, ref2);
+          else
+            gen(".uint32(%i).%s(%s[ks[i]]).ldelim()", 16 | wireType, type, ref2);
           gen("}")("}");
         } else if (field.repeated) {
           gen("if(%s!=null&&%s.length){", ref2, ref2);
@@ -10281,14 +10389,17 @@ var require_encoder = __commonJS({
             gen("for(var i=0;i<%s.length;++i)", ref2);
             if (wireType === void 0)
               genTypePartial(gen, field, index, ref2 + "[i]");
-            else gen("w.uint32(%i).%s(%s[i])", (field.id << 3 | wireType) >>> 0, type, ref2);
+            else
+              gen("w.uint32(%i).%s(%s[i])", (field.id << 3 | wireType) >>> 0, type, ref2);
           }
           gen("}");
         } else {
-          if (field.optional) gen("if(%s!=null&&Object.hasOwnProperty.call(m,%j))", ref2, field.name);
+          if (field.optional)
+            gen("if(%s!=null&&Object.hasOwnProperty.call(m,%j))", ref2, field.name);
           if (wireType === void 0)
             genTypePartial(gen, field, index, ref2);
-          else gen("w.uint32(%i).%s(%s)", (field.id << 3 | wireType) >>> 0, type, ref2);
+          else
+            gen("w.uint32(%i).%s(%s)", (field.id << 3 | wireType) >>> 0, type, ref2);
         }
       }
       return gen("return w");
@@ -10637,7 +10748,8 @@ var require_parse = __commonJS({
         topLevelObjects.forEach((obj) => {
           obj._edition = edition;
           Object.keys(topLevelOptions).forEach((opt) => {
-            if (obj.getOption(opt) !== void 0) return;
+            if (obj.getOption(opt) !== void 0)
+              return;
             obj.setOption(opt, topLevelOptions[opt], true);
           });
         });
@@ -10708,7 +10820,8 @@ var require_parse = __commonJS({
         } while (skip(",", true));
         var dummy = { options: void 0 };
         dummy.setOption = function(name8, value) {
-          if (this.options === void 0) this.options = {};
+          if (this.options === void 0)
+            this.options = {};
           this.options[name8] = value;
         };
         ifBlock(
@@ -11045,7 +11158,8 @@ var require_parse = __commonJS({
               break;
             case "reserved":
               readRanges(enm.reserved || (enm.reserved = []), true);
-              if (enm.reserved === void 0) enm.reserved = [];
+              if (enm.reserved === void 0)
+                enm.reserved = [];
               break;
             default:
               parseEnumValue(enm, token3);
@@ -13508,8 +13622,10 @@ var require_descriptor2 = __commonJS({
     function fromDescriptorOptionsRecursive(obj, type) {
       var val = {};
       for (var i = 0, field, key; i < type.fieldsArray.length; ++i) {
-        if ((key = (field = type._fieldsArray[i]).name) === "uninterpretedOption") continue;
-        if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+        if ((key = (field = type._fieldsArray[i]).name) === "uninterpretedOption")
+          continue;
+        if (!Object.prototype.hasOwnProperty.call(obj, key))
+          continue;
         var newKey = underScore(key);
         if (field.resolvedType instanceof Type) {
           val[newKey] = fromDescriptorOptionsRecursive(obj[key], field.resolvedType);
@@ -13532,7 +13648,8 @@ var require_descriptor2 = __commonJS({
       for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
         var newKey = $protobuf.util.camelCase(key);
-        if (!Object.prototype.hasOwnProperty.call(type.fields, newKey)) continue;
+        if (!Object.prototype.hasOwnProperty.call(type.fields, newKey))
+          continue;
         var field = type.fields[newKey];
         if (field.resolvedType instanceof Type) {
           val[newKey] = toDescriptorOptionsRecursive(obj[key], field.resolvedType);
@@ -13560,7 +13677,8 @@ var require_descriptor2 = __commonJS({
           ++j;
         }
       else
-        for (; i < fromPath.length && j < k && fromPath[i] === toPath[j]; ++i, ++j) ;
+        for (; i < fromPath.length && j < k && fromPath[i] === toPath[j]; ++i, ++j)
+          ;
       return toPath.slice(j).join(".");
     }
     function underScore(str) {
@@ -13583,7 +13701,8 @@ var require_descriptor2 = __commonJS({
       return "proto2";
     }
     function editionToDescriptor(edition, fileDescriptor) {
-      if (!edition) return;
+      if (!edition)
+        return;
       if (edition === "proto2" || edition === "proto3") {
         fileDescriptor.syntax = edition;
       } else {
@@ -14043,7 +14162,8 @@ var require_umd = __commonJS({
         });
       } else if (typeof exports2 === "object") {
         factory3(exports2);
-        if (typeof module2 === "object") module2.exports = preferDefault(exports2);
+        if (typeof module2 === "object")
+          module2.exports = preferDefault(exports2);
       } else {
         (function() {
           var exports3 = {};
@@ -14409,33 +14529,43 @@ var require_umd = __commonJS({
             value >>>= 0;
             if (cache = 0 <= value && value < 256) {
               cachedObj = UINT_CACHE[value];
-              if (cachedObj) return cachedObj;
+              if (cachedObj)
+                return cachedObj;
             }
             obj = fromBits(value, 0, true);
-            if (cache) UINT_CACHE[value] = obj;
+            if (cache)
+              UINT_CACHE[value] = obj;
             return obj;
           } else {
             value |= 0;
             if (cache = -128 <= value && value < 128) {
               cachedObj = INT_CACHE[value];
-              if (cachedObj) return cachedObj;
+              if (cachedObj)
+                return cachedObj;
             }
             obj = fromBits(value, value < 0 ? -1 : 0, false);
-            if (cache) INT_CACHE[value] = obj;
+            if (cache)
+              INT_CACHE[value] = obj;
             return obj;
           }
         }
         Long.fromInt = fromInt;
         function fromNumber(value, unsigned) {
-          if (isNaN(value)) return unsigned ? UZERO : ZERO;
+          if (isNaN(value))
+            return unsigned ? UZERO : ZERO;
           if (unsigned) {
-            if (value < 0) return UZERO;
-            if (value >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
+            if (value < 0)
+              return UZERO;
+            if (value >= TWO_PWR_64_DBL)
+              return MAX_UNSIGNED_VALUE;
           } else {
-            if (value <= -TWO_PWR_63_DBL) return MIN_VALUE2;
-            if (value + 1 >= TWO_PWR_63_DBL) return MAX_VALUE2;
+            if (value <= -TWO_PWR_63_DBL)
+              return MIN_VALUE2;
+            if (value + 1 >= TWO_PWR_63_DBL)
+              return MAX_VALUE2;
           }
-          if (value < 0) return fromNumber(-value, unsigned).neg();
+          if (value < 0)
+            return fromNumber(-value, unsigned).neg();
           return fromBits(
             value % TWO_PWR_32_DBL | 0,
             value / TWO_PWR_32_DBL | 0,
@@ -14449,7 +14579,8 @@ var require_umd = __commonJS({
         Long.fromBits = fromBits;
         var pow_dbl = Math.pow;
         function fromString(str, unsigned, radix) {
-          if (str.length === 0) throw Error("empty string");
+          if (str.length === 0)
+            throw Error("empty string");
           if (typeof unsigned === "number") {
             radix = unsigned;
             unsigned = false;
@@ -14459,9 +14590,11 @@ var require_umd = __commonJS({
           if (str === "NaN" || str === "Infinity" || str === "+Infinity" || str === "-Infinity")
             return unsigned ? UZERO : ZERO;
           radix = radix || 10;
-          if (radix < 2 || 36 < radix) throw RangeError("radix");
+          if (radix < 2 || 36 < radix)
+            throw RangeError("radix");
           var p;
-          if ((p = str.indexOf("-")) > 0) throw Error("interior hyphen");
+          if ((p = str.indexOf("-")) > 0)
+            throw Error("interior hyphen");
           else if (p === 0) {
             return fromString(str.substring(1), unsigned, radix).neg();
           }
@@ -14482,8 +14615,10 @@ var require_umd = __commonJS({
         }
         Long.fromString = fromString;
         function fromValue(val, unsigned) {
-          if (typeof val === "number") return fromNumber(val, unsigned);
-          if (typeof val === "string") return fromString(val, unsigned);
+          if (typeof val === "number")
+            return fromNumber(val, unsigned);
+          if (typeof val === "string")
+            return fromString(val, unsigned);
           return fromBits(
             val.low,
             val.high,
@@ -14524,22 +14659,27 @@ var require_umd = __commonJS({
         };
         LongPrototype.toString = function toString(radix) {
           radix = radix || 10;
-          if (radix < 2 || 36 < radix) throw RangeError("radix");
-          if (this.isZero()) return "0";
+          if (radix < 2 || 36 < radix)
+            throw RangeError("radix");
+          if (this.isZero())
+            return "0";
           if (this.isNegative()) {
             if (this.eq(MIN_VALUE2)) {
               var radixLong = fromNumber(radix), div = this.div(radixLong), rem1 = div.mul(radixLong).sub(this);
               return div.toString(radix) + rem1.toInt().toString(radix);
-            } else return "-" + this.neg().toString(radix);
+            } else
+              return "-" + this.neg().toString(radix);
           }
           var radixToPower = fromNumber(pow_dbl(radix, 6), this.unsigned), rem = this;
           var result = "";
           while (true) {
             var remDiv = rem.div(radixToPower), intval = rem.sub(remDiv.mul(radixToPower)).toInt() >>> 0, digits = intval.toString(radix);
             rem = remDiv;
-            if (rem.isZero()) return digits + result;
+            if (rem.isZero())
+              return digits + result;
             else {
-              while (digits.length < 6) digits = "0" + digits;
+              while (digits.length < 6)
+                digits = "0" + digits;
               result = "" + digits + result;
             }
           }
@@ -14560,13 +14700,17 @@ var require_umd = __commonJS({
           if (this.isNegative())
             return this.eq(MIN_VALUE2) ? 64 : this.neg().getNumBitsAbs();
           var val = this.high != 0 ? this.high : this.low;
-          for (var bit = 31; bit > 0; bit--) if ((val & 1 << bit) != 0) break;
+          for (var bit = 31; bit > 0; bit--)
+            if ((val & 1 << bit) != 0)
+              break;
           return this.high != 0 ? bit + 33 : bit + 1;
         };
         LongPrototype.isSafeInteger = function isSafeInteger2() {
           var top11Bits = this.high >> 21;
-          if (!top11Bits) return true;
-          if (this.unsigned) return false;
+          if (!top11Bits)
+            return true;
+          if (this.unsigned)
+            return false;
           return top11Bits === -1 && !(this.low === 0 && this.high === -2097152);
         };
         LongPrototype.isZero = function isZero() {
@@ -14586,7 +14730,8 @@ var require_umd = __commonJS({
           return (this.low & 1) === 0;
         };
         LongPrototype.equals = function equals(other) {
-          if (!isLong(other)) other = fromValue(other);
+          if (!isLong(other))
+            other = fromValue(other);
           if (this.unsigned !== other.unsigned && this.high >>> 31 === 1 && other.high >>> 31 === 1)
             return false;
           return this.high === other.high && this.low === other.low;
@@ -14631,22 +14776,29 @@ var require_umd = __commonJS({
         LongPrototype.gte = LongPrototype.greaterThanOrEqual;
         LongPrototype.ge = LongPrototype.greaterThanOrEqual;
         LongPrototype.compare = function compare(other) {
-          if (!isLong(other)) other = fromValue(other);
-          if (this.eq(other)) return 0;
+          if (!isLong(other))
+            other = fromValue(other);
+          if (this.eq(other))
+            return 0;
           var thisNeg = this.isNegative(), otherNeg = other.isNegative();
-          if (thisNeg && !otherNeg) return -1;
-          if (!thisNeg && otherNeg) return 1;
-          if (!this.unsigned) return this.sub(other).isNegative() ? -1 : 1;
+          if (thisNeg && !otherNeg)
+            return -1;
+          if (!thisNeg && otherNeg)
+            return 1;
+          if (!this.unsigned)
+            return this.sub(other).isNegative() ? -1 : 1;
           return other.high >>> 0 > this.high >>> 0 || other.high === this.high && other.low >>> 0 > this.low >>> 0 ? -1 : 1;
         };
         LongPrototype.comp = LongPrototype.compare;
         LongPrototype.negate = function negate() {
-          if (!this.unsigned && this.eq(MIN_VALUE2)) return MIN_VALUE2;
+          if (!this.unsigned && this.eq(MIN_VALUE2))
+            return MIN_VALUE2;
           return this.not().add(ONE);
         };
         LongPrototype.neg = LongPrototype.negate;
         LongPrototype.add = function add(addend) {
-          if (!isLong(addend)) addend = fromValue(addend);
+          if (!isLong(addend))
+            addend = fromValue(addend);
           var a48 = this.high >>> 16;
           var a32 = this.high & 65535;
           var a16 = this.low >>> 16;
@@ -14670,13 +14822,16 @@ var require_umd = __commonJS({
           return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
         };
         LongPrototype.subtract = function subtract(subtrahend) {
-          if (!isLong(subtrahend)) subtrahend = fromValue(subtrahend);
+          if (!isLong(subtrahend))
+            subtrahend = fromValue(subtrahend);
           return this.add(subtrahend.neg());
         };
         LongPrototype.sub = LongPrototype.subtract;
         LongPrototype.multiply = function multiply(multiplier) {
-          if (this.isZero()) return this;
-          if (!isLong(multiplier)) multiplier = fromValue(multiplier);
+          if (this.isZero())
+            return this;
+          if (!isLong(multiplier))
+            multiplier = fromValue(multiplier);
           if (wasm) {
             var low = wasm["mul"](
               this.low,
@@ -14686,12 +14841,17 @@ var require_umd = __commonJS({
             );
             return fromBits(low, wasm["get_high"](), this.unsigned);
           }
-          if (multiplier.isZero()) return this.unsigned ? UZERO : ZERO;
-          if (this.eq(MIN_VALUE2)) return multiplier.isOdd() ? MIN_VALUE2 : ZERO;
-          if (multiplier.eq(MIN_VALUE2)) return this.isOdd() ? MIN_VALUE2 : ZERO;
+          if (multiplier.isZero())
+            return this.unsigned ? UZERO : ZERO;
+          if (this.eq(MIN_VALUE2))
+            return multiplier.isOdd() ? MIN_VALUE2 : ZERO;
+          if (multiplier.eq(MIN_VALUE2))
+            return this.isOdd() ? MIN_VALUE2 : ZERO;
           if (this.isNegative()) {
-            if (multiplier.isNegative()) return this.neg().mul(multiplier.neg());
-            else return this.neg().mul(multiplier).neg();
+            if (multiplier.isNegative())
+              return this.neg().mul(multiplier.neg());
+            else
+              return this.neg().mul(multiplier).neg();
           } else if (multiplier.isNegative())
             return this.mul(multiplier.neg()).neg();
           if (this.lt(TWO_PWR_24) && multiplier.lt(TWO_PWR_24))
@@ -14732,8 +14892,10 @@ var require_umd = __commonJS({
         };
         LongPrototype.mul = LongPrototype.multiply;
         LongPrototype.divide = function divide(divisor) {
-          if (!isLong(divisor)) divisor = fromValue(divisor);
-          if (divisor.isZero()) throw Error("division by zero");
+          if (!isLong(divisor))
+            divisor = fromValue(divisor);
+          if (divisor.isZero())
+            throw Error("division by zero");
           if (wasm) {
             if (!this.unsigned && this.high === -2147483648 && divisor.low === -1 && divisor.high === -1) {
               return this;
@@ -14746,13 +14908,15 @@ var require_umd = __commonJS({
             );
             return fromBits(low, wasm["get_high"](), this.unsigned);
           }
-          if (this.isZero()) return this.unsigned ? UZERO : ZERO;
+          if (this.isZero())
+            return this.unsigned ? UZERO : ZERO;
           var approx, rem, res;
           if (!this.unsigned) {
             if (this.eq(MIN_VALUE2)) {
               if (divisor.eq(ONE) || divisor.eq(NEG_ONE))
                 return MIN_VALUE2;
-              else if (divisor.eq(MIN_VALUE2)) return ONE;
+              else if (divisor.eq(MIN_VALUE2))
+                return ONE;
               else {
                 var halfThis = this.shr(1);
                 approx = halfThis.div(divisor).shl(1);
@@ -14764,15 +14928,20 @@ var require_umd = __commonJS({
                   return res;
                 }
               }
-            } else if (divisor.eq(MIN_VALUE2)) return this.unsigned ? UZERO : ZERO;
+            } else if (divisor.eq(MIN_VALUE2))
+              return this.unsigned ? UZERO : ZERO;
             if (this.isNegative()) {
-              if (divisor.isNegative()) return this.neg().div(divisor.neg());
+              if (divisor.isNegative())
+                return this.neg().div(divisor.neg());
               return this.neg().div(divisor).neg();
-            } else if (divisor.isNegative()) return this.div(divisor.neg()).neg();
+            } else if (divisor.isNegative())
+              return this.div(divisor.neg()).neg();
             res = ZERO;
           } else {
-            if (!divisor.unsigned) divisor = divisor.toUnsigned();
-            if (divisor.gt(this)) return UZERO;
+            if (!divisor.unsigned)
+              divisor = divisor.toUnsigned();
+            if (divisor.gt(this))
+              return UZERO;
             if (divisor.gt(this.shru(1)))
               return UONE;
             res = UZERO;
@@ -14786,7 +14955,8 @@ var require_umd = __commonJS({
               approxRes = fromNumber(approx, this.unsigned);
               approxRem = approxRes.mul(divisor);
             }
-            if (approxRes.isZero()) approxRes = ONE;
+            if (approxRes.isZero())
+              approxRes = ONE;
             res = res.add(approxRes);
             rem = rem.sub(approxRem);
           }
@@ -14794,7 +14964,8 @@ var require_umd = __commonJS({
         };
         LongPrototype.div = LongPrototype.divide;
         LongPrototype.modulo = function modulo(divisor) {
-          if (!isLong(divisor)) divisor = fromValue(divisor);
+          if (!isLong(divisor))
+            divisor = fromValue(divisor);
           if (wasm) {
             var low = (this.unsigned ? wasm["rem_u"] : wasm["rem_s"])(
               this.low,
@@ -14820,7 +14991,8 @@ var require_umd = __commonJS({
         };
         LongPrototype.ctz = LongPrototype.countTrailingZeros;
         LongPrototype.and = function and(other) {
-          if (!isLong(other)) other = fromValue(other);
+          if (!isLong(other))
+            other = fromValue(other);
           return fromBits(
             this.low & other.low,
             this.high & other.high,
@@ -14828,7 +15000,8 @@ var require_umd = __commonJS({
           );
         };
         LongPrototype.or = function or(other) {
-          if (!isLong(other)) other = fromValue(other);
+          if (!isLong(other))
+            other = fromValue(other);
           return fromBits(
             this.low | other.low,
             this.high | other.high,
@@ -14836,7 +15009,8 @@ var require_umd = __commonJS({
           );
         };
         LongPrototype.xor = function xor(other) {
-          if (!isLong(other)) other = fromValue(other);
+          if (!isLong(other))
+            other = fromValue(other);
           return fromBits(
             this.low ^ other.low,
             this.high ^ other.high,
@@ -14844,20 +15018,25 @@ var require_umd = __commonJS({
           );
         };
         LongPrototype.shiftLeft = function shiftLeft(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
-          if ((numBits &= 63) === 0) return this;
+          if (isLong(numBits))
+            numBits = numBits.toInt();
+          if ((numBits &= 63) === 0)
+            return this;
           else if (numBits < 32)
             return fromBits(
               this.low << numBits,
               this.high << numBits | this.low >>> 32 - numBits,
               this.unsigned
             );
-          else return fromBits(0, this.low << numBits - 32, this.unsigned);
+          else
+            return fromBits(0, this.low << numBits - 32, this.unsigned);
         };
         LongPrototype.shl = LongPrototype.shiftLeft;
         LongPrototype.shiftRight = function shiftRight(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
-          if ((numBits &= 63) === 0) return this;
+          if (isLong(numBits))
+            numBits = numBits.toInt();
+          if ((numBits &= 63) === 0)
+            return this;
           else if (numBits < 32)
             return fromBits(
               this.low >>> numBits | this.high << 32 - numBits,
@@ -14873,24 +15052,30 @@ var require_umd = __commonJS({
         };
         LongPrototype.shr = LongPrototype.shiftRight;
         LongPrototype.shiftRightUnsigned = function shiftRightUnsigned(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
-          if ((numBits &= 63) === 0) return this;
+          if (isLong(numBits))
+            numBits = numBits.toInt();
+          if ((numBits &= 63) === 0)
+            return this;
           if (numBits < 32)
             return fromBits(
               this.low >>> numBits | this.high << 32 - numBits,
               this.high >>> numBits,
               this.unsigned
             );
-          if (numBits === 32) return fromBits(this.high, 0, this.unsigned);
+          if (numBits === 32)
+            return fromBits(this.high, 0, this.unsigned);
           return fromBits(this.high >>> numBits - 32, 0, this.unsigned);
         };
         LongPrototype.shru = LongPrototype.shiftRightUnsigned;
         LongPrototype.shr_u = LongPrototype.shiftRightUnsigned;
         LongPrototype.rotateLeft = function rotateLeft(numBits) {
           var b;
-          if (isLong(numBits)) numBits = numBits.toInt();
-          if ((numBits &= 63) === 0) return this;
-          if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+          if (isLong(numBits))
+            numBits = numBits.toInt();
+          if ((numBits &= 63) === 0)
+            return this;
+          if (numBits === 32)
+            return fromBits(this.high, this.low, this.unsigned);
           if (numBits < 32) {
             b = 32 - numBits;
             return fromBits(
@@ -14910,9 +15095,12 @@ var require_umd = __commonJS({
         LongPrototype.rotl = LongPrototype.rotateLeft;
         LongPrototype.rotateRight = function rotateRight(numBits) {
           var b;
-          if (isLong(numBits)) numBits = numBits.toInt();
-          if ((numBits &= 63) === 0) return this;
-          if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+          if (isLong(numBits))
+            numBits = numBits.toInt();
+          if ((numBits &= 63) === 0)
+            return this;
+          if (numBits === 32)
+            return fromBits(this.high, this.low, this.unsigned);
           if (numBits < 32) {
             b = 32 - numBits;
             return fromBits(
@@ -14931,11 +15119,13 @@ var require_umd = __commonJS({
         };
         LongPrototype.rotr = LongPrototype.rotateRight;
         LongPrototype.toSigned = function toSigned() {
-          if (!this.unsigned) return this;
+          if (!this.unsigned)
+            return this;
           return fromBits(this.low, this.high, false);
         };
         LongPrototype.toUnsigned = function toUnsigned() {
-          if (this.unsigned) return this;
+          if (this.unsigned)
+            return this;
           return fromBits(this.low, this.high, true);
         };
         LongPrototype.toBytes = function toBytes2(le) {
@@ -14991,7 +15181,8 @@ var require_umd = __commonJS({
             return fromBits(lowBits, highBits, unsigned);
           };
           Long.fromValue = function fromValueWithBigInt(value, unsigned) {
-            if (typeof value === "bigint") return Long.fromBigInt(value, unsigned);
+            if (typeof value === "bigint")
+              return Long.fromBigInt(value, unsigned);
             return fromValue(value, unsigned);
           };
           LongPrototype.toBigInt = function toBigInt() {
@@ -32568,8 +32759,10 @@ var init_index_node = __esm({
         this.memoizedNormalizedOrderBy = null;
         this.memoizedTarget = null;
         this.memoizedAggregateTarget = null;
-        if (this.startAt) ;
-        if (this.endAt) ;
+        if (this.startAt)
+          ;
+        if (this.endAt)
+          ;
       }
     };
     ObjectMap = class {
@@ -36623,7 +36816,8 @@ Total Duration: ${removedDocumentsTs - startTs}ms`;
         return PersistencePromise.resolve(key.isEqual(firstRef && firstRef.key));
       }
       performConsistencyCheck(txn) {
-        if (this.mutationQueue.length === 0) ;
+        if (this.mutationQueue.length === 0)
+          ;
         return PersistencePromise.resolve();
       }
       /**
@@ -46630,7 +46824,8 @@ var require_util3 = __commonJS({
         return host.substring(1, idx2);
       }
       const idx = host.indexOf(":");
-      if (idx === -1) return host;
+      if (idx === -1)
+        return host;
       return host.substring(0, idx);
     }
     function getServerName(host) {
@@ -46699,7 +46894,8 @@ var require_util3 = __commonJS({
       return tree.lookup(value) ?? value.toString("latin1").toLowerCase();
     }
     function parseHeaders(headers, obj) {
-      if (obj === void 0) obj = {};
+      if (obj === void 0)
+        obj = {};
       for (let i = 0; i < headers.length; i += 2) {
         const key = headerNameToString(headers[i]);
         let val = obj[key];
@@ -46891,7 +47087,8 @@ var require_util3 = __commonJS({
       return !headerCharRegex.test(characters);
     }
     function parseRangeHeader(range) {
-      if (range == null || range === "") return { start: 0, end: null, size: null };
+      if (range == null || range === "")
+        return { start: 0, end: null, size: null };
       const m = range ? range.match(/^bytes (\d+)-(\d+)\/(\d+)?$/) : null;
       return m ? {
         start: parseInt(m[1]),
@@ -48806,10 +49003,12 @@ var require_data_url = __commonJS({
       let lead = 0;
       let trail = str.length - 1;
       if (leading) {
-        while (lead < str.length && predicate(str.charCodeAt(lead))) lead++;
+        while (lead < str.length && predicate(str.charCodeAt(lead)))
+          lead++;
       }
       if (trailing) {
-        while (trail > 0 && predicate(str.charCodeAt(trail))) trail--;
+        while (trail > 0 && predicate(str.charCodeAt(trail)))
+          trail--;
       }
       return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1);
     }
@@ -49561,11 +49760,14 @@ var require_util4 = __commonJS({
       if (url.href === "about:blank" || url.href === "about:srcdoc") {
         return true;
       }
-      if (url.protocol === "data:") return true;
-      if (url.protocol === "file:") return true;
+      if (url.protocol === "data:")
+        return true;
+      if (url.protocol === "file:")
+        return true;
       return isOriginPotentiallyTrustworthy(url.origin);
       function isOriginPotentiallyTrustworthy(origin) {
-        if (origin == null || origin === "null") return false;
+        if (origin == null || origin === "null")
+          return false;
         const originAsURL = new URL(origin);
         if (originAsURL.protocol === "https:" || originAsURL.protocol === "wss:") {
           return true;
@@ -50591,10 +50793,12 @@ var require_formdata_parser = __commonJS({
       let lead = 0;
       let trail = buf.length - 1;
       if (leading) {
-        while (lead < buf.length && predicate(buf[lead])) lead++;
+        while (lead < buf.length && predicate(buf[lead]))
+          lead++;
       }
       if (trailing) {
-        while (trail > 0 && predicate(buf[trail])) trail--;
+        while (trail > 0 && predicate(buf[trail]))
+          trail--;
       }
       return lead === 0 && trail === buf.length - 1 ? buf : buf.subarray(lead, trail + 1);
     }
@@ -52152,7 +52356,8 @@ var require_client_h2 = __commonJS({
         }
         stream.once("close", () => {
           session[kOpenStreams] -= 1;
-          if (session[kOpenStreams] === 0) session.unref();
+          if (session[kOpenStreams] === 0)
+            session.unref();
         });
         return true;
       }
@@ -53455,7 +53660,8 @@ var require_balanced_pool = __commonJS({
     var kMaxWeightPerServer = Symbol("kMaxWeightPerServer");
     var kErrorPenalty = Symbol("kErrorPenalty");
     function getGreatestCommonDivisor(a, b) {
-      if (b === 0) return a;
+      if (b === 0)
+        return a;
       return getGreatestCommonDivisor(b, a % b);
     }
     function defaultFactory(origin, opts) {
@@ -54046,7 +54252,8 @@ var require_retry_handler = __commonJS({
         }
       }
       onBodySent(chunk) {
-        if (this.handler.onBodySent) return this.handler.onBodySent(chunk);
+        if (this.handler.onBodySent)
+          return this.handler.onBodySent(chunk);
       }
       static [kRetryHandlerDefaultRetry](err, { state, opts }, cb) {
         const { statusCode, code, headers } = err;
@@ -56469,8 +56676,10 @@ var require_headers = __commonJS({
     function headerValueNormalize(potentialValue) {
       let i = 0;
       let j = potentialValue.length;
-      while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(j - 1))) --j;
-      while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(i))) ++i;
+      while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(j - 1)))
+        --j;
+      while (j > i && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(i)))
+        ++i;
       return i === 0 && j === potentialValue.length ? potentialValue : potentialValue.substring(i, j);
     }
     function fill(headers, object) {
@@ -56591,7 +56800,8 @@ var require_headers = __commonJS({
        */
       delete(name8, isLowerCase) {
         this[kHeadersSortedMap] = null;
-        if (!isLowerCase) name8 = name8.toLowerCase();
+        if (!isLowerCase)
+          name8 = name8.toLowerCase();
         if (name8 === "set-cookie") {
           this.cookies = null;
         }
@@ -59984,7 +60194,8 @@ var require_cache = __commonJS({
       async matchAll(request = void 0, options = {}) {
         webidl.brandCheck(this, _Cache);
         const prefix = "Cache.matchAll";
-        if (request !== void 0) request = webidl.converters.RequestInfo(request, prefix, "request");
+        if (request !== void 0)
+          request = webidl.converters.RequestInfo(request, prefix, "request");
         options = webidl.converters.CacheQueryOptions(options, prefix, "options");
         return this.#internalMatchAll(request, options);
       }
@@ -60232,7 +60443,8 @@ var require_cache = __commonJS({
       async keys(request = void 0, options = {}) {
         webidl.brandCheck(this, _Cache);
         const prefix = "Cache.keys";
-        if (request !== void 0) request = webidl.converters.RequestInfo(request, prefix, "request");
+        if (request !== void 0)
+          request = webidl.converters.RequestInfo(request, prefix, "request");
         options = webidl.converters.CacheQueryOptions(options, prefix, "options");
         let r = null;
         if (request !== void 0) {
@@ -62648,9 +62860,11 @@ var require_util10 = __commonJS({
       return value.indexOf("\0") === -1;
     }
     function isASCIINumber(value) {
-      if (value.length === 0) return false;
+      if (value.length === 0)
+        return false;
       for (let i = 0; i < value.length; i++) {
-        if (value.charCodeAt(i) < 48 || value.charCodeAt(i) > 57) return false;
+        if (value.charCodeAt(i) < 48 || value.charCodeAt(i) > 57)
+          return false;
       }
       return true;
     }
@@ -63013,7 +63227,8 @@ var require_eventsource = __commonJS({
         return this.#withCredentials;
       }
       #connect() {
-        if (this.#readyState === CLOSED) return;
+        if (this.#readyState === CLOSED)
+          return;
         this.#readyState = CONNECTING;
         const fetchParams = {
           request: this.#request,
@@ -63076,11 +63291,13 @@ var require_eventsource = __commonJS({
        * @returns {Promise<void>}
        */
       async #reconnect() {
-        if (this.#readyState === CLOSED) return;
+        if (this.#readyState === CLOSED)
+          return;
         this.#readyState = CONNECTING;
         this.dispatchEvent(new Event("error"));
         await delay(this.#state.reconnectionTime);
-        if (this.#readyState !== CONNECTING) return;
+        if (this.#readyState !== CONNECTING)
+          return;
         if (this.#state.lastEventId.length) {
           this.#request.headersList.set("last-event-id", this.#state.lastEventId, true);
         }
@@ -63092,7 +63309,8 @@ var require_eventsource = __commonJS({
        */
       close() {
         webidl.brandCheck(this, _EventSource);
-        if (this.#readyState === CLOSED) return;
+        if (this.#readyState === CLOSED)
+          return;
         this.#readyState = CLOSED;
         this.#controller.abort();
         this.#request = null;
@@ -66125,7 +66343,8 @@ function constructFrom(date, value) {
 // node_modules/date-fns/addDays.mjs
 function addDays(date, amount) {
   const _date = toDate(date);
-  if (isNaN(amount)) return constructFrom(date, NaN);
+  if (isNaN(amount))
+    return constructFrom(date, NaN);
   if (!amount) {
     return _date;
   }
@@ -66627,10 +66846,12 @@ function findIndex(array, predicate) {
 function buildMatchPatternFn(args) {
   return (string, options = {}) => {
     const matchResult = string.match(args.matchPattern);
-    if (!matchResult) return null;
+    if (!matchResult)
+      return null;
     const matchedString = matchResult[0];
     const parseResult = string.match(args.parsePattern);
-    if (!parseResult) return null;
+    if (!parseResult)
+      return null;
     let value = args.valueCallback ? args.valueCallback(parseResult[0]) : parseResult[0];
     value = options.valueCallback ? options.valueCallback(value) : value;
     const rest = string.slice(matchedString.length);
@@ -67332,7 +67553,8 @@ var formatters = {
   h: function(date, token, localize2) {
     if (token === "ho") {
       let hours = date.getHours() % 12;
-      if (hours === 0) hours = 12;
+      if (hours === 0)
+        hours = 12;
       return localize2.ordinalNumber(hours, { unit: "hour" });
     }
     return lightFormatters.h(date, token);
@@ -67355,7 +67577,8 @@ var formatters = {
   // Hour [1-24]
   k: function(date, token, localize2) {
     let hours = date.getHours();
-    if (hours === 0) hours = 24;
+    if (hours === 0)
+      hours = 24;
     if (token === "ko") {
       return localize2.ordinalNumber(hours, { unit: "hour" });
     }
@@ -67544,7 +67767,8 @@ function isProtectedWeekYearToken(token) {
 function warnOrThrowProtectedError(token, format2, input) {
   const _message = message(token, format2, input);
   console.warn(_message);
-  if (throwTokens.includes(token)) throw new RangeError(_message);
+  if (throwTokens.includes(token))
+    throw new RangeError(_message);
 }
 function message(token, format2, input) {
   const subject = token[0] === "Y" ? "years" : "days of the month";
@@ -67600,7 +67824,8 @@ function format(date, formatStr, options) {
     locale
   };
   return parts.map((part) => {
-    if (!part.isToken) return part.value;
+    if (!part.isToken)
+      return part.value;
     const token = part.value;
     if (!options?.useAdditionalWeekYearTokens && isProtectedWeekYearToken(token) || !options?.useAdditionalDayOfYearTokens && isProtectedDayOfYearToken(token)) {
       warnOrThrowProtectedError(token, formatStr, String(date));
@@ -67687,7 +67912,8 @@ var deploymentsCollection = null;
 var isInitialized = false;
 var isServer = typeof window === "undefined";
 var initializeFirebaseService = async () => {
-  if (isInitialized) return { status: "connected" };
+  if (isInitialized)
+    return { status: "connected" };
   try {
     let firebaseConfig;
     if (isServer) {
@@ -67766,20 +67992,24 @@ var storeNameMap = ALL_STORES.reduce((acc, name8) => {
   const key = name8.toLowerCase().replace(/[^a-z0-9]/g, "");
   acc[key] = name8;
   const shortName = name8.split(",")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (!acc[shortName]) acc[shortName] = name8;
+  if (!acc[shortName])
+    acc[shortName] = name8;
   return acc;
 }, {});
 var getNotes = async () => {
-  if (!notesCollection) return [];
+  if (!notesCollection)
+    return [];
   const q = notesCollection.orderBy("createdAt", "desc");
   const snapshot = await q.get();
   return snapshot.docs.map((doc2) => ({ id: doc2.id, ...doc2.data(), createdAt: doc2.data().createdAt.toDate().toISOString() }));
 };
 var addNote = async (monthlyPeriodLabel, category, content, scope, imageDataUrl) => {
-  if (!notesCollection || !db) throw new Error("Firebase not initialized.");
+  if (!notesCollection || !db)
+    throw new Error("Firebase not initialized.");
   const createdAtTimestamp = firebase2.firestore.Timestamp.now();
   const newNoteData = { monthlyPeriodLabel, category, content, view: scope.view, createdAt: createdAtTimestamp };
-  if (scope.storeId) newNoteData.storeId = scope.storeId;
+  if (scope.storeId)
+    newNoteData.storeId = scope.storeId;
   const docRef = await notesCollection.add(newNoteData);
   let finalImageUrl = void 0;
   if (imageDataUrl) {
@@ -67789,7 +68019,8 @@ var addNote = async (monthlyPeriodLabel, category, content, scope, imageDataUrl)
   return { id: docRef.id, ...newNoteData, createdAt: createdAtTimestamp.toDate().toISOString(), imageUrl: finalImageUrl };
 };
 var uploadNoteAttachment = async (noteId, imageDataUrl) => {
-  if (!storage) throw new Error("Firebase Storage not initialized.");
+  if (!storage)
+    throw new Error("Firebase Storage not initialized.");
   const response = await fetch(imageDataUrl);
   const blob = await response.blob();
   const storageRef = storage.ref(`note_attachments/${noteId}/${Date.now()}`);
@@ -67797,11 +68028,13 @@ var uploadNoteAttachment = async (noteId, imageDataUrl) => {
   return storageRef.getDownloadURL();
 };
 var updateNoteContent = async (noteId, newContent, newCategory) => {
-  if (!db) throw new Error("Firebase not initialized.");
+  if (!db)
+    throw new Error("Firebase not initialized.");
   await db.collection("notes").doc(noteId).update({ content: newContent, category: newCategory });
 };
 var deleteNoteById = async (noteId) => {
-  if (!db) throw new Error("Firebase not initialized.");
+  if (!db)
+    throw new Error("Firebase not initialized.");
   await db.collection("notes").doc(noteId).delete();
 };
 

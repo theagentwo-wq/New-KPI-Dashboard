@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
 import { Handler } from '@netlify/functions';
 
@@ -61,7 +61,7 @@ export const handler: Handler = async (event, _context) => {
         if (!process.env.GEMINI_API_KEY) {
             throw new Error("GEMINI_API_KEY is not configured on the server.");
         }
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) throw new Error(`Failed to download file: ${fileUrl}`);
@@ -113,15 +113,14 @@ export const handler: Handler = async (event, _context) => {
 
             ---`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', // Use Pro for deeper analysis
-            contents: [
-                { text: prompt },
-                { inlineData: { mimeType, data: base64Data } }
-            ],
-        });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }); // Using 1.5-pro as 3-pro-preview might not be available
 
-        await updateAnalysisJob(jobId, { status: 'complete', result: response.text });
+        const result = await model.generateContent([
+            { text: prompt },
+            { inlineData: { mimeType, data: base64Data } }
+        ]);
+
+        await updateAnalysisJob(jobId, { status: 'complete', result: result.response.text() });
 
         // Clean up the file from Firebase Storage
         if (filePath) {

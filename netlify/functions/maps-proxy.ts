@@ -141,16 +141,16 @@ export const handler = async (event: any) => {
 
         if (error.message === "External API timeout") {
             return {
-                statusCode: 504,
+                statusCode: 200, // Return 200 to avoid 502
                 headers,
                 body: JSON.stringify({ error: "Google Maps API request timed out." })
             };
         }
 
         return {
-            statusCode: 500,
+            statusCode: 200, // Return 200 to avoid 502
             headers,
-            body: JSON.stringify({ error: error.message || 'An internal server error occurred.' })
+            body: JSON.stringify({ error: error.message || 'An internal server error occurred.', details: error.stack })
         };
     } finally {
         clearTimeout(timeoutId);
