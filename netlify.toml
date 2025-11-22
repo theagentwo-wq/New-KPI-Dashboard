@@ -1,7 +1,7 @@
 command = "npmrunbuild"
 publish = "dist"
 directory = "functions-dist"
-timeout = 25
+timeout = 26
 
 [functions."process-analysis-job"]
 background = true
