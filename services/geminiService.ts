@@ -8,7 +8,7 @@ export interface PlaceDetails {
 
 async function callAIApi(action: string, payload: any): Promise<any> {
     try {
-        const response = await fetch('/.netlify/functions/gemini-proxy', {
+        const response = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, payload }),
@@ -59,7 +59,7 @@ export const deleteImportFile = async (filePath: string): Promise<void> => {
 
 export const getMapsApiKey = async (): Promise<string> => {
     try {
-        const response = await fetch('/.netlify/functions/maps-api-key-proxy');
+        const response = await fetch('/api/maps/apiKey');
         if (!response.ok) {
             const errorBody = await response.json();
             throw new Error(errorBody.error || 'Failed to fetch Maps API key');
@@ -76,9 +76,8 @@ export const getMapsApiKey = async (): Promise<string> => {
 };
 
 export const getPlaceDetails = async (address: string): Promise<PlaceDetails> => {
-    // REFACTOR: Call the new, dedicated maps-proxy for reliability.
     try {
-        const response = await fetch('/.netlify/functions/maps-proxy', {
+        const response = await fetch('/api/maps/placeDetails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address }),
