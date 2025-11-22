@@ -15,9 +15,11 @@ app.use(express.json());
 const mapsClient = new MapsClient({});
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const apiRouter = express.Router();
+// CORRECT: This router handles all routes at the root.
+// The `/api` prefix is handled by Firebase Hosting rewrites and is stripped before the request reaches this function.
+const router = express.Router();
 
-apiRouter.post("/gemini", async (req, res) => {
+router.post("/gemini", async (req, res) => {
     const { action, payload } = req.body;
 
     if (!action) {
@@ -33,18 +35,16 @@ apiRouter.post("/gemini", async (req, res) => {
                 const { data, view, periodLabel } = payload;
                 prompt = `Generate an executive summary for the ${view} view for the period ${periodLabel}. Data: ${JSON.stringify(data)}`;
                 break;
-
             case "getLocationMarketAnalysis":
                 const { location } = payload;
                 if (!location) return res.status(400).json({ error: "Location is required for market analysis." });
                 prompt = `Generate a concise local market analysis for a restaurant in ${location}. Focus on: 1. Key demographic and economic trends. 2. The competitive landscape (types of restaurants, price points). 3. Potential opportunities for growth or differentiation.`;
                 break;
-
             case "generateHuddleBrief":
                 const { location: huddleLocation, storeData, audience, weather } = payload;
                 prompt = `Generate a pre-shift huddle brief for the "${audience}" team at the "${huddleLocation}" restaurant. Today's weather: ${weather ? JSON.stringify(weather) : 'not available'}. Key store data for the day: ${JSON.stringify(storeData)}. The brief should be upbeat, concise, and highlight 1-2 key focus areas for the upcoming shift.`;
                 break;
-
+            // ... other cases from geminiService can be added here ...
             default:
                 console.warn(`Action "${action}" has no implementation.`);
                 return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
@@ -60,7 +60,7 @@ apiRouter.post("/gemini", async (req, res) => {
     }
 });
 
-apiRouter.get("/maps/apiKey", (req, res) => {
+router.get("/maps/apiKey", (req, res) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
     } catch (error) {
@@ -69,13 +69,11 @@ apiRouter.get("/maps/apiKey", (req, res) => {
     }
 });
 
-apiRouter.post("/maps/placeDetails", async (req, res) => {
+router.post("/maps/placeDetails", async (req, res) => {
     const { address: placeId } = req.body;
-
     if (!placeId) {
         return res.status(400).json({ error: "A Google Place ID is required." });
     }
-
     try {
         const response: PlaceDetailsResponse = await mapsClient.placeDetails({
             params: {
@@ -84,7 +82,6 @@ apiRouter.post("/maps/placeDetails", async (req, res) => {
                 key: process.env.MAPS_API_KEY!,
             },
         });
-
         if (response.data.status === 'OK') {
             res.json({ data: response.data.result });
         } else {
@@ -97,8 +94,7 @@ apiRouter.post("/maps/placeDetails", async (req, res) => {
     }
 });
 
-// Correctly mount the router at the root of the app.
-// Firebase Hosting's rewrite rules handle the /api prefix.
-app.use(apiRouter);
+// Use the router for all requests.
+app.use(router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
