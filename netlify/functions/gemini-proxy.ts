@@ -64,7 +64,7 @@ export const handler: Handler = async (event, _context) => {
 
     let prompt = '';
     let responsePayload: any = {};
-    const model = 'gemini-1.5-flash-latest';
+    const model = 'gemini-1.5-flash-002';
 
     // --- Context Enrichment ---
     const today = new Date();

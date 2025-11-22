@@ -71467,7 +71467,7 @@ var handler = async (event, _context) => {
     }
     let prompt = "";
     let responsePayload = {};
-    const model = "gemini-1.5-flash-latest";
+    const model = "gemini-1.5-flash-002";
     const today = /* @__PURE__ */ new Date();
     const upcomingHolidays = [];
     for (let i = 0; i < 30; i++) {
