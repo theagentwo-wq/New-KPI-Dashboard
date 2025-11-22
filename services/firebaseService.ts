@@ -47,7 +47,14 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
             if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
                 cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
             }
-            firebaseConfig = JSON.parse(cleanedConfigStr);
+            try {
+                firebaseConfig = JSON.parse(cleanedConfigStr);
+            } catch (jsonError) {
+                // Specific error handling for server-side JSON parsing failure
+                const err = new Error("Your FIREBASE_CLIENT_CONFIG is not valid JSON. Please ensure it is a single-line, correctly formatted JSON string.");
+                (err as any).cause = cleanedConfigStr; // Attach the problematic string for debugging
+                throw err;
+            }
         } else {
             // CLIENT-SIDE: fetch from the secure proxy.
             const response = await fetch('/.netlify/functions/firebase-config-proxy');
@@ -91,10 +98,16 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     } catch (error: any) {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
+        // Use the custom error message if available, otherwise a generic one.
+        // Include rawValue only if it's available for client-side display.
+        const errorMessage = error.message.includes("FIREBASE_CLIENT_CONFIG is not valid JSON") 
+            ? error.message
+            : `Firebase initialization failed: The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`;
+
         return { 
             status: 'error', 
-            message: `Firebase initialization failed: The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`,
-            rawValue: error.cause || (isServer ? process.env.FIREBASE_CLIENT_CONFIG : 'Could not retrieve raw value from client.')
+            message: errorMessage,
+            rawValue: error.cause || (isServer ? (process.env.FIREBASE_CLIENT_CONFIG || 'Config string not found in environment.') : 'Could not retrieve raw value from client.')
         };
     }
 };
