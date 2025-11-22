@@ -27,52 +27,32 @@ let deploymentsCollection: any = null;
 
 let isInitialized = false;
 
-// Helper to determine if we are in a server-side (Node) environment
-const isServer = typeof window === 'undefined';
-
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (isInitialized) return { status: 'connected' };
 
     try {
-        let firebaseConfig;
-
-        // SERVER-SIDE: read directly from environment variables.
-        const configStr = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
-        if (!configStr) {
-            throw new Error("FIREBASE_CLIENT_CONFIG environment variable is not set.");
-        }
-        let cleanedConfigStr = configStr.trim();
-        if ((cleanedConfigStr.startsWith("\'") && cleanedConfigStr.endsWith("\'")) || (cleanedConfigStr.startsWith('\"') && cleanedConfigStr.endsWith('\"'))) {
-            cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
-        }
-        try {
-            firebaseConfig = JSON.parse(cleanedConfigStr);
-        } catch (jsonError) {
-            // Specific error handling for server-side JSON parsing failure
-            const err = new Error("Your FIREBASE_CLIENT_CONFIG is not valid JSON. Please ensure it is a single-line, correctly formatted JSON string.");
-            (err as any).cause = cleanedConfigStr; // Attach the problematic string for debugging
-            throw err;
-        }
+        // IMPORTANT: Replace the placeholder values below with your actual
+        // Firebase project configuration. These values are found in the 
+        // Firebase console for your web app.
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
         
-        if (Object.keys(firebaseConfig).length === 0) {
-             const err = new Error("Received empty Firebase config. Ensure FIREBASE_CLIENT_CONFIG is set correctly.");
-             (err as any).cause = JSON.stringify(firebaseConfig);
-             throw err;
-        }
-        
-        // Dynamically import the Firebase compat SDK at runtime to avoid
-        // loading browser-only modules during Netlify function module initialization.
+        // Dynamically import the Firebase compat SDK at runtime
         if (!firebase) {
             try {
                 const compat = await import('firebase/compat/app');
-                // compat may expose default or named export depending on bundler
                 firebase = (compat && (compat as any).default) || compat;
-                // load firestore + storage side-effects
                 await import('firebase/compat/firestore');
                 await import('firebase/compat/storage');
             } catch (e) {
                 console.error('Failed to dynamically import Firebase compat SDK:', e);
-                throw new Error('Server failed to load Firebase SDK.');
+                throw new Error('Client failed to load Firebase SDK.');
             }
         }
 
@@ -101,16 +81,10 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     } catch (error: any) {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
-        // Use the custom error message if available, otherwise a generic one.
-        // Include rawValue only if it's available for client-side display.
-        const errorMessage = error.message.includes("FIREBASE_CLIENT_CONFIG is not valid JSON") 
-            ? error.message
-            : `Firebase initialization failed: The config value is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`;
-
+        
         return { 
             status: 'error', 
-            message: errorMessage,
-            rawValue: error.cause || (isServer ? (process.env.FIREBASE_CLIENT_CONFIG || 'Config string not found in environment.') : 'Could not retrieve raw value from client.')
+            message: `Firebase initialization failed. Please check your Firebase configuration in services/firebaseService.ts and ensure all placeholder values have been replaced with your actual project credentials.`
         };
     }
 };
