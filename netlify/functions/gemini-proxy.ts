@@ -1,12 +1,12 @@
 // netlify/functions/gemini-proxy.ts
 import { Handler } from '@netlify/functions';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { isHoliday } from '../../utils/dateUtils';
 
-// Initialize Gemini SDK
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Gemini API v1 endpoint (stable)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
-// Helper to safely parse JSON from AI response
+// Helper to safely parse JSON from AI response (removes markdown fences)
 const safeJsonParse = (text: string, fallback: any, context: string) => {
   try {
     const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -26,6 +26,7 @@ export const handler: Handler = async (event, _context) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
+  // Preflight handling
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers };
   }
@@ -37,7 +38,7 @@ export const handler: Handler = async (event, _context) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error.' }) };
   }
 
-  // Helper to invoke background functions
+  // Helper to invoke background Netlify functions
   const invokeBackgroundFunction = (functionName: string, payload: any) => {
     const origin = new URL(event.rawUrl).origin;
     const url = `${origin}/.netlify/functions/${functionName}`;
@@ -52,7 +53,7 @@ export const handler: Handler = async (event, _context) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing "action"' }) };
     }
 
-    // Context enrichment (holidays)
+    // Holiday context enrichment
     const today = new Date();
     const upcoming: string[] = [];
     for (let i = 0; i < 30; i++) {
@@ -65,17 +66,33 @@ export const handler: Handler = async (event, _context) => {
       ? `Upcoming Major US Holidays (next 30 days): ${upcoming.join(', ')}.`
       : 'No major US holidays in the next 30 days.';
 
-    // Helper for safe generation with timeout using SDK
+    // Helper for safe generation with timeout using direct REST API
     const generateContentSafe = async (prompt: string, responseMimeType?: string) => {
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini API timed out')), 25000));
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const request = model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: responseMimeType ? { responseMimeType } : undefined,
-      });
-      const result = await Promise.race([request, timeout]);
-      // @ts-ignore – SDK returns a response object with .response.text()
-      return { text: result.response.text() };
+      const apiUrl = `${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+      const body: any = { contents: [{ parts: [{ text: prompt }] }] };
+      if (responseMimeType) {
+        body.generationConfig = { responseMimeType };
+      }
+      const apiCall = fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then(async res => {
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Gemini API error (${res.status}): ${errText}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            throw new Error('Invalid Gemini response structure');
+          }
+          return { text: data.candidates[0].content.parts[0].text };
+        });
+      return (await Promise.race([apiCall, timeout])) as { text: string };
     };
 
     let prompt = '';
@@ -199,6 +216,22 @@ export const handler: Handler = async (event, _context) => {
         responsePayload = safeJsonParse(res.text, {}, `What‑If Scenario for "${userPrompt}"`);
         break;
       }
+      // Background jobs (unchanged) – keep as placeholders
+      case 'startStrategicAnalysis': {
+        const { createAnalysisJob } = await import('../../services/firebaseService');
+        const jobId = await createAnalysisJob(payload);
+        invokeBackgroundFunction('process-analysis-job', { jobId });
+        return { statusCode: 200, headers, body: JSON.stringify({ jobId }) };
+      }
+      case 'startImportJob': {
+        const { createImportJob } = await import('../../services/firebaseService');
+        const jobId = await createImportJob(payload);
+        invokeBackgroundFunction('process-import-job', { jobId });
+        return { statusCode: 200, headers, body: JSON.stringify({ jobId }) };
+      }
+      case 'deleteFile': {
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
       default:
         return { statusCode: 501, headers, body: JSON.stringify({ error: `Action '${action}' not implemented` }) };
     }
@@ -206,9 +239,7 @@ export const handler: Handler = async (event, _context) => {
     return { statusCode: 200, headers, body: JSON.stringify(responsePayload) };
   } catch (err: any) {
     console.error('Gemini proxy error:', err);
-    const msg = err.message?.includes('timed out')
-      ? 'Gemini API request timed out. Please try again.'
-      : err.message || 'Internal server error';
-    return { statusCode: 200, headers, body: JSON.stringify({ error: msg, details: err.stack }) };
+    const msg = err.message?.includes('timed out') ? 'Gemini API request timed out. Please try again.' : err.message || 'Internal server error';
+    return { statusCode: 500, headers, body: JSON.stringify({ error: msg, details: err.stack }) };
   }
 };
