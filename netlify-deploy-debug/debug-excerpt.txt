@@ -1,0 +1,35 @@
+Excerpt of CLI debug output (key lines):
+
+Packaging Functions from functions-dist directory:
+ - debug-status.js
+ - firebase-config-proxy.js
+ - gemini-proxy.js
+ - maps-api-key-proxy.js
+ - maps-proxy.js
+ - notes-proxy.js
+ - process-analysis-job.js
+ - process-import-job.js
+ - rss-proxy.js
+
+✔ Finished uploading blobs to deploy store
+✔ Ignoring functions cache (use without --skip-functions-cache to change)
+✔ Finished hashing 8 files and 9 functions
+✔ CDN requesting 0 files and 1 functions
+
+Uploading debug-status... Warning: JSONHTTPError: Failed to create function 500
+{
+  "name": "JSONHTTPError",
+  "status": 500,
+  "json": {
+    "code": 500,
+    "message": "Failed to create function"
+  }
+}
+
+Warning: JSONHTTPError: Internal Server Error
+    at parseResponse (.../node_modules/@netlify/api/lib/methods/response.js:34:39)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async callMethod (.../node_modules/@netlify/api/lib/methods/index.js:26:28)
+    at async Backoff.tryUpload (.../node_modules/netlify-cli/dist/utils/deploy/upload-files.js:80:29)
+
+Command exited with code 1

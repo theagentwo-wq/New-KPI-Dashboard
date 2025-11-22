@@ -1,0 +1,6 @@
+Site name: kpidashbd
+Project URL: https://kpidashbd.netlify.app
+Project Id: 96034138-b959-429b-9369-34fdbc8a46be
+Netlify CLI user: theagentwo@gmail.com
+Local project path: C:\Users\theag\Documents\New-KPI-Dashboard
+Date: 2025-11-22
