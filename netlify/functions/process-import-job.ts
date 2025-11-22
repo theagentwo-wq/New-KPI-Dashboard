@@ -165,3 +165,7 @@ export const handler: Handler = async (event, _context) => {
         return { statusCode: 500 };
     }
 };
+
+// Make CommonJS-compatible export for the Netlify CLI local runner
+(module as any).exports = { handler };
+exports.handler = handler;

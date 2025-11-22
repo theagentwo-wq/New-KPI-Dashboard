@@ -156,3 +156,7 @@ export const handler = async (event: any) => {
         clearTimeout(timeoutId);
     }
 };
+
+// Make CommonJS-compatible export for the Netlify CLI local runner
+(module as any).exports = { handler };
+exports.handler = handler;

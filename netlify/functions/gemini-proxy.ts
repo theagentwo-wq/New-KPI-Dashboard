@@ -303,3 +303,7 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
     return { statusCode, headers, body: JSON.stringify({ error: errorMessage }) };
   }
 };
+
+// Make CommonJS-compatible export for the Netlify CLI local runner
+(module as any).exports = { handler };
+exports.handler = handler;

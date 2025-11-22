@@ -56,3 +56,7 @@ export const handler: Handler = async (event, _context) => {
         return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || 'An internal server error occurred.' }) };
     }
 };
+
+// Make CommonJS-compatible export for the Netlify CLI local runner
+(module as any).exports = { handler };
+exports.handler = handler;

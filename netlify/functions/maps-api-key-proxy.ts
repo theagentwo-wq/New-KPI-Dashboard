@@ -17,3 +17,7 @@ export const handler = async () => {
         body: JSON.stringify({ apiKey: mapsApiKey }),
     };
 };
+
+// Make CommonJS-compatible export for the Netlify CLI local runner
+(module as any).exports = { handler };
+exports.handler = handler;
