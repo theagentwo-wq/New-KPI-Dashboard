@@ -70413,7 +70413,7 @@ var init_firebaseService = __esm({
 // netlify/functions/gemini-proxy.ts
 init_dateUtils();
 var GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1/models";
-var GEMINI_MODEL = "gemini-1.5-flash";
+var GEMINI_MODEL = "gemini-pro";
 var safeJsonParse = (text, fallback, context) => {
   try {
     let cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
