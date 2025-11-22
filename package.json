@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/validate-env.js && node scripts/create-netlify-config.js && npm run build:functions && npm run build:client",
-    "build:functions": "esbuild netlify/functions/firebase-config-proxy.ts netlify/functions/gemini-proxy.ts netlify/functions/maps-api-key-proxy.ts netlify/functions/maps-proxy.ts netlify/functions/notes-proxy.ts netlify/functions/process-analysis-job.ts netlify/functions/process-import-job.ts netlify/functions/rss-proxy.ts --bundle --platform=node --target=node18 --outdir=functions-dist --log-level=info --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build:functions": "esbuild netlify/functions/firebase-config-proxy.ts netlify/functions/gemini-proxy.ts netlify/functions/maps-api-key-proxy.ts netlify/functions/maps-proxy.ts netlify/functions/notes-proxy.ts netlify/functions/process-analysis-job.ts netlify/functions/process-import-job.ts netlify/functions/rss-proxy.ts netlify/functions/debug-status.ts --bundle --platform=node --target=node18 --format=esm --outdir=functions-dist --log-level=info --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "build:client": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
