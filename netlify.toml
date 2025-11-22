@@ -6,6 +6,11 @@
 [functions]
   node_bundler = "esbuild"
   directory = "functions-dist"
+
+[functions."gemini-proxy"]
+  timeout = 25
+
+[functions."maps-proxy"]
   timeout = 25
 
 [functions."process-analysis-job"]
