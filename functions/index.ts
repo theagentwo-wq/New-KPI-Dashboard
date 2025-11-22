@@ -9,19 +9,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 admin.initializeApp();
 
 const app = express();
-// Enable CORS and JSON body parsing
 app.use(cors({ origin: true }));
 app.use(express.json());
 
 const mapsClient = new MapsClient({});
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-// Main router for the API
 const apiRouter = express.Router();
 
-/**
- * Generic handler for all Gemini-based AI actions.
- */
 apiRouter.post("/gemini", async (req, res) => {
     const { action, payload } = req.body;
 
@@ -33,7 +28,6 @@ apiRouter.post("/gemini", async (req, res) => {
     let prompt = "";
 
     try {
-        // Switch statement to handle different AI actions
         switch (action) {
             case "getExecutiveSummary":
                 const { data, view, periodLabel } = payload;
@@ -52,7 +46,6 @@ apiRouter.post("/gemini", async (req, res) => {
                 break;
 
             default:
-                // If the action is not implemented, return a 501 error.
                 console.warn(`Action "${action}" has no implementation.`);
                 return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
         }
@@ -67,9 +60,6 @@ apiRouter.post("/gemini", async (req, res) => {
     }
 });
 
-/**
- * Returns the Google Maps API key to the client.
- */
 apiRouter.get("/maps/apiKey", (req, res) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
@@ -79,11 +69,7 @@ apiRouter.get("/maps/apiKey", (req, res) => {
     }
 });
 
-/**
- * Fetches place details from the Google Maps API.
- */
 apiRouter.post("/maps/placeDetails", async (req, res) => {
-    // The frontend sends the Google Place ID in the 'address' field.
     const { address: placeId } = req.body;
 
     if (!placeId) {
@@ -111,10 +97,8 @@ apiRouter.post("/maps/placeDetails", async (req, res) => {
     }
 });
 
-// Use the router for all requests to the app.
-// Firebase Hosting rewrite rules send requests from /api/* to this function, 
-// and the /api prefix is automatically stripped.
+// Correctly mount the router at the root of the app.
+// Firebase Hosting's rewrite rules handle the /api prefix.
 app.use(apiRouter);
 
-// Export the Express app as a Cloud Function.
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
