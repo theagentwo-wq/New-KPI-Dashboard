@@ -3,8 +3,8 @@ import { Handler } from '@netlify/functions';
 import { isHoliday } from '../../utils/dateUtils';
 
 // Gemini API v1 endpoint (stable, not beta)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models';
-const GEMINI_MODEL = 'gemini-pro';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 // Helper to safely parse JSON from AI response
 const safeJsonParse = (text: string, fallback: any, context: string) => {
