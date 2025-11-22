@@ -57,7 +57,7 @@ export const handler: Handler = async (event, _context) => {
         await updateAnalysisJob(jobId, { status: 'processing' });
 
         const { fileUrl, mimeType, fileName, filePath, mode } = jobDetails;
-        
+
         if (!process.env.GEMINI_API_KEY) {
             throw new Error("GEMINI_API_KEY is not configured on the server.");
         }
@@ -68,11 +68,11 @@ export const handler: Handler = async (event, _context) => {
 
         const buffer = await streamToBuffer(fileResponse.body);
         const base64Data = buffer.toString('base64');
-        
+
         // Prompt Customization based on Mode
         let personaInstruction = "You are an expert business strategist.";
         let focusArea = "Provide a balanced, general overview.";
-        
+
         if (mode === 'Financial') {
             personaInstruction = "You are a ruthless CFO and financial auditor.";
             focusArea = "Focus heavily on P&L, margins, variance, ROI, and cost-saving opportunities. Be critical of overspending.";
@@ -120,7 +120,7 @@ export const handler: Handler = async (event, _context) => {
                 { inlineData: { mimeType, data: base64Data } }
             ],
         });
-        
+
         await updateAnalysisJob(jobId, { status: 'complete', result: response.text });
 
         // Clean up the file from Firebase Storage
@@ -133,7 +133,7 @@ export const handler: Handler = async (event, _context) => {
     } catch (error: any) {
         console.error(`Error processing job ${jobId}:`, error);
         await updateAnalysisJob(jobId, { status: 'error', error: error.message });
-        
+
         // Cleanup file even on failure
         if (jobDetails.filePath) {
             await deleteFileByPath(jobDetails.filePath);
@@ -142,7 +142,3 @@ export const handler: Handler = async (event, _context) => {
         return { statusCode: 500 };
     }
 };
-
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;

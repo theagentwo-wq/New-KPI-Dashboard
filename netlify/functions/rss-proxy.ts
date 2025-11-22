@@ -2,11 +2,11 @@
 // It acts as a proxy to avoid client-side CORS issues.
 
 interface Article {
-  title: string;
-  link: string;
-  content: string;
-  sourceName: string;
-  pubDate: string;
+    title: string;
+    link: string;
+    content: string;
+    sourceName: string;
+    pubDate: string;
 }
 
 // A more diverse and reliable list of RSS feeds for the restaurant industry.
@@ -45,9 +45,9 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
         // Regex that ignores attributes in the opening tag
         const tagRegex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`);
         const match = itemXml.match(tagRegex);
-        
+
         if (!match || typeof match[1] === 'undefined') return '';
-        
+
         let content = match[1].trim();
 
         if (content.startsWith('<![CDATA[') && content.endsWith(']]>')) {
@@ -59,7 +59,7 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
 
     while ((itemMatch = itemRegex.exec(xml)) !== null) {
         const itemXml = itemMatch[1];
-        
+
         const title = getTagContent(itemXml, 'title');
         let link = getTagContent(itemXml, 'link');
         if (!link) {
@@ -67,18 +67,18 @@ const parseRssFeed = (xml: string, sourceName: string): Article[] => {
         }
 
         const pubDate = getTagContent(itemXml, 'pubDate') || new Date().toISOString();
-        
+
         let content = getTagContent(itemXml, 'description');
         if (!content) {
             content = getTagContent(itemXml, 'content:encoded');
         }
-        
+
         // Loosen the validation: only require title, link, and some content.
         if (title && link && content) {
             articles.push({ title, link, pubDate, content, sourceName });
         }
     }
-    
+
     return articles;
 };
 
@@ -92,21 +92,21 @@ export const handler = async () => {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
             })
-            .then(response => {
-                if (!response.ok) {
-                    console.warn(`Failed to fetch ${feed.url}, status: ${response.status}`);
-                    return { xml: '', sourceName: feed.name };
-                }
-                return response.text().then(xml => ({ xml, sourceName: feed.name }));
-            })
-            .catch(error => {
-                console.error(`Error fetching ${feed.url}:`, error);
-                return { xml: '', sourceName: feed.name }; // Return empty on error to not fail the whole process
-            })
+                .then(response => {
+                    if (!response.ok) {
+                        console.warn(`Failed to fetch ${feed.url}, status: ${response.status}`);
+                        return { xml: '', sourceName: feed.name };
+                    }
+                    return response.text().then(xml => ({ xml, sourceName: feed.name }));
+                })
+                .catch(error => {
+                    console.error(`Error fetching ${feed.url}:`, error);
+                    return { xml: '', sourceName: feed.name }; // Return empty on error to not fail the whole process
+                })
         );
-        
+
         const feedResults = await Promise.all(feedPromises);
-        
+
         let allArticles: Article[] = [];
         for (const { xml, sourceName } of feedResults) {
             if (xml) {
@@ -118,10 +118,10 @@ export const handler = async () => {
                 }
             }
         }
-        
+
         // Sort articles by publication date, newest first
         allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-        
+
         // Limit to a reasonable number of recent articles
         const recentArticles = allArticles.slice(0, 50);
 
@@ -142,7 +142,3 @@ export const handler = async () => {
         };
     }
 };
-
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;

@@ -56,7 +56,7 @@ export const handler: Handler = async (event, _context) => {
             throw new Error("GEMINI_API_KEY is not configured on the server.");
         }
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        
+
         const { jobType } = jobDetails;
 
         // 1. Define Schemas
@@ -76,27 +76,27 @@ export const handler: Handler = async (event, _context) => {
             required: ["name", "actual", "category"]
         };
 
-        const actualsDataSchema = { 
-            type: Type.OBJECT, 
-            properties: { 
-                "Store Name": { type: Type.STRING }, 
-                "Week Start Date": { type: Type.STRING }, 
+        const actualsDataSchema = {
+            type: Type.OBJECT,
+            properties: {
+                "Store Name": { type: Type.STRING },
+                "Week Start Date": { type: Type.STRING },
                 ...kpiProperties,
                 "pnl": { type: Type.ARRAY, items: pnlItemSchema, description: "Full hierarchical P&L data for this store/week if available." }
-            }, 
-            required: ["Store Name", "Week Start Date"] 
+            },
+            required: ["Store Name", "Week Start Date"]
         };
-        
+
         const budgetDataSchema = { type: Type.OBJECT, properties: { "Store Name": { type: Type.STRING }, "Year": { type: Type.NUMBER }, "Month": { type: Type.NUMBER }, ...kpiProperties }, required: ["Store Name", "Year", "Month"] };
-        
-        const universalSchema = { 
-            type: Type.OBJECT, 
-            properties: { 
-                isDynamicSheet: { type: Type.BOOLEAN }, 
-                dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] }, 
-                data: { type: Type.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } } 
-            }, 
-            required: ["dataType", "data", "isDynamicSheet"] 
+
+        const universalSchema = {
+            type: Type.OBJECT,
+            properties: {
+                isDynamicSheet: { type: Type.BOOLEAN },
+                dataType: { type: Type.STRING, enum: ["Actuals", "Budget"] },
+                data: { type: Type.ARRAY, items: { oneOf: [actualsDataSchema, budgetDataSchema] } }
+            },
+            required: ["dataType", "data", "isDynamicSheet"]
         };
 
         // 2. Build the Prompt
@@ -116,7 +116,7 @@ export const handler: Handler = async (event, _context) => {
         *   **If 'Budget':** Extract 'Store Name', 'Year', 'Month', and KPI values.
     4.  **PROCESS ALL:** Handle data for all stores and weeks found in the file.
     5.  **FORMAT:** Return strictly JSON.`;
-        
+
         // 3. Call Gemini
         let aiResponse;
 
@@ -126,16 +126,16 @@ export const handler: Handler = async (event, _context) => {
             if (!fileResponse.ok) throw new Error(`Failed to download file: ${fileUrl}`);
             const buffer = await streamToBuffer(fileResponse.body);
             const base64Data = buffer.toString('base64');
-            
+
             aiResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: [ { text: `${universalPrompt}\n\nThe filename is "${fileName}".` }, { inlineData: { mimeType: mimeType, data: base64Data } } ],
+                contents: [{ text: `${universalPrompt}\n\nThe filename is "${fileName}".` }, { inlineData: { mimeType: mimeType, data: base64Data } }],
                 config: { responseMimeType: "application/json", responseSchema: universalSchema },
             });
         } else { // 'text'
             const { fileUrl } = jobDetails;
             const textResponse = await fetch(fileUrl);
-            if(!textResponse.ok) throw new Error(`Failed to download text: ${fileUrl}`);
+            if (!textResponse.ok) throw new Error(`Failed to download text: ${fileUrl}`);
             const text = await textResponse.text();
 
             aiResponse = await ai.models.generateContent({
@@ -144,7 +144,7 @@ export const handler: Handler = async (event, _context) => {
                 config: { responseMimeType: "application/json", responseSchema: universalSchema },
             });
         }
-        
+
         const parsedResult = JSON.parse(aiResponse.text!);
         await updateImportJob(jobId, { status: 'complete', result: parsedResult });
 
@@ -157,7 +157,7 @@ export const handler: Handler = async (event, _context) => {
     } catch (error: any) {
         console.error(`Error processing import job ${jobId}:`, error);
         await updateImportJob(jobId, { status: 'error', error: error.message });
-        
+
         if (jobDetails.filePath) {
             await deleteFileByPath(jobDetails.filePath);
         }
@@ -165,7 +165,3 @@ export const handler: Handler = async (event, _context) => {
         return { statusCode: 500 };
     }
 };
-
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;

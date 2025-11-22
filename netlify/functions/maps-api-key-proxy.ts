@@ -6,7 +6,7 @@ export const handler = async () => {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*', // Allow requests from any origin
     };
-    
+
     // The new build script (scripts/validate-env.js) guarantees this key exists.
     // Using the '!' non-null assertion is now safe and tells TypeScript to trust us.
     const mapsApiKey = process.env.MAPS_API_KEY!;
@@ -18,6 +18,4 @@ export const handler = async () => {
     };
 };
 
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;
+

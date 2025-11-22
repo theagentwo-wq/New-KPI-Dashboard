@@ -57,6 +57,4 @@ export const handler: Handler = async (event, _context) => {
     }
 };
 
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;
+

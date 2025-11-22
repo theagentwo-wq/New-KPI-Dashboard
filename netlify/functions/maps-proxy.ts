@@ -2,19 +2,19 @@
 
 // Type definitions for Google Maps API responses
 interface FindPlaceResponse {
-  candidates?: { place_id: string }[];
-  status: string;
-  error_message?: string;
+    candidates?: { place_id: string }[];
+    status: string;
+    error_message?: string;
 }
 
 interface PlaceDetailsResponse {
-  result?: {
-    name: string;
-    rating: number;
-    photos?: { photo_reference: string }[];
-  };
-  status: string;
-  error_message?: string;
+    result?: {
+        name: string;
+        rating: number;
+        photos?: { photo_reference: string }[];
+    };
+    status: string;
+    error_message?: string;
 }
 
 export const handler = async (event: any) => {
@@ -33,10 +33,10 @@ export const handler = async (event: any) => {
     }
 
     if (!process.env.MAPS_API_KEY) {
-        return { 
-            statusCode: 500, 
-            headers, 
-            body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." }) 
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: "Server configuration error: MAPS_API_KEY is missing." })
         };
     }
     const mapsApiKey = process.env.MAPS_API_KEY;
@@ -49,7 +49,7 @@ export const handler = async (event: any) => {
     try {
         const body = JSON.parse(event.body || '{}');
         const { address } = body;
-        
+
         if (!address) {
             return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing 'address' in request payload." }) };
         }
@@ -75,9 +75,9 @@ export const handler = async (event: any) => {
 
         // Step 1: Find the Place ID
         const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(`Tupelo Honey Southern Kitchen & Bar, ${address}`)}&inputtype=textquery&fields=place_id&key=${mapsApiKey}`;
-        
+
         const findPlaceResponse = await safeFetch(findPlaceUrl);
-        
+
         if (!findPlaceResponse.ok) {
             // Log the error but don't crash the UI
             console.warn(`Google Maps Find Place API failed with status ${findPlaceResponse.status}`);
@@ -87,17 +87,17 @@ export const handler = async (event: any) => {
                 body: JSON.stringify({ data: { name: 'Location Details Unavailable', rating: 0, photoUrls: [] } })
             }
         }
-        
+
         const findPlaceData = await findPlaceResponse.json() as FindPlaceResponse;
 
         if (findPlaceData.status !== 'OK' || !findPlaceData.candidates || findPlaceData.candidates.length === 0) {
-             return { 
-                statusCode: 404, 
-                headers, 
-                body: JSON.stringify({ 
+            return {
+                statusCode: 404,
+                headers,
+                body: JSON.stringify({
                     error: `Could not find location for "${address}".`,
                     details: `${findPlaceData.status} - ${findPlaceData.error_message || 'No candidates found'}`
-                }) 
+                })
             };
         }
         const placeId = findPlaceData.candidates[0].place_id;
@@ -105,40 +105,40 @@ export const handler = async (event: any) => {
         // Step 2: Get Details
         const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${mapsApiKey}`;
         const detailsResponse = await safeFetch(detailsUrl);
-        
+
         if (!detailsResponse.ok) {
-             throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
+            throw new Error(`Google Maps Details API failed with status ${detailsResponse.status}`);
         }
-        
+
         const detailsData = await detailsResponse.json() as PlaceDetailsResponse;
 
         if (detailsData.status !== 'OK' || !detailsData.result) {
-             return { 
-                statusCode: 404, 
-                headers, 
-                body: JSON.stringify({ 
+            return {
+                statusCode: 404,
+                headers,
+                body: JSON.stringify({
                     error: `Could not fetch details for place ID ${placeId}.`,
                     details: `${detailsData.status} - ${detailsData.error_message || 'No result found'}`
-                }) 
+                })
             };
         }
-        
+
         const result = detailsData.result;
-        const photoUrls = (result.photos || []).slice(0, 10).map((p: any) => 
+        const photoUrls = (result.photos || []).slice(0, 10).map((p: any) =>
             `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${mapsApiKey}`
         );
-        
-        const responseData = { 
-            name: result.name, 
-            rating: result.rating, 
-            photoUrls 
+
+        const responseData = {
+            name: result.name,
+            rating: result.rating,
+            photoUrls
         };
 
         return { statusCode: 200, headers, body: JSON.stringify({ data: responseData }) };
 
     } catch (error: any) {
         console.error('Error in maps-proxy function:', error);
-        
+
         if (error.message === "External API timeout") {
             return {
                 statusCode: 504,
@@ -147,16 +147,12 @@ export const handler = async (event: any) => {
             };
         }
 
-        return { 
-            statusCode: 500, 
-            headers, 
-            body: JSON.stringify({ error: error.message || 'An internal server error occurred.' }) 
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: error.message || 'An internal server error occurred.' })
         };
     } finally {
         clearTimeout(timeoutId);
     }
 };
-
-// Make CommonJS-compatible export for the Netlify CLI local runner
-(module as any).exports = { handler };
-exports.handler = handler;
