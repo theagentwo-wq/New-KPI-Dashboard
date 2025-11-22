@@ -286,7 +286,7 @@ export const batchImportBudgetData = async (data: any[]): Promise<void> => {
             }
              if (Object.keys(targets).length > 0) {
                 const docId = `${storeId}_${year}_${month}`;
-                const docRef = budgetsCollection!.doc(.docId);
+                const docRef = budgetsCollection!.doc(docId);
                 batch.set(docRef, { storeId, year, month, targets }, { merge: true });
             }
         } else {
