@@ -15,16 +15,12 @@ const mapsClient = new MapsClient({});
 
 // Define a function to get the API key from Firebase environment
 const getApiKey = (keyName: string): string => {
-  try {
     const key = functions.config().keys[keyName];
-    if (key) {
+    if (typeof key === 'string' && key.length > 0) {
         return key;
     }
+    console.error(`Error accessing API key '${keyName}'. Ensure it is set in Firebase environment configuration.`);
     throw new functions.https.HttpsError('internal', `Could not retrieve API key: ${keyName}.`);
-  } catch (error) {
-    console.error(`Error accessing API key '${keyName}'. Ensure it is set in Firebase environment configuration.`, error);
-    throw new functions.https.HttpsError('internal', `Could not retrieve API key: ${keyName}.`);
-  }
 };
 
 app.post('/gemini', async (req: express.Request, res: express.Response) => {
