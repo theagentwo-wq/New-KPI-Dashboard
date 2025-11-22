@@ -1,12 +1,32 @@
-try {
-  return JSON.parse(jsonString);
-} catch (error) {
-  console.error(`[Gemini Proxy - ${context}] Failed to parse JSON string:`, {
-    error: error instanceof Error ? error.message : String(error),
-    rawString: jsonString.substring(0, 500) + (jsonString.length > 500 ? '...' : ''), // Log truncated string
-  });
-  throw new Error(`Failed to parse AI response for ${context}. Raw content: ${jsonString.substring(0, 100)}...`);
-}
+import { GoogleGenAI } from "@google/genai";
+import { Handler } from '@netlify/functions';
+import { isHoliday } from "../../utils/dateUtils";
+
+/**
+ * Safely parses a JSON string, providing a default value on parsing failure.
+ * This helper explicitly catches errors for malformed JSON strings, which can
+ * lead to unhandled exceptions and generic 502s in serverless functions.
+ * @param jsonString The string to parse.
+ * @param defaultValue The default value to return if parsing fails.
+ * @param context A string for logging, e.g., 'Gemini response for Sales Forecast'.
+ * @returns The parsed JSON object or the default value.
+ * @throws An Error if parsing fails and no default value is provided,
+ *         or if a specific error message needs to be propagated.
+ */
+function safeJsonParse(jsonString: string | undefined | null, defaultValue: any, context: string): any {
+  if (!jsonString || jsonString.trim() === '') {
+    console.warn(`[Gemini Proxy - ${context}] Received empty or undefined JSON string. Returning default value.`);
+    return defaultValue;
+  }
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error(`[Gemini Proxy - ${context}] Failed to parse JSON string:`, {
+      error: error instanceof Error ? error.message : String(error),
+      rawString: jsonString.substring(0, 500) + (jsonString.length > 500 ? '...' : ''), // Log truncated string
+    });
+    throw new Error(`Failed to parse AI response for ${context}. Raw content: ${jsonString.substring(0, 100)}...`);
+  }
 }
 
 export const handler: Handler = async (event, _context) => {

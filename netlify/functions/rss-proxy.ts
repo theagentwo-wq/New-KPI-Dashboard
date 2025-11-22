@@ -1,8 +1,23 @@
-{ name: 'Restaurant Hospitality', url: 'https://www.restaurant-hospitality.com/rss.xml' },
-{ name: 'QSR Magazine', url: 'https://www.qsrmagazine.com/rss.xml' },
-{ name: 'Modern Restaurant Mgmt', url: 'https://modernrestaurantmanagement.com/feed/' },
-{ name: 'Menu & Food Trends', url: 'https://www.restaurantnewsresource.com/rss_MENU_AND_FOOD_TRENDS.xml' },
-{ name: 'Restaurant Technology', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_TECHNOLOGY.xml' },
+// This function runs on Netlify's backend to fetch and parse RSS feeds.
+// It acts as a proxy to avoid client-side CORS issues.
+
+interface Article {
+    title: string;
+    link: string;
+    content: string;
+    sourceName: string;
+    pubDate: string;
+}
+
+// A more diverse and reliable list of RSS feeds for the restaurant industry.
+const RSS_FEEDS = [
+    { name: 'Restaurant Business', url: 'https://www.restaurantbusinessonline.com/rss/headlines' },
+    { name: 'Nation\'s Restaurant News', url: 'https://www.nrn.com/rss.xml' },
+    { name: 'Restaurant Hospitality', url: 'https://www.restaurant-hospitality.com/rss.xml' },
+    { name: 'QSR Magazine', url: 'https://www.qsrmagazine.com/rss.xml' },
+    { name: 'Modern Restaurant Mgmt', url: 'https://modernrestaurantmanagement.com/feed/' },
+    { name: 'Menu & Food Trends', url: 'https://www.restaurantnewsresource.com/rss_MENU_AND_FOOD_TRENDS.xml' },
+    { name: 'Restaurant Technology', url: 'https://www.restaurantnewsresource.com/rss_RESTAURANT_TECHNOLOGY.xml' },
 ];
 
 

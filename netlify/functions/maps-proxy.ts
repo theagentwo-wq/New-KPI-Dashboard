@@ -1,3 +1,10 @@
+// netlify/functions/maps-proxy.ts
+
+// Type definitions for Google Maps API responses
+interface FindPlaceResponse {
+    candidates?: { place_id: string }[];
+    status: string;
+    error_message?: string;
 }
 
 interface PlaceDetailsResponse {
