@@ -106999,6 +106999,7 @@ function getApiKeyFromEnv() {
 }
 
 // netlify/functions/gemini-proxy.ts
+init_src();
 init_dateUtils();
 function safeJsonParse(jsonString, defaultValue, context) {
   if (!jsonString || jsonString.trim() === "") {
@@ -107057,7 +107058,7 @@ var handler = async (event, _context) => {
     const invokeBackgroundFunction = (functionName, payload2) => {
       const origin = new URL(event.rawUrl).origin;
       const functionUrl = `${origin}/.netlify/functions/${functionName}`;
-      fetch(functionUrl, { method: "POST", body: JSON.stringify({ payload: payload2 }) }).catch((err) => console.error(`Error invoking background function '${functionName}':`, err));
+      fetch2(functionUrl, { method: "POST", body: JSON.stringify({ payload: payload2 }) }).catch((err) => console.error(`Error invoking background function '${functionName}':`, err));
     };
     let prompt = "";
     let responsePayload = {};

@@ -1,4 +1,5 @@
 // This function runs on Netlify's backend to fetch and parse RSS feeds.
+import fetch from 'node-fetch';
 // It acts as a proxy to avoid client-side CORS issues.
 
 interface Article {

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import fetch from 'node-fetch';
 import { Handler } from '@netlify/functions';
 import { isHoliday } from "../../utils/dateUtils";
 
