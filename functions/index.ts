@@ -16,7 +16,11 @@ const mapsClient = new MapsClient({});
 // Define a function to get the API key from Firebase environment
 const getApiKey = (keyName: string): string => {
   try {
-    return functions.config().keys[keyName];
+    const key = functions.config().keys[keyName];
+    if (key) {
+        return key;
+    }
+    throw new functions.https.HttpsError('internal', `Could not retrieve API key: ${keyName}.`);
   } catch (error) {
     console.error(`Error accessing API key '${keyName}'. Ensure it is set in Firebase environment configuration.`, error);
     throw new functions.https.HttpsError('internal', `Could not retrieve API key: ${keyName}.`);
