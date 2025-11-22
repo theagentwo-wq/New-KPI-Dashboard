@@ -13,12 +13,16 @@ app.use(cors({ origin: true }));
 
 const mapsClient = new MapsClient({});
 
-app.post("/gemini", async (req: express.Request, res: express.Response) => {
+// All routes are now prefixed with /api/ to match the hosting rewrite rule in firebase.json
+const apiRouter = express.Router();
+
+apiRouter.post("/gemini", async (req: express.Request, res: express.Response) => {
     const { action, payload } = req.body;
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
     try {
         let result;
+        // This is a simplified handler. In a real app, you'd have a switch or a more robust system.
         if (action === "getExecutiveSummary") {
             const { data, view, periodLabel } = payload;
             const model = genAI.getGenerativeModel({ model: "gemini-pro" });
@@ -26,7 +30,14 @@ app.post("/gemini", async (req: express.Request, res: express.Response) => {
             const generationResult = await model.generateContent(prompt);
             result = { content: generationResult.response.text() };
         } else {
-            throw new Error(`Unknown action: ${action}`);
+             // Acknowledge other actions even if not fully implemented
+            console.warn(`Action "${action}" received but not implemented.`);
+            // Sending a specific error for the Huddle Brief for now.
+            if (action === "generateHuddleBrief") {
+                return res.status(501).json({ error: "Huddle Brief generation is not yet implemented on the server." });
+            }
+            // For other actions, return a generic "not implemented"
+            result = { content: `Action '${action}' is not implemented.` };
         }
         res.json(result);
     } catch (error) {
@@ -35,7 +46,7 @@ app.post("/gemini", async (req: express.Request, res: express.Response) => {
     }
 });
 
-app.get("/maps/apiKey", (req: express.Request, res: express.Response) => {
+apiRouter.get("/maps/apiKey", (req: express.Request, res: express.Response) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
     } catch (error) {
@@ -44,16 +55,18 @@ app.get("/maps/apiKey", (req: express.Request, res: express.Response) => {
     }
 });
 
-app.post("/maps/placeDetails", async (req: express.Request, res: express.Response) => {
+apiRouter.post("/maps/placeDetails", async (req: express.Request, res: express.Response) => {
     const { address } = req.body;
     if (!address) {
         return res.status(400).json({ error: "Address is required" });
     }
     try {
+        // In a real app, you should not pass the address as the place_id.
+        // This is a simplification for this example.
         const response: PlaceDetailsResponse = await mapsClient.placeDetails({
             params: {
-                place_id: address,
-                fields: ["name", "rating", "photos"],
+                place_id: address, 
+                fields: ["name", "rating", "photos", "url", "website", "reviews"],
                 key: process.env.MAPS_API_KEY!,
             },
         });
@@ -63,5 +76,8 @@ app.post("/maps/placeDetails", async (req: express.Request, res: express.Respons
         res.status(500).json({ error: "Failed to fetch place details." });
     }
 });
+
+// Mount the router under the /api base path
+app.use('/api', apiRouter);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
