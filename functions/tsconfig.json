@@ -1,18 +1,17 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "outDir": "dist",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "es2021",
     "sourceMap": true,
+    "outDir": "dist",
     "strict": true,
-    "target": "es2017",
-    "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "compileOnSave": true,
   "include": [
-    "src/*",
     "index.ts"
   ]
 }
