@@ -1,7 +1,6 @@
-// FIX: All firebase imports are changed to use the v8 compat library with the correct namespaced syntax.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
-import 'firebase/compat/storage';
+// NOTE: Firebase SDK is dynamically imported inside `initializeFirebaseService`.
+// Avoid top-level imports to prevent Netlify function module-load crashes (502s).
+let firebase: any = null;
 
 import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FinancialLineItem } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
@@ -12,18 +11,18 @@ export type FirebaseStatus =
   | { status: 'connected' }
   | { status: 'error', message: string, rawValue?: string };
 
-let app: firebase.app.App | null = null;
-let db: firebase.firestore.Firestore | null = null;
-let storage: firebase.storage.Storage | null = null;
-let notesCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let directorsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let actualsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let budgetsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let mappingsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let goalsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let analysisJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let importJobsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
-let deploymentsCollection: firebase.firestore.CollectionReference<firebase.firestore.DocumentData> | null = null;
+let app: any = null;
+let db: any = null;
+let storage: any = null;
+let notesCollection: any = null;
+let directorsCollection: any = null;
+let actualsCollection: any = null;
+let budgetsCollection: any = null;
+let mappingsCollection: any = null;
+let goalsCollection: any = null;
+let analysisJobsCollection: any = null;
+let importJobsCollection: any = null;
+let deploymentsCollection: any = null;
 
 
 let isInitialized = false;
@@ -73,6 +72,22 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
              throw err;
         }
         
+        // Dynamically import the Firebase compat SDK at runtime to avoid
+        // loading browser-only modules during Netlify function module initialization.
+        if (!firebase) {
+            try {
+                const compat = await import('firebase/compat/app');
+                // compat may expose default or named export depending on bundler
+                firebase = (compat && (compat as any).default) || compat;
+                // load firestore + storage side-effects
+                await import('firebase/compat/firestore');
+                await import('firebase/compat/storage');
+            } catch (e) {
+                console.error('Failed to dynamically import Firebase compat SDK:', e);
+                throw new Error('Server failed to load Firebase SDK.');
+            }
+        }
+
         if (!firebase.apps.length) {
             app = firebase.initializeApp(firebaseConfig);
         } else {
@@ -300,11 +315,11 @@ export const getPerformanceData = async (startDate: Date, endDate: Date): Promis
     if (!actualsCollection) return [];
     const q = actualsCollection.where('weekStartDate', '>=', startDate).where('weekStartDate', '<=', endDate);
     const snapshot = await q.get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => {
+    return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
             ...data,
-            weekStartDate: (data.weekStartDate as firebase.firestore.Timestamp).toDate()
+            weekStartDate: (data.weekStartDate as any).toDate()
         } as StorePerformanceData
     });
 };
@@ -313,7 +328,7 @@ export const getBudgets = async (year: number): Promise<Budget[]> => {
     if (!budgetsCollection) return [];
     const q = budgetsCollection.where('year', '==', year);
     const snapshot = await q.get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => doc.data() as Budget);
+    return snapshot.docs.map((doc: any) => doc.data() as Budget);
 };
 
 export const updateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number): Promise<void> => {
@@ -335,7 +350,7 @@ export const updateBudget = async (storeId: string, year: number, month: number,
 export const getGoals = async (): Promise<Goal[]> => {
     if (!goalsCollection) return [];
     const snapshot = await goalsCollection.get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Goal));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Goal));
 };
 
 export const addGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {
@@ -350,7 +365,7 @@ export const getNotes = async (): Promise<Note[]> => {
     if (!notesCollection) return [];
     const q = notesCollection.orderBy('createdAt', 'desc');
     const snapshot = await q.get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString() } as Note));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data(), createdAt: (doc.data().createdAt as any).toDate().toISOString() } as Note));
 };
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
@@ -396,7 +411,7 @@ export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
             await batch.commit();
             return fallbackDirectors;
         }
-        return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => doc.data() as DirectorProfile);
+        return snapshot.docs.map((doc: any) => doc.data() as DirectorProfile);
     } catch (e) {
         return fallbackDirectors;
     }
@@ -484,11 +499,11 @@ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, per
     }
     
     const weeklyData: PerformanceData[] = storeDataSnapshot.docs
-        .map((doc: firebase.firestore.QueryDocumentSnapshot) => {
+        .map((doc: any) => {
             const data = doc.data();
             return {
                 ...data,
-                weekStartDate: (data.weekStartDate as firebase.firestore.Timestamp).toDate()
+                weekStartDate: (data.weekStartDate as any).toDate()
             } as StorePerformanceData;
         })
         .filter((item: StorePerformanceData) => 
@@ -554,7 +569,7 @@ export const updateAnalysisJob = async (jobId: string, data: any): Promise<void>
 
 export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): (() => void) => {
     if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
-    return analysisJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
+    return analysisJobsCollection.doc(jobId).onSnapshot((doc: any) => {
         if (doc.exists) {
             callback({ id: doc.id, ...doc.data() });
         }
@@ -590,7 +605,7 @@ export const updateImportJob = async (jobId: string, data: any): Promise<void> =
 
 export const listenToImportJob = (jobId: string, callback: (data: any) => void): (() => void) => {
     if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
-    return importJobsCollection.doc(jobId).onSnapshot((doc: firebase.firestore.DocumentSnapshot) => {
+    return importJobsCollection.doc(jobId).onSnapshot((doc: any) => {
         if (doc.exists) {
             callback({ id: doc.id, ...doc.data() });
         }
@@ -601,10 +616,10 @@ export const listenToImportJob = (jobId: string, callback: (data: any) => void):
 export const getDeployments = async (): Promise<Deployment[]> => {
     if (!deploymentsCollection) return [];
     const snapshot = await deploymentsCollection.orderBy('startDate', 'desc').get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({
+    return snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: (doc.data().createdAt as firebase.firestore.Timestamp).toDate().toISOString()
+        createdAt: (doc.data().createdAt as any).toDate().toISOString()
     } as Deployment));
 };
 
@@ -638,7 +653,7 @@ export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate
 export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
     if (!mappingsCollection) return [];
     const snapshot = await mappingsCollection.orderBy('name').get();
-    return snapshot.docs.map((doc: firebase.firestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
 };
 
 export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {
