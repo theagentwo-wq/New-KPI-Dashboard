@@ -30,7 +30,6 @@ router.post("/gemini", async (req, res) => {
                 const { data, view, periodLabel } = payload;
                 prompt = `Generate an executive summary for the ${view} view for the period ${periodLabel}. Data: ${JSON.stringify(data)}`;
                 break;
-            // FIXED: Added the missing 'getReviewSummary' action.
             case "getReviewSummary":
                 const { locationName, reviews } = payload;
                 if (!reviews || !locationName) return res.status(400).json({ error: "Location name and reviews are required." });
@@ -74,19 +73,20 @@ router.post("/maps/placeDetails", async (req, res) => {
         const findPlaceResponse: FindPlaceFromTextResponse = await mapsClient.findPlaceFromText({
             params: {
                 input: address,
-                inputtype: PlaceInputType.textQuery, 
+                inputtype: PlaceInputType.textQuery,
                 fields: ['place_id'],
                 key: process.env.MAPS_API_KEY!,
             }
         });
 
         if (findPlaceResponse.data.status !== 'OK' || !findPlaceResponse.data.candidates || findPlaceResponse.data.candidates.length === 0) {
+            console.error("Maps API Error (findPlaceFromText):", findPlaceResponse.data.error_message);
             return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for address: "${address}"` });
         }
 
         const placeId = findPlaceResponse.data.candidates[0].place_id;
         if (!placeId) return res.status(404).json({ error: 'Could not extract Place ID from address.' });
-        
+
         const detailsResponse: PlaceDetailsResponse = await mapsClient.placeDetails({
             params: {
                 place_id: placeId,
@@ -98,14 +98,15 @@ router.post("/maps/placeDetails", async (req, res) => {
         if (detailsResponse.data.status === 'OK') {
             res.json({ data: detailsResponse.data.result });
         } else {
+            console.error("Maps API Error (placeDetails):", detailsResponse.data.error_message);
             res.status(500).json({ error: detailsResponse.data.error_message || `Google Maps API Error: ${detailsResponse.data.status}` });
         }
     } catch (error) {
+        console.error(`Error processing place details for address: ${address}`, error);
         res.status(500).json({ error: "Failed to process place details request." });
     }
 });
 
-// FIXED: Removed the incorrect "/api" prefix which was breaking all routes.
 app.use(router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
