@@ -4,7 +4,9 @@ import { isHoliday } from '../../utils/dateUtils';
 
 // Gemini API v1 endpoint (stable)
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models';
-const GEMINI_MODEL = 'gemini-1.5-flash';
+// Allow selecting the Gemini model via env var. Default to a commonly available
+// model; change this to one your account supports if needed.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 // Helper to safely parse JSON from AI response (removes markdown fences)
 const safeJsonParse = (text: string, fallback: any, context: string) => {

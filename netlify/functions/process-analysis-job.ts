@@ -113,7 +113,9 @@ export const handler: Handler = async (event, _context) => {
 
             ---`;
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }); // Using 1.5-pro as 3-pro-preview might not be available
+        // Use env override if provided, otherwise fall back to a commonly available model.
+        const modelName = process.env.GEMINI_MODEL || 'gemini-2.5';
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const result = await model.generateContent([
             { text: prompt },
