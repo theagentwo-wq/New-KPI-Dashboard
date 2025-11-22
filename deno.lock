@@ -23,6 +23,7 @@
         "npm:autoprefixer@^10.4.19",
         "npm:date-fns@^3.6.0",
         "npm:dotenv@^16.4.5",
+        "npm:esbuild@~0.20.2",
         "npm:eslint-plugin-react-hooks@^4.6.0",
         "npm:eslint-plugin-react-refresh@~0.4.6",
         "npm:eslint@^8.57.0",
