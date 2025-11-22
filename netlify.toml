@@ -1,16 +1,15 @@
 [build]
-command = "npm run build"
-publish = "dist"
-functions = "functions-dist"
+  command = "npm run build"
+  publish = "dist"
+  functions = "functions-dist"
 
 [functions]
-node_bundler = "esbuild"
-directory = "functions-dist"
-timeout = 26
+  node_bundler = "esbuild"
+  directory = "functions-dist"
+  timeout = 26
 
 [functions."process-analysis-job"]
-background = true
+  background = true
 
 [functions."process-import-job"]
-background = true
-
+  background = true
