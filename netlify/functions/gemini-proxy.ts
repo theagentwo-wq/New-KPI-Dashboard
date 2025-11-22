@@ -2,6 +2,33 @@ import { GoogleGenAI } from "@google/genai";
 import { Handler } from '@netlify/functions';
 import { isHoliday } from "../../utils/dateUtils";
 
+/**
+ * Safely parses a JSON string, providing a default value on parsing failure.
+ * This helper explicitly catches errors for malformed JSON strings, which can
+ * lead to unhandled exceptions and generic 502s in serverless functions.
+ * @param jsonString The string to parse.
+ * @param defaultValue The default value to return if parsing fails.
+ * @param context A string for logging, e.g., 'Gemini response for Sales Forecast'.
+ * @returns The parsed JSON object or the default value.
+ * @throws An Error if parsing fails and no default value is provided,
+ *         or if a specific error message needs to be propagated.
+ */
+function safeJsonParse(jsonString: string | undefined | null, defaultValue: any, context: string): any {
+    if (!jsonString || jsonString.trim() === '') {
+        console.warn(`[Gemini Proxy - ${context}] Received empty or undefined JSON string. Returning default value.`);
+        return defaultValue;
+    }
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error(`[Gemini Proxy - ${context}] Failed to parse JSON string:`, {
+            error: error instanceof Error ? error.message : String(error),
+            rawString: jsonString.substring(0, 500) + (jsonString.length > 500 ? '...' : ''), // Log truncated string
+        });
+        throw new Error(`Failed to parse AI response for ${context}. Raw content: ${jsonString.substring(0, 100)}...`);
+    }
+}
+
 export const handler: Handler = async (event, _context) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -27,9 +54,26 @@ export const handler: Handler = async (event, _context) => {
     };
   }
 
+  let action: string;
+  let payload: any;
+  try {
+    const parsedBody = JSON.parse(event.body || '{}');
+    action = parsedBody.action;
+    payload = parsedBody.payload;
+    console.log(`[Gemini Proxy] Received action: ${action} with payload:`, payload);
+  } catch (parseError) {
+    console.error("[Gemini Proxy] Failed to parse request body:", parseError);
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: `Invalid request body: ${parseError instanceof Error ? parseError.message : String(parseError)}` }),
+    };
+  }
+
+
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const { action, payload } = JSON.parse(event.body || '{}');
+    
 
     const invokeBackgroundFunction = (functionName: string, payload: any) => {
         const origin = new URL(event.rawUrl).origin;
@@ -170,7 +214,7 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
-          responsePayload = { forecast: JSON.parse(response.text || '[]') };
+          responsePayload = { forecast: safeJsonParse(response.text, [], `Sales Forecast for ${location}`) };
           break;
       }
       
@@ -214,7 +258,7 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
-          responsePayload = { anomalies: JSON.parse(response.text || '[]') };
+          responsePayload = { anomalies: safeJsonParse(response.text, [], `Anomaly Detections for period`) };
           break;
       }
 
@@ -226,7 +270,7 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
               contents: prompt,
               config: { responseMimeType: "application/json" }
           });
-          responsePayload = JSON.parse(response.text || '{}');
+          responsePayload = safeJsonParse(response.text, {}, `What-If Scenario for "${userPrompt}"`);
           break;
       }
       
@@ -242,8 +286,20 @@ Data: ${JSON.stringify(storeData, null, 2)}`;
     
   } catch (error: any) {
     console.error('Error in Gemini proxy:', error);
-    // Ensure we return a JSON error even for timeouts
-    const statusCode = error.message.includes("Timed Out") ? 504 : 500;
-    return { statusCode, headers, body: JSON.stringify({ error: error.message || 'An internal server error occurred.' }) };
+    // Ensure we return a JSON error even for timeouts or parsing issues
+    let statusCode = 500;
+    let errorMessage = 'An internal server error occurred.';
+
+    if (error.message.includes("Timed Out")) {
+        statusCode = 504; // Gateway Timeout
+        errorMessage = "Gemini API request timed out. Please try again.";
+    } else if (error.message.includes("Failed to parse AI response")) {
+        statusCode = 500; // Internal Server Error, but specific to parsing
+        errorMessage = `AI response could not be parsed: ${error.message}`;
+    } else {
+        errorMessage = error.message || errorMessage;
+    }
+
+    return { statusCode, headers, body: JSON.stringify({ error: errorMessage }) };
   }
 };

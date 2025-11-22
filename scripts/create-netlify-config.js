@@ -19,8 +19,9 @@ const tomlContent = `# Netlify configuration for timeouts and background functio
 [functions]
   # Tell Netlify where to find the compiled serverless functions.
   directory = "functions-dist"
-  # Set the default timeout for all synchronous serverless functions to 25 seconds.
-  timeout = 25
+  # Set the default timeout for all synchronous serverless functions to 26 seconds.
+  # This provides a buffer for AI responses to be processed.
+  timeout = 26
 
 # Define 'process-analysis-job' as a background function.
 # This allows it to run for up to 15 minutes, which is essential for the
