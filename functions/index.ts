@@ -1,9 +1,9 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import * as express from 'express';
-import * as cors from 'cors';
+import express from 'express';
+import cors from 'cors';
 import { Client as MapsClient, PlaceDetailsResponse } from '@googlemaps/google-maps-services-js';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 admin.initializeApp();
 
@@ -23,7 +23,7 @@ const getApiKey = (keyName: string): string => {
   }
 };
 
-app.post('/gemini', async (req, res) => {
+app.post('/gemini', async (req: express.Request, res: express.Response) => {
   const { action, payload } = req.body;
   const genAI = new GoogleGenerativeAI(getApiKey('gemini'));
 
@@ -47,7 +47,7 @@ app.post('/gemini', async (req, res) => {
   }
 });
 
-app.get('/maps/apiKey', (req, res) => {
+app.get('/maps/apiKey', (req: express.Request, res: express.Response) => {
   try {
     res.json({ apiKey: getApiKey('maps') });
   } catch (error) {
@@ -56,7 +56,7 @@ app.get('/maps/apiKey', (req, res) => {
   }
 });
 
-app.post('/maps/placeDetails', async (req, res) => {
+app.post('/maps/placeDetails', async (req: express.Request, res: express.Response) => {
   const { address } = req.body;
   if (!address) {
     return res.status(400).json({ error: 'Address is required' });
