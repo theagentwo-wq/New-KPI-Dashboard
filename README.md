@@ -9,9 +9,9 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **Charts**: Recharts
-- **AI**: Google Gemini API (via Netlify Proxy)
-- **Maps**: Google Maps Platform (via Netlify Proxy)
-- **Database**: Google Firestore & Firebase Storage
+- **AI**: Google Gemini API
+- **Maps**: Google Maps Platform
+- **Database & Hosting**: Google Firebase (Firestore, Firebase Storage, Firebase Hosting)
 
 ## Local Setup (Foolproof Guide)
 
@@ -21,7 +21,7 @@ Follow these steps exactly to get the dashboard running locally.
 
 - Node.js (v18 or later)
 - npm or yarn
-- Netlify CLI (for running the backend functions)
+- Firebase CLI
 
 ### 2. Installation
 
@@ -35,8 +35,8 @@ cd operations-kpi-dashboard
 # Install all project dependencies
 npm install
 
-# Install the Netlify CLI globally if you haven't already
-npm install -g netlify-cli
+# Install the Firebase CLI globally if you haven't already
+npm install -g firebase-tools
 ```
 
 ### 3. Configure Your API Keys
@@ -46,59 +46,49 @@ This is the most important step. All API keys are managed in a local environment
 1.  **Find the template file:** In the project root, you will find a file named `.env.local.example`.
 2.  **Rename the file:** Rename this file to **`.env.local`**.
 3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
-    *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey). This key is used by the backend service.
+    *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey).
     *   `MAPS_API_KEY`: Get this from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). See the "Google Maps API Key Guide" below.
     *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
 
 ### 4. Run the Development Server
 
-The `netlify dev` command starts both the frontend application and the backend proxy functions. **You must restart this server any time you change your `.env.local` file.**
+The `npm run dev` command starts the frontend application. **You must restart this server any time you change your `.env.local` file.**
 
 ```bash
 # Run the local development server
-netlify dev
+npm run dev
 ```
 
-The application will now be running at `http://localhost:8888`.
+The application will now be running at `http://localhost:5173` (or another port if 5173 is in use).
 
-## Deployment to Netlify
+## Deployment to Firebase Hosting
 
-### 1. Push to a GitHub Repository
+### 1. Login to Firebase
 
-Push your project code to a GitHub repository.
+If you haven't already, log in to the Firebase CLI.
 
-### 2. Connect to Netlify
+```bash
+firebase login
+```
 
-1.  Log in to your Netlify account.
-2.  "Add new site" -> "Import an existing project".
-3.  Connect to your Git provider and select the repository.
+### 2. Configure Firebase for your project
 
-### 3. Configure Build Settings
+If this is the first time deploying, you may need to initialize Firebase.
 
-Netlify should automatically detect these settings:
+```bash
+firebase init
+```
+Follow the prompts, selecting "Hosting" and connecting it to your existing Firebase project.
 
--   **Build command**: `npm run build`
--   **Publish directory**: `dist`
--   **Functions directory**: `netlify/functions`
+### 3. Build and Deploy
 
-### 4. Add Environment Variables
+This single command will build your project and deploy it to Firebase Hosting.
 
-This step is **critical** for the deployed application to work. You must add **all** of the following variables from your `.env.local` file to your Netlify settings.
+```bash
+npm run build && firebase deploy --only hosting
+```
 
-1.  In your Netlify site's dashboard, go to **Site configuration > Environment variables**.
-2.  Add your **Gemini API Key**:
-    -   **Key**: `GEMINI_API_KEY`
-    -   **Value**: Paste your Google Gemini API key.
-3.  Add your **Maps API Key**:
-    -   **Key**: `MAPS_API_KEY`
-    -   **Value**: Paste your Google Maps Platform API key.
-4.  Add your **Firebase Client Config**:
-    -   **Key**: `FIREBASE_CLIENT_CONFIG`
-    -   **Value**: Paste the single-line JSON string for your Firebase client config. See the guide below for the exact format.
-
-### 5. Deploy
-
-Trigger a new deploy from the "Deploys" tab.
+Your site will be live at the URL provided by Firebase.
 
 ---
 
@@ -126,7 +116,7 @@ You must enable three specific APIs for all map features to work.
 ### Step 3: Add the Key to Your Project
 
 -   **For Local Development:** Paste the key into your `.env.local` file for the `MAPS_API_KEY` variable.
--   **For Deployment:** Paste the key into your Netlify site's environment variables with the key `MAPS_API_KEY`.
+-   **For Deployment:** Firebase Hosting automatically has access to your project's configuration. No extra steps are needed if you configured your `.env.local` file correctly.
 
 ---
 
@@ -145,7 +135,7 @@ Follow these steps to configure your Firebase project correctly.
 
 1.  Copy the entire object, from the opening `{` to the closing `}`.
 2.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a **single, continuous line of text**.
-3.  This single line is the value you will paste into your `.env.local` file and your Netlify settings for `FIREBASE_CLIENT_CONFIG`.
+3.  This single line is the value you will paste into your `.env.local` file for `FIREBASE_CLIENT_CONFIG`.
 
 #### ✅ Correct Final Format:
 `{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}`

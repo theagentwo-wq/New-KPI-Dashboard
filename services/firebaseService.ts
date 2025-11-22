@@ -1,5 +1,4 @@
 // NOTE: Firebase SDK is dynamically imported inside `initializeFirebaseService`.
-// Avoid top-level imports to prevent Netlify function module-load crashes (502s).
 let firebase: any = null;
 
 import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FinancialLineItem } from '../types';
