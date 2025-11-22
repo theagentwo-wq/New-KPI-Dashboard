@@ -6,7 +6,7 @@
 [functions]
   node_bundler = "esbuild"
   directory = "functions-dist"
-  timeout = 26
+  timeout = 25
 
 [functions."process-analysis-job"]
   background = true
