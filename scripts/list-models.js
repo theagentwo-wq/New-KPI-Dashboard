@@ -1,5 +1,5 @@
 import { config as loadEnv } from 'dotenv';
-loadEnv();
+loadEnv({ path: '.env.local' });
 import { GoogleGenAI } from "@google/genai";
 
 (async () => {
