@@ -31,16 +31,13 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (isInitialized) return { status: 'connected' };
 
     try {
-        // IMPORTANT: Replace the placeholder values below with your actual
-        // Firebase project configuration. These values are found in the 
-        // Firebase console for your web app.
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCKoWG5R0H7WPeTZ50P8lHrUiOYQyuTfu4",
+            authDomain: "operations-kpi-dashboard.firebaseapp.com",
+            projectId: "operations-kpi-dashboard",
+            storageBucket: "operations-kpi-dashboard.firebasestorage.app",
+            messagingSenderId: "888247978360",
+            appId: "1:888247978360:web:58ee0decf65dbf83fb208d"
         };
         
         // Dynamically import the Firebase compat SDK at runtime
