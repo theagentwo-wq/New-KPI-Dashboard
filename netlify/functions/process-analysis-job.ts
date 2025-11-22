@@ -1,7 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 import { initializeFirebaseService, updateAnalysisJob, deleteFileByPath } from '../../services/firebaseService';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
 import { Handler } from '@netlify/functions';
 
 declare var Buffer: any;
@@ -35,7 +33,18 @@ export const handler: Handler = async (event, _context) => {
     let jobDetails: any = {};
 
     try {
-        // Use Firebase v8 compat syntax for consistency.
+        // Dynamically import Firebase compat SDK at runtime to avoid
+        // loading browser-only modules during function module initialization.
+        let firebase: any = null;
+        try {
+            const compat = await import('firebase/compat/app');
+            firebase = (compat && (compat as any).default) || compat;
+            await import('firebase/compat/firestore');
+        } catch (e) {
+            console.error('Failed to dynamically import Firebase in background function:', e);
+            throw e;
+        }
+
         const db = firebase.firestore();
         const docRef = db.collection("analysis_jobs").doc(jobId);
         const docSnap = await docRef.get();
