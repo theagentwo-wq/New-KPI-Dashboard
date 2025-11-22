@@ -36,34 +36,22 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     try {
         let firebaseConfig;
 
-        if (isServer) {
-            // SERVER-SIDE: read directly from environment variables.
-            const configStr = process.env.FIREBASE_CLIENT_CONFIG;
-            if (!configStr) {
-                throw new Error("FIREBASE_CLIENT_CONFIG environment variable is not set on the server.");
-            }
-            let cleanedConfigStr = configStr.trim();
-            if ((cleanedConfigStr.startsWith("'") && cleanedConfigStr.endsWith("'")) || (cleanedConfigStr.startsWith('"') && cleanedConfigStr.endsWith('"'))) {
-                cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
-            }
-            try {
-                firebaseConfig = JSON.parse(cleanedConfigStr);
-            } catch (jsonError) {
-                // Specific error handling for server-side JSON parsing failure
-                const err = new Error("Your FIREBASE_CLIENT_CONFIG is not valid JSON. Please ensure it is a single-line, correctly formatted JSON string.");
-                (err as any).cause = cleanedConfigStr; // Attach the problematic string for debugging
-                throw err;
-            }
-        } else {
-            // CLIENT-SIDE: fetch from the secure proxy.
-            const response = await fetch('/.netlify/functions/firebase-config-proxy');
-            const data = await response.json();
-            if (!response.ok) {
-                 const err = new Error(data.error || 'Failed to fetch Firebase config');
-                 (err as any).cause = data.rawValue;
-                 throw err;
-            }
-            firebaseConfig = data;
+        // SERVER-SIDE: read directly from environment variables.
+        const configStr = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+        if (!configStr) {
+            throw new Error("FIREBASE_CLIENT_CONFIG environment variable is not set.");
+        }
+        let cleanedConfigStr = configStr.trim();
+        if ((cleanedConfigStr.startsWith("\'") && cleanedConfigStr.endsWith("\'")) || (cleanedConfigStr.startsWith('\"') && cleanedConfigStr.endsWith('\"'))) {
+            cleanedConfigStr = cleanedConfigStr.substring(1, cleanedConfigStr.length - 1);
+        }
+        try {
+            firebaseConfig = JSON.parse(cleanedConfigStr);
+        } catch (jsonError) {
+            // Specific error handling for server-side JSON parsing failure
+            const err = new Error("Your FIREBASE_CLIENT_CONFIG is not valid JSON. Please ensure it is a single-line, correctly formatted JSON string.");
+            (err as any).cause = cleanedConfigStr; // Attach the problematic string for debugging
+            throw err;
         }
         
         if (Object.keys(firebaseConfig).length === 0) {
@@ -117,7 +105,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         // Include rawValue only if it's available for client-side display.
         const errorMessage = error.message.includes("FIREBASE_CLIENT_CONFIG is not valid JSON") 
             ? error.message
-            : `Firebase initialization failed: The config value from your Netlify settings is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`;
+            : `Firebase initialization failed: The config value is invalid and could not be parsed. Please carefully follow the updated instructions in the README.`;
 
         return { 
             status: 'error', 
@@ -298,7 +286,7 @@ export const batchImportBudgetData = async (data: any[]): Promise<void> => {
             }
              if (Object.keys(targets).length > 0) {
                 const docId = `${storeId}_${year}_${month}`;
-                const docRef = budgetsCollection!.doc(docId);
+                const docRef = budgetsCollection!.doc(.docId);
                 batch.set(docRef, { storeId, year, month, targets }, { merge: true });
             }
         } else {
