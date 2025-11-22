@@ -69129,8 +69129,8 @@ var handler = async (event, _context) => {
     5.  **FORMAT:** Return strictly JSON.`;
     let aiResponseText;
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      // Using 1.5-flash as 2.5 might not be available in this SDK version or generally
+      model: "gemini-pro",
+      // Using gemini-pro for v1 API compatibility
       generationConfig: { responseMimeType: "application/json", responseSchema: universalSchema }
     });
     if (jobType === "document") {
