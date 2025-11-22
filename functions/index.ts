@@ -30,6 +30,12 @@ router.post("/gemini", async (req, res) => {
                 const { data, view, periodLabel } = payload;
                 prompt = `Generate an executive summary for the ${view} view for the period ${periodLabel}. Data: ${JSON.stringify(data)}`;
                 break;
+            // FIXED: Added the missing 'getReviewSummary' action.
+            case "getReviewSummary":
+                const { locationName, reviews } = payload;
+                if (!reviews || !locationName) return res.status(400).json({ error: "Location name and reviews are required." });
+                prompt = `Generate a concise summary of customer reviews for the restaurant "${locationName}". Highlight recurring positive themes (e.g., specific dishes, service quality, atmosphere) and negative feedback. Start with a 1-2 sentence overall sentiment analysis. Reviews: ${JSON.stringify(reviews)}`;
+                break;
             case "getLocationMarketAnalysis":
                 const { location } = payload;
                 if (!location) return res.status(400).json({ error: "Location is required for market analysis." });
@@ -68,7 +74,6 @@ router.post("/maps/placeDetails", async (req, res) => {
         const findPlaceResponse: FindPlaceFromTextResponse = await mapsClient.findPlaceFromText({
             params: {
                 input: address,
-                // FIXED: Corrected the casing from 'textquery' to 'textQuery'.
                 inputtype: PlaceInputType.textQuery, 
                 fields: ['place_id'],
                 key: process.env.MAPS_API_KEY!,
@@ -76,7 +81,6 @@ router.post("/maps/placeDetails", async (req, res) => {
         });
 
         if (findPlaceResponse.data.status !== 'OK' || !findPlaceResponse.data.candidates || findPlaceResponse.data.candidates.length === 0) {
-            console.error("Maps API Error (findPlaceFromText):", findPlaceResponse.data.error_message);
             return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for address: "${address}"` });
         }
 
@@ -94,15 +98,14 @@ router.post("/maps/placeDetails", async (req, res) => {
         if (detailsResponse.data.status === 'OK') {
             res.json({ data: detailsResponse.data.result });
         } else {
-            console.error("Maps API Error (placeDetails):", detailsResponse.data.error_message);
             res.status(500).json({ error: detailsResponse.data.error_message || `Google Maps API Error: ${detailsResponse.data.status}` });
         }
     } catch (error) {
-        console.error(`Error processing place details for address: ${address}`, error);
         res.status(500).json({ error: "Failed to process place details request." });
     }
 });
 
-app.use("/api", router);
+// FIXED: Removed the incorrect "/api" prefix which was breaking all routes.
+app.use(router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
