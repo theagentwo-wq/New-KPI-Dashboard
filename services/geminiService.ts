@@ -15,9 +15,11 @@ export interface PlaceDetails {
     };
 }
 
+const API_BASE_URL = 'https://api-watqbfh3lq-uc.a.run.app/api';
+
 async function callAIApi(action: string, payload: any): Promise<any> {
     try {
-        const response = await fetch('/api/gemini', {
+        const response = await fetch(`${API_BASE_URL}/gemini`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, payload }),
@@ -66,27 +68,9 @@ export const deleteImportFile = async (filePath: string): Promise<void> => {
     }
 };
 
-export const getMapsApiKey = async (): Promise<string> => {
-    try {
-        const response = await fetch('/api/maps/apiKey');
-        if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(errorBody.error || 'Failed to fetch Maps API key');
-        }
-        const data = await response.json();
-        return data.apiKey;
-    } catch (error) {
-        console.error("Error fetching Maps API key:", error);
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error('An unknown error occurred while fetching the Maps API key.');
-    }
-};
-
 export const getPlaceDetails = async (location: string): Promise<PlaceDetails> => {
     try {
-        const response = await fetch('/api/maps/placeDetails', {
+        const response = await fetch(`${API_BASE_URL}/maps/placeDetails`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ location }),

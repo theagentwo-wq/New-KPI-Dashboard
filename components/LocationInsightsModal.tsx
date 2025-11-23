@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getMapsApiKey, getPlaceDetails, PlaceDetails } from '../services/geminiService';
+import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getPlaceDetails, PlaceDetails } from '../services/geminiService';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
 import { PerformanceData, Kpi, DailyForecast } from '../types';
@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
 import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
+import { API_KEY } from '../lib/ai-client';
 
 interface LocationInsightsModalProps {
   isOpen: boolean;
@@ -72,7 +73,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>('reviews');
     const [activeVisualTab, setActiveVisualTab] = useState<VisualTab>('details');
-    const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
     const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
     const [isPlaceDetailsLoading, setIsPlaceDetailsLoading] = useState(false);
     const [placeDetailsError, setPlaceDetailsError] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
     const resetState = () => {
         setIsFullScreen(false); setActiveAnalysisTab('reviews'); setActiveVisualTab('details');
-        setAnalysisContent({}); setIsLoadingAnalysis({}); setMapsApiKey(null);
+        setAnalysisContent({}); setIsLoadingAnalysis({});
         setPlaceDetails(null); setIsPlaceDetailsLoading(false); setPlaceDetailsError(null);
     };
 
@@ -92,7 +92,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (isOpen && location) {
             const fetchInitialData = async () => {
                 try {
-                    const key = await getMapsApiKey(); setMapsApiKey(key);
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
                     const details = await getPlaceDetails(location);
                     setPlaceDetails(details);
@@ -185,13 +184,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            if (!mapsApiKey) return <LoadingSpinner message="Loading Street View..." />;
             const lat = placeDetails?.geometry?.location?.lat;
             const lon = placeDetails?.geometry?.location?.lng;
             if (!lat || !lon) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Street View Unavailable</h4><p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p></div>;
 
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${mapsApiKey}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
-            return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${API_KEY}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
+            return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen allow="geolocation" src={embedUrl}></iframe>;
         }
 
         if (isPlaceDetailsLoading) return <LoadingSpinner message="Loading location details..." />;

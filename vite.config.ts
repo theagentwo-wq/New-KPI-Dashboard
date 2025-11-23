@@ -18,9 +18,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5001/kpi-dashboardgit-9913298-66e65/us-central1/api',
+        target: 'https://api-watqbfh3lq-uc.a.run.app',
         changeOrigin: true,
-        secure: false,
+        secure: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },

@@ -48,7 +48,6 @@ const app = (0, express_1.default)();
 app.use((0, cors_1.default)({ origin: "*" }));
 app.use(express_1.default.json());
 const geminiRouter = express_1.default.Router();
-const mapsRouter = express_1.default.Router();
 geminiRouter.post("/", async (req, res) => {
     console.log("Received POST request on /gemini");
     const geminiApiKey = process.env.GEMINI_KEY;
@@ -108,7 +107,6 @@ geminiRouter.post("/", async (req, res) => {
         res.status(500).json({ error: `Failed to process AI request for action ${action}.` });
     }
 });
-// This is the corrected route, now directly on the app
 app.get("/apiKey", (req, res) => {
     console.log("Received GET request on /apiKey");
     const mapsApiKey = process.env.MAPS_KEY;
@@ -124,8 +122,8 @@ app.get("/apiKey", (req, res) => {
         res.status(500).json({ error: "Could not retrieve Maps API key due to an internal error." });
     }
 });
-mapsRouter.post("/placeDetails", async (req, res) => {
-    console.log("Received POST request on /maps/placeDetails");
+app.post("/placeDetails", async (req, res) => {
+    console.log("Received POST request on /placeDetails");
     const mapsApiKey = process.env.MAPS_KEY;
     if (!mapsApiKey) {
         console.error("FATAL: MAPS_KEY secret not set.");
@@ -173,7 +171,6 @@ mapsRouter.post("/placeDetails", async (req, res) => {
     }
 });
 app.use("/gemini", geminiRouter);
-app.use("/maps", mapsRouter);
 // Export the Express app as a V2 HTTPS function.
 // This requires the GEMINI_KEY and MAPS_KEY secrets to be available.
 exports.api = (0, https_1.onRequest)({ secrets: ["GEMINI_KEY", "MAPS_KEY"], cpu: "gcf_gen1" }, app);
