@@ -12,11 +12,17 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - name: Install dependencies
+      - name: Install Root Dependencies
         run: npm install
-      - name: Build project
+      - name: Install Functions Dependencies
+        run: npm install
+        working-directory: ./functions
+      - name: Build Project
         run: npm run build
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
       - name: Deploy to Firebase
-        run: firebase deploy --token "${{ secrets.FIREBASE_TOKEN }}" --project operations-kpi-dashboard --only functions,hosting
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions,hosting
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}
+          PROJECT_ID: operations-kpi-dashboard
