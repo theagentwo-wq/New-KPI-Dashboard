@@ -132,7 +132,7 @@ app.post("/gemini", async (req, res) => {
                 } else if (audience === "BOH") {
                     prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal: Culinary excellence, safety, high standards. ${baseInfo}. Today\'s Focus: 1. Kitchen Safety (\'Work clean, work safe. Sharp knives, hot pans. No shortcuts.\'). 2. Health Standards (\'If you wouldn\'t serve it to your family, don\'t serve it to a guest.\'). 3. Passion & Pride (\'Every plate has our signature. Make it count. Cook with passion.\').`;
                 } else { // Managers
-                    prompt = `Generate a strategic, inspiring management pre-shift brief for "${locationName}". Goal: Align team, drive profit, foster positive culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership (\'Be present. Connect with 5 tables personally. Touch tables, support the team.\'). 2. Cost Control (\'Watch waste on the ABC dish. Ensure perfect prep.\'). 3. Culture Initiative (\'What gets celebrated gets repeated. Publicly praise 3 team members today.\').`;
+                    prompt = `Generate a strategic, inspiring management pre-shift for "${locationName}". Goal: Align team, drive profit, foster positive culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership (\'Be present. Connect with 5 tables personally. Touch tables, support the team.\'). 2. Cost Control (\'Watch waste on the ABC dish. Ensure perfect prep.\'). 3. Culture Initiative (\'What gets celebrated gets repeated. Publicly praise 3 team members today.\').`;
                 }
                 break;
 
@@ -159,4 +159,10 @@ app.post("/gemini", async (req, res) => {
 
 
 // --- Export the Express App ---
-export const api = onRequest({ secrets: ["GEMINI_KEY", "MAPS_KEY"] }, app);
+export const api = onRequest(
+    { 
+        secrets: ["GEMINI_KEY", "MAPS_KEY"],
+        serviceAccount: "firebase-adminsdk-fbvco@operations-kpi-dashboard.iam.gserviceaccount.com",
+    }, 
+    app
+);
