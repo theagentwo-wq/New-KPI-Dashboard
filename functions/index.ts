@@ -3,7 +3,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
-import { Client as MapsClient, FindPlaceFromTextResponse, PlaceInputType } from "@googlemaps/google-maps-services-js";
+import { Client as MapsClient, PlaceInputType } from "@googlemaps/google-maps-services-js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Firebase and Express
@@ -17,7 +17,7 @@ app.use(express.json());
 // --- Helper Functions ---
 const getApiKey = (keyName: "GEMINI_KEY" | "MAPS_KEY"): string => {
     const key = process.env[keyName];
-    if (!key) throw new Error(`Server configuration error: ${keyName} is not set.`);
+    if (!key) throw new Error(`Server configuration error: Secret ${keyName} is not set.`);
     return key;
 };
 
@@ -27,10 +27,6 @@ const getErrorMessage = (error: any): string => {
 };
 
 // --- Route Handlers ---
-
-// Your firebase.json rewrite rule directs all requests starting with "/api" to this function.
-// The "/api" prefix is stripped by the rewrite rule before it hits the Express server.
-// Therefore, a request to "/api/maps/place-details" arrives here as "/maps/place-details".
 
 // Maps API Endpoint
 const mapsClient = new MapsClient({});
@@ -42,30 +38,46 @@ app.post("/maps/place-details", async (req, res) => {
 
     try {
         const MAPS_API_KEY = getApiKey("MAPS_KEY");
-        const findPlaceRequest: FindPlaceFromTextResponse = await mapsClient.findPlaceFromText({
-            params: { input: searchQuery, inputtype: PlaceInputType.textQuery, fields: ["place_id", "name", "geometry"], key: MAPS_API_KEY },
+
+        // Step 1: Find the Place ID from the search query.
+        const findPlaceRequest = await mapsClient.findPlaceFromText({
+            params: { input: searchQuery, inputtype: PlaceInputType.textQuery, fields: ["place_id"], key: MAPS_API_KEY },
         });
 
         if (findPlaceRequest.data.status !== "OK" || !findPlaceRequest.data.candidates?.[0]?.place_id) {
-            return res.status(404).json({ error: `Could not find location matching "${searchQuery}".` });
+            console.warn("Maps API - findPlaceFromText failed:", findPlaceRequest.data.status);
+            return res.status(404).json({ error: `Could not find a location matching "${searchQuery}".` });
         }
 
         const placeId = findPlaceRequest.data.candidates[0].place_id;
+
+        // Step 2: Use the Place ID to get comprehensive, high-quality details.
         const detailsResponse = await mapsClient.placeDetails({
-            params: { place_id: placeId, fields: ["name", "rating", "reviews", "website", "url", "photos", "formatted_address"], key: MAPS_API_KEY },
+            params: {
+                place_id: placeId,
+                // Request all the specific fields needed by the frontend UI for maximum quality.
+                fields: ["name", "rating", "reviews", "website", "url", "photos", "formatted_address", "geometry"],
+                key: MAPS_API_KEY,
+            },
         });
 
         if (detailsResponse.data.status !== "OK") {
+             console.error("Maps API - placeDetails failed:", detailsResponse.data.status);
             return res.status(500).json({ error: `Google Maps API Error: ${detailsResponse.data.status}` });
         }
 
         const placeDetails = detailsResponse.data.result;
-        const photoUrls = (placeDetails.photos || []).map(p => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${p.photo_reference}&key=${MAPS_API_KEY}`);
+
+        // Construct full, high-resolution photo URLs. Handle the case where there are no photos.
+        const photoUrls = (placeDetails.photos || []).map(p => 
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photoreference=${p.photo_reference}&key=${MAPS_API_KEY}`
+        );
         
-        res.json({ ...placeDetails, geometry: findPlaceRequest.data.candidates[0].geometry, photoUrls });
+        // Return the complete details, including the precise geometry for Street View and the photo URLs.
+        res.json({ ...placeDetails, photoUrls });
 
     } catch (error) {
-        console.error(`Error in /maps/place-details:`, error);
+        console.error(`FATAL ERROR in /maps/place-details:`, error);
         res.status(500).json({ error: getErrorMessage(error) });
     }
 });
@@ -77,9 +89,13 @@ const generateAIContent = async (prompt: string, action: string) => {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(prompt);
         return result.response.text();
-    } catch (error) {
+    } catch (error: any) {
         console.error(`Gemini API Error for action "${action}":`, error);
-        throw new Error(`AI content generation failed for action ${action}.`);
+        // Check for a specific permission-denied error from Google's API.
+        if (error.message && error.message.includes("PERMISSION_DENIED")) {
+             throw new Error("AI API Call Failed: The 'Vertex AI API' is likely not enabled for this Google Cloud project. Please enable it in the Google Cloud Console to proceed.");
+        }
+        throw new Error(`AI content generation failed. Please check the server logs.`);
     }
 };
 
@@ -94,8 +110,9 @@ app.post("/gemini", async (req, res) => {
         switch (action) {
              case "getReviewSummary":
                 const { reviews } = payload;
+                // Add a failsafe for empty or non-existent reviews.
                 const reviewTexts = (reviews || []).map((r: any) => r.text).filter((text: string | null) => text?.trim()).join("\n---\n");
-                if (!reviewTexts) return res.json({ content: "There are no written reviews available to analyze." });
+                if (!reviewTexts) return res.json({ content: "There are no written reviews available to analyze for this location." });
                 prompt = `As a restaurant operations analyst, summarize customer reviews for "${locationName}". Identify key themes, recent positive feedback, and urgent areas for improvement. Use clear headings. Reviews:\n${reviewTexts}`;
                 break;
 
@@ -133,12 +150,12 @@ app.post("/gemini", async (req, res) => {
         res.json({ content });
 
     } catch (error) {
-        console.error(`Error in /gemini:`, error);
-        res.status(500).json({ error: getErrorMessage(error) });
+        console.error(`Error in /gemini for action ${action}:`, error);
+        // Send the specific, user-friendly error message from our helper function back to the client.
+        res.status(503).json({ error: getErrorMessage(error) });
     }
 });
 
 
 // --- Export the Express App ---
-// This single 'api' export is picked up by Firebase.
 export const api = onRequest({ secrets: ["GEMINI_KEY", "MAPS_KEY"] }, app);
