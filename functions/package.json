@@ -15,7 +15,7 @@
   },
   "main": "dist/index.js",
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
+    "@google/generative-ai": "latest",
     "@googlemaps/google-maps-services-js": "^3.3.42",
     "axios": "^1.6.7",
     "cors": "^2.8.5",
