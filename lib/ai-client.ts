@@ -2,6 +2,8 @@
 // This file is the single, secure interface for communicating with the backend APIs.
 // It does NOT contain any API keys.
 
+const API_BASE_URL = "https://api-watqbfh3lq-uc.a.run.app";
+
 interface GeminiPayload {
   action: string;
   payload: any;
@@ -14,7 +16,7 @@ interface GeminiPayload {
  * @returns The AI-generated content.
  */
 export const callGeminiAPI = async (action: string, payload: any) => {
-  const response = await fetch('/api/gemini', {
+  const response = await fetch(`${API_BASE_URL}/api/gemini`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -23,7 +25,7 @@ export const callGeminiAPI = async (action: string, payload: any) => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({ error: `API request failed with status ${response.status}` }));
     // Surface the specific, user-friendly error message from the backend.
     throw new Error(errorData.error || `API request failed with status ${response.status}`);
   }
@@ -38,7 +40,7 @@ export const callGeminiAPI = async (action: string, payload: any) => {
  * @returns Detailed information about the place.
  */
 export const getPlaceDetails = async (searchQuery: string) => {
-    const response = await fetch('/api/maps/place-details', {
+    const response = await fetch(`${API_BASE_URL}/api/maps/place-details`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -47,8 +49,16 @@ export const getPlaceDetails = async (searchQuery: string) => {
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Maps request failed with status ${response.status}`);
+        // Handle cases where the response is not JSON (like the HTML error page)
+        const text = await response.text();
+        try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || `Maps request failed with status ${response.status}`);
+        } catch (e) {
+            // If parsing fails, it's likely the HTML error, so we show a snippet
+            const errorDetail = text.substring(0, 100); 
+            throw new Error(`Could not load location details. Unexpected response from server: "${errorDetail}..."`);
+        }
     }
 
     return response.json();

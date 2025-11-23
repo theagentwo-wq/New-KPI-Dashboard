@@ -1,0 +1,11 @@
+[debug] [2025-11-23T20:40:37.324Z] ----------------------------------------------------------------------
+[debug] [2025-11-23T20:40:37.327Z] Command:       /nix/store/ixbb20farqh1f4fqbmsn6b1ixn8mc8ij-nodejs-20.18.1/bin/node /home/user/.global_modules/bin/firebase deploy --only hosting
+[debug] [2025-11-23T20:40:37.328Z] CLI Version:   14.26.0
+[debug] [2025-11-23T20:40:37.328Z] Platform:      linux
+[debug] [2025-11-23T20:40:37.328Z] Node Version:  v20.18.1
+[debug] [2025-11-23T20:40:37.329Z] Time:          Sun Nov 23 2025 20:40:37 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-11-23T20:40:37.329Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-23T20:40:37.903Z] Checked if tokens are valid: true, expires at: 1763932883728
+[debug] [2025-11-23T20:40:37.904Z] Checked if tokens are valid: true, expires at: 1763932883728
+[debug] [2025-11-23T20:40:37.912Z] >>> [apiv2][query] GET https://monospace-pa.googleapis.com/v1/workspaces/kpi-dashboardgit-99132983 [none]
