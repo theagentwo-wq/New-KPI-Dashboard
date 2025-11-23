@@ -424,7 +424,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </Modal>
             <AnomalyDetailModal 
                 isOpen={isAnomalyModalOpen}
-                onClose={() => setAnomalyModalOpen(false)}
+                onClose={() => { setAnomalyModalOpen(false); setSelectedAnomaly(undefined); }}
                 anomaly={selectedAnomaly}
             />
             <ExecutiveSummaryModal 
