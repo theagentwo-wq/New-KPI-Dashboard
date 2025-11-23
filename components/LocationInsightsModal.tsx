@@ -3,11 +3,11 @@ import { Modal } from './Modal';
 import { generateHuddleBrief, getSalesForecast, getLocationMarketAnalysis, getMarketingIdeas, getReviewSummary, getMapsApiKey, getPlaceDetails, PlaceDetails } from '../services/geminiService';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, Kpi, StoreDetails, DailyForecast } from '../types';
+import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
-import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP, STORE_DETAILS } from '../constants';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 
 interface LocationInsightsModalProps {
   isOpen: boolean;
@@ -81,7 +81,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     const [loadingAudience, setLoadingAudience] = useState<Audience | null>(null);
   
     const director = useMemo(() => location ? DIRECTORS.find(d => d.stores.includes(location)) : null, [location]);
-    const storeDetails: StoreDetails | undefined = useMemo(() => location ? STORE_DETAILS[location] : undefined, [location]);
 
     const resetState = () => {
         setIsFullScreen(false); setActiveAnalysisTab('reviews'); setActiveVisualTab('details');
@@ -90,28 +89,25 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     };
 
     useEffect(() => {
-        if (isOpen && location && storeDetails) {
+        if (isOpen && location) {
             const fetchInitialData = async () => {
                 try {
                     const key = await getMapsApiKey(); setMapsApiKey(key);
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
-                    const details = await getPlaceDetails(storeDetails.address);
+                    const details = await getPlaceDetails(location);
                     setPlaceDetails(details);
                 } catch (error) {
                     const msg = error instanceof Error ? error.message : "An unknown error occurred.";
-                    setPlaceDetailsError(`Failed to load location details: ${msg}`);
+                    setPlaceDetailsError(`Could not load location details. ${msg}`);
                 } finally {
                     setIsPlaceDetailsLoading(false);
                 }
             };
             fetchInitialData();
-        } else {
-            if (!storeDetails && isOpen) {
-                setPlaceDetailsError("Address information unavailable for this location.");
-            }
-            if (!isOpen) resetState();
+        } else if (!isOpen) {
+            resetState();
         }
-    }, [isOpen, location, storeDetails]);
+    }, [isOpen, location]);
 
     const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
         if (!location) return;
@@ -169,13 +165,11 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     useEffect(() => {
         if (placeDetails) {
-            // If reviews exist, automatically fetch the summary.
             if (placeDetails.reviews && placeDetails.reviews.length > 0) {
-                if (!analysisContent.reviews) { // Only fetch if we haven't already
+                if (!analysisContent.reviews) { 
                     handleAnalysis('reviews');
                 }
             } else {
-                // If there are no reviews, set the content to a message.
                 setAnalysisContent(prev => ({ ...prev, reviews: '<p class="text-slate-400 text-center">No reviews available to summarize for this location.</p>' }));
             }
         }
@@ -190,17 +184,44 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     ] as const;
     
     const renderVisualContent = () => {
-        if (!storeDetails) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Location data missing.</h4><p className="text-slate-500 text-xs mt-1">Address details not found for {location}.</p></div>;
-
         if (activeVisualTab === 'streetview') {
             if (!mapsApiKey) return <LoadingSpinner message="Loading Street View..." />;
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${mapsApiKey}&location=${storeDetails.lat},${storeDetails.lon}&heading=210&pitch=10&fov=75`;
+            const lat = placeDetails?.geometry?.location?.lat;
+            const lon = placeDetails?.geometry?.location?.lng;
+            if (!lat || !lon) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Street View Unavailable</h4><p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p></div>;
+
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${mapsApiKey}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
+
         if (isPlaceDetailsLoading) return <LoadingSpinner message="Loading location details..." />;
         if (placeDetailsError) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-red-400">Could not load location details.</h4><p className="text-slate-500 text-xs mt-1 break-all">{placeDetailsError}</p></div>;
+        
         if (placeDetails) {
-            return <div className="h-full flex flex-col"><div className="p-3"><h4 className="font-bold text-base text-white">{placeDetails.name}</h4>{placeDetails.rating && <div className="flex items-center gap-1 text-sm"><span className="font-bold text-yellow-400">{placeDetails.rating.toFixed(1)}</span><Icon name="reviews" className="w-4 h-4 text-yellow-400" /></div>}</div>{placeDetails.photoUrls?.length > 0 ? <div className="flex-1 overflow-x-auto overflow-y-hidden whitespace-nowrap custom-scrollbar">{placeDetails.photoUrls.map((url, i) => <img key={i} src={url} alt={`Photo ${i + 1} of ${placeDetails.name}`} className="inline-block h-full w-auto object-cover rounded-b-lg" />)}</div> : <p className="text-center text-slate-500 p-4">No photos available.</p>}</div>;
+            // Gracefully handle case where there are no photos
+            const photos = placeDetails.photoUrls || [];
+            return (
+                <div className="h-full flex flex-col">
+                    <div className="p-3">
+                        <h4 className="font-bold text-base text-white">{placeDetails.name}</h4>
+                        {placeDetails.rating && (
+                            <div className="flex items-center gap-1 text-sm">
+                                <span className="font-bold text-yellow-400">{placeDetails.rating.toFixed(1)}</span>
+                                <Icon name="reviews" className="w-4 h-4 text-yellow-400" />
+                            </div>
+                        )}
+                    </div>
+                    {photos.length > 0 ? (
+                        <div className="flex-1 overflow-x-auto overflow-y-hidden whitespace-nowrap custom-scrollbar">
+                            {photos.map((url, i) => 
+                                <img key={i} src={url} alt={`Photo ${i + 1} of ${placeDetails.name}`} className="inline-block h-full w-auto object-cover rounded-b-lg" />
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-center text-slate-500 p-4">No photos available.</p>
+                    )}
+                </div>
+            );
         }
         return null;
     };
@@ -224,13 +245,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             ) : <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
         }
         
-        // If content is loaded for the active tab, render it.
         if (content) return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
 
-        // Fallback for when content hasn't been generated yet.
         const tabConfigItem = analysisTabConfig.find(t => t.id === activeAnalysisTab);
         
-        // Special message for 'Reviews' if there are none, even before manual generation is attempted.
         if (activeAnalysisTab === 'reviews' && placeDetails && (!placeDetails.reviews || placeDetails.reviews.length === 0)) {
             return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name='reviews' className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">No Reviews Available</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">There are no Google reviews to analyze for this location.</p></div>;
         }

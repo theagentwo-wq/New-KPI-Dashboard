@@ -15,9 +15,10 @@ app.use(express.json());
 const mapsClient = new MapsClient({});
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const router = express.Router();
+const geminiRouter = express.Router();
+const mapsRouter = express.Router();
 
-router.post("/gemini", async (req, res) => {
+geminiRouter.post("/", async (req, res) => {
     const { action, payload } = req.body;
     if (!action) return res.status(400).json({ error: "No action specified" });
 
@@ -56,7 +57,7 @@ router.post("/gemini", async (req, res) => {
     }
 });
 
-router.get("/apiKey", (req, res) => {
+mapsRouter.get("/apiKey", (req, res) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
     } catch (error) {
@@ -65,14 +66,16 @@ router.get("/apiKey", (req, res) => {
     }
 });
 
-router.post("/maps/placeDetails", async (req, res) => {
-    const { address } = req.body;
-    if (!address) return res.status(400).json({ error: "Address is required." });
+mapsRouter.post("/placeDetails", async (req, res) => {
+    const { location } = req.body;
+    if (!location) return res.status(400).json({ error: "Location is required." });
+
+    const searchQuery = `Tupelo Honey Cafe ${location}`;
 
     try {
         const findPlaceResponse: FindPlaceFromTextResponse = await mapsClient.findPlaceFromText({
             params: {
-                input: address,
+                input: searchQuery,
                 inputtype: PlaceInputType.textQuery,
                 fields: ['place_id'],
                 key: process.env.MAPS_API_KEY!,
@@ -81,16 +84,16 @@ router.post("/maps/placeDetails", async (req, res) => {
 
         if (findPlaceResponse.data.status !== 'OK' || !findPlaceResponse.data.candidates || findPlaceResponse.data.candidates.length === 0) {
             console.error("Maps API Error (findPlaceFromText):", findPlaceResponse.data.error_message);
-            return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for address: \"${address}\"` });
+            return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for search: \"${searchQuery}\"` });
         }
 
         const placeId = findPlaceResponse.data.candidates[0].place_id;
-        if (!placeId) return res.status(404).json({ error: 'Could not extract Place ID from address.' });
+        if (!placeId) return res.status(404).json({ error: 'Could not extract Place ID from search.' });
 
         const detailsResponse: PlaceDetailsResponse = await mapsClient.placeDetails({
             params: {
                 place_id: placeId,
-                fields: ["name", "rating", "photos", "url", "website", "reviews"],
+                fields: ["name", "rating", "photos", "url", "website", "reviews", "geometry"],
                 key: process.env.MAPS_API_KEY!,
             },
         });
@@ -102,11 +105,12 @@ router.post("/maps/placeDetails", async (req, res) => {
             res.status(500).json({ error: detailsResponse.data.error_message || `Google Maps API Error: ${detailsResponse.data.status}` });
         }
     } catch (error) {
-        console.error(`Error processing place details for address: ${address}`, error);
+        console.error(`Error processing place details for search: ${searchQuery}`, error);
         res.status(500).json({ error: "Failed to process place details request." });
     }
 });
 
-app.use("/api", router);
+app.use("/gemini", geminiRouter);
+app.use("/maps", mapsRouter);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);

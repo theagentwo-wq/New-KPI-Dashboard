@@ -7,6 +7,12 @@ export interface PlaceDetails {
     photoUrls: string[];
     website?: string;
     url?: string;
+    geometry?: {
+        location: {
+            lat: number;
+            lng: number;
+        }
+    };
 }
 
 async function callAIApi(action: string, payload: any): Promise<any> {
@@ -78,12 +84,12 @@ export const getMapsApiKey = async (): Promise<string> => {
     }
 };
 
-export const getPlaceDetails = async (address: string): Promise<PlaceDetails> => {
+export const getPlaceDetails = async (location: string): Promise<PlaceDetails> => {
     try {
         const response = await fetch('/api/maps/placeDetails', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address }),
+            body: JSON.stringify({ location }),
         });
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
