@@ -1,11 +1,14 @@
-// Trigger new deployment to apply secrets
-import { https } from "firebase-functions/v2";
-import { config } from "firebase-functions";
+
+import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
 import { Client as MapsClient, PlaceDetailsResponse, FindPlaceFromTextResponse, PlaceInputType } from "@googlemaps/google-maps-services-js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Access secrets as environment variables.
+const geminiApiKey = process.env.GEMINI_KEY;
+const mapsApiKey = process.env.MAPS_KEY;
 
 admin.initializeApp();
 
@@ -17,12 +20,12 @@ const geminiRouter = express.Router();
 const mapsRouter = express.Router();
 
 geminiRouter.post("/", async (req, res) => {
-    if (!config().gemini.key) {
-        console.error("FATAL: GEMINI_API_KEY environment variable not set.");
+    if (!geminiApiKey) {
+        console.error("FATAL: GEMINI_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: AI service is not available." });
     }
 
-    const genAI = new GoogleGenerativeAI(config().gemini.key);
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
     const { action, payload } = req.body;
     if (!action) return res.status(400).json({ error: "No action specified" });
 
@@ -52,10 +55,10 @@ geminiRouter.post("/", async (req, res) => {
                 break;
             case "generateHuddleBrief":
                 const { location: huddleLocation, storeData, audience, weather } = payload;
-                prompt = `Generate a pre-shift huddle brief for the \'${audience}\' team at the \'${huddleLocation}\' restaurant. Today's weather: ${weather ? JSON.stringify(weather) : 'not available'}. Key store data for the day: ${JSON.stringify(storeData)}. The brief should be upbeat, concise, and highlight 1-2 key focus areas for the upcoming shift.`;
+                prompt = `Generate a pre-shift huddle brief for the \'${audience}\' team at the \'${huddleLocation}\' restaurant. Today\'s weather: ${weather ? JSON.stringify(weather) : 'not available'}. Key store data for the day: ${JSON.stringify(storeData)}. The brief should be upbeat, concise, and highlight 1-2 key focus areas for the upcoming shift.`;
                 break;
             default:
-                return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
+                return res.status(501).json({ error: `The action \'${action}\' is not implemented on the server.` });
         }
         
         try {
@@ -75,16 +78,20 @@ geminiRouter.post("/", async (req, res) => {
 
 mapsRouter.get("/apiKey", (req, res) => {
     try {
-        res.json({ apiKey: config().maps.key });
+        if (!mapsApiKey) {
+            console.error("FATAL: MAPS_KEY secret not found in environment.");
+            return res.status(500).json({ error: "Server configuration error: Mapping service API key is not available." });
+        }
+        res.json({ apiKey: mapsApiKey });
     } catch (error) {
-        console.error("Error getting Maps API key:", error);
-        res.status(500).json({ error: "Could not retrieve Maps API key." });
+        console.error("Error in /maps/apiKey:", error);
+        res.status(500).json({ error: "Could not retrieve Maps API key due to an internal error." });
     }
 });
 
 mapsRouter.post("/placeDetails", async (req, res) => {
-    if (!config().maps.key) {
-        console.error("FATAL: MAPS_API_KEY environment variable not set.");
+    if (!mapsApiKey) {
+        console.error("FATAL: MAPS_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: Mapping service is not available." });
     }
     const mapsClient = new MapsClient({});
@@ -99,7 +106,7 @@ mapsRouter.post("/placeDetails", async (req, res) => {
                 input: searchQuery,
                 inputtype: PlaceInputType.textQuery,
                 fields: ['place_id'],
-                key: config().maps.key,
+                key: mapsApiKey,
             }
         });
 
@@ -115,7 +122,7 @@ mapsRouter.post("/placeDetails", async (req, res) => {
             params: {
                 place_id: placeId,
                 fields: ["name", "rating", "photos", "url", "website", "reviews", "geometry"],
-                key: config().maps.key,
+                key: mapsApiKey,
             },
         });
 
@@ -134,4 +141,6 @@ mapsRouter.post("/placeDetails", async (req, res) => {
 app.use("/gemini", geminiRouter);
 app.use("/maps", mapsRouter);
 
-export const api = https.onRequest(app);
+// Export the Express app as a V2 HTTPS function.
+// This requires the GEMINI_KEY and MAPS_KEY secrets to be available.
+export const api = onRequest({ secrets: ["GEMINI_KEY", "MAPS_KEY"], cpu: "gcf_gen1" }, app);
