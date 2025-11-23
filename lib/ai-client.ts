@@ -2,7 +2,7 @@
 // This file is the single, secure interface for communicating with the backend APIs.
 // It does NOT contain any API keys.
 
-const API_BASE_URL = "https://api-watqbfh3lq-uc.a.run.app";
+const API_BASE_URL = "/api"; // Use a relative path to leverage Firebase Hosting rewrites
 
 interface GeminiPayload {
   action: string;
@@ -16,7 +16,7 @@ interface GeminiPayload {
  * @returns The AI-generated content.
  */
 export const callGeminiAPI = async (action: string, payload: any) => {
-  const response = await fetch(`${API_BASE_URL}/api/gemini`, {
+  const response = await fetch(`${API_BASE_URL}/gemini`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export const callGeminiAPI = async (action: string, payload: any) => {
  * @returns Detailed information about the place.
  */
 export const getPlaceDetails = async (searchQuery: string) => {
-    const response = await fetch(`${API_BASE_URL}/api/maps/place-details`, {
+    const response = await fetch(`${API_BASE_URL}/maps/place-details`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

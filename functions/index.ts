@@ -30,7 +30,8 @@ const getErrorMessage = (error: any): string => {
 
 // Maps API Endpoint
 const mapsClient = new MapsClient({});
-app.post("/api/maps/place-details", async (req, res) => {
+// The base URL for the function already includes /api, so the route here is just the final part.
+app.post("/maps/place-details", async (req, res) => {
     const { searchQuery } = req.body;
     if (!searchQuery) {
         return res.status(400).json({ error: "Missing 'searchQuery' in request body." });
@@ -100,7 +101,8 @@ const generateAIContent = async (prompt: string, action: string) => {
     }
 };
 
-app.post("/api/gemini", async (req, res) => {
+// The base URL for the function already includes /api, so the route here is just the final part.
+app.post("/gemini", async (req, res) => {
     const { action, payload } = req.body;
     if (!action || !payload) return res.status(400).json({ error: "Missing 'action' or 'payload'." });
 
