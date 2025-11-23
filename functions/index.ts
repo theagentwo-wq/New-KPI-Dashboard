@@ -1,4 +1,4 @@
-
+// Trigger new deployment to apply secrets
 import { https } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import express from "express";
