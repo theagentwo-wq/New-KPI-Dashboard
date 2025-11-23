@@ -12,13 +12,11 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-const mapsClient = new MapsClient({});
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
 const geminiRouter = express.Router();
 const mapsRouter = express.Router();
 
 geminiRouter.post("/", async (req, res) => {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const { action, payload } = req.body;
     if (!action) return res.status(400).json({ error: "No action specified" });
 
@@ -67,6 +65,7 @@ mapsRouter.get("/apiKey", (req, res) => {
 });
 
 mapsRouter.post("/placeDetails", async (req, res) => {
+    const mapsClient = new MapsClient({});
     const { location } = req.body;
     if (!location) return res.status(400).json({ error: "Location is required." });
 
