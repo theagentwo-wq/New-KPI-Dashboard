@@ -43,16 +43,15 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const google_maps_services_js_1 = require("@googlemaps/google-maps-services-js");
 const generative_ai_1 = require("@google/generative-ai");
-// Access secrets as environment variables.
-const geminiApiKey = process.env.GEMINI_KEY;
-const mapsApiKey = process.env.MAPS_KEY;
 admin.initializeApp();
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)({ origin: true }));
+app.use((0, cors_1.default)({ origin: "*" }));
 app.use(express_1.default.json());
 const geminiRouter = express_1.default.Router();
 const mapsRouter = express_1.default.Router();
 geminiRouter.post("/", async (req, res) => {
+    console.log("Received POST request on /gemini");
+    const geminiApiKey = process.env.GEMINI_KEY;
     if (!geminiApiKey) {
         console.error("FATAL: GEMINI_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: AI service is not available." });
@@ -109,7 +108,10 @@ geminiRouter.post("/", async (req, res) => {
         res.status(500).json({ error: `Failed to process AI request for action ${action}.` });
     }
 });
-mapsRouter.get("/apiKey", (req, res) => {
+// This is the corrected route, now directly on the app
+app.get("/apiKey", (req, res) => {
+    console.log("Received GET request on /apiKey");
+    const mapsApiKey = process.env.MAPS_KEY;
     try {
         if (!mapsApiKey) {
             console.error("FATAL: MAPS_KEY secret not found in environment.");
@@ -118,11 +120,13 @@ mapsRouter.get("/apiKey", (req, res) => {
         res.json({ apiKey: mapsApiKey });
     }
     catch (error) {
-        console.error("Error in /maps/apiKey:", error);
+        console.error("Error in /apiKey:", error);
         res.status(500).json({ error: "Could not retrieve Maps API key due to an internal error." });
     }
 });
 mapsRouter.post("/placeDetails", async (req, res) => {
+    console.log("Received POST request on /maps/placeDetails");
+    const mapsApiKey = process.env.MAPS_KEY;
     if (!mapsApiKey) {
         console.error("FATAL: MAPS_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: Mapping service is not available." });

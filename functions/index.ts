@@ -6,20 +6,18 @@ import cors from "cors";
 import { Client as MapsClient, PlaceDetailsResponse, FindPlaceFromTextResponse, PlaceInputType } from "@googlemaps/google-maps-services-js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Access secrets as environment variables.
-const geminiApiKey = process.env.GEMINI_KEY;
-const mapsApiKey = process.env.MAPS_KEY;
-
 admin.initializeApp();
 
 const app = express();
-app.use(cors({ origin: true }));
+
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 const geminiRouter = express.Router();
-const mapsRouter = express.Router();
 
 geminiRouter.post("/", async (req, res) => {
+    console.log("Received POST request on /gemini");
+    const geminiApiKey = process.env.GEMINI_KEY;
     if (!geminiApiKey) {
         console.error("FATAL: GEMINI_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: AI service is not available." });
@@ -76,7 +74,9 @@ geminiRouter.post("/", async (req, res) => {
     }
 });
 
-mapsRouter.get("/apiKey", (req, res) => {
+app.get("/apiKey", (req, res) => {
+    console.log("Received GET request on /apiKey");
+    const mapsApiKey = process.env.MAPS_KEY;
     try {
         if (!mapsApiKey) {
             console.error("FATAL: MAPS_KEY secret not found in environment.");
@@ -84,12 +84,14 @@ mapsRouter.get("/apiKey", (req, res) => {
         }
         res.json({ apiKey: mapsApiKey });
     } catch (error) {
-        console.error("Error in /maps/apiKey:", error);
+        console.error("Error in /apiKey:", error);
         res.status(500).json({ error: "Could not retrieve Maps API key due to an internal error." });
     }
 });
 
-mapsRouter.post("/placeDetails", async (req, res) => {
+app.post("/placeDetails", async (req, res) => {
+    console.log("Received POST request on /placeDetails");
+    const mapsApiKey = process.env.MAPS_KEY;
     if (!mapsApiKey) {
         console.error("FATAL: MAPS_KEY secret not set.");
         return res.status(500).json({ error: "Server configuration error: Mapping service is not available." });
@@ -139,7 +141,6 @@ mapsRouter.post("/placeDetails", async (req, res) => {
 });
 
 app.use("/gemini", geminiRouter);
-app.use("/maps", mapsRouter);
 
 // Export the Express app as a V2 HTTPS function.
 // This requires the GEMINI_KEY and MAPS_KEY secrets to be available.
