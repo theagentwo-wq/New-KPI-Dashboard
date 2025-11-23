@@ -107,6 +107,6 @@ router.post("/maps/placeDetails", async (req, res) => {
     }
 });
 
-app.use("/api", router);
+app.use("/", router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
