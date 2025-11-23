@@ -1,2 +1,10 @@
-**/node_modules
-.firebase/
+# Firebase
+.firebase
+firebase-debug.log
+hosting.*.cache
+
+# Build output
+dist
+
+# Dependencies
+node_modules
