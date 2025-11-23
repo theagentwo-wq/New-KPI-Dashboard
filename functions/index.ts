@@ -39,14 +39,19 @@ app.post("/maps/place-details", async (req, res) => {
     try {
         const MAPS_API_KEY = getApiKey("MAPS_KEY");
 
-        // Step 1: Find the Place ID from the search query.
+        // Step 1: Find the Place ID from the search query. Make the search less restrictive by asking for basic fields.
         const findPlaceRequest = await mapsClient.findPlaceFromText({
-            params: { input: searchQuery, inputtype: PlaceInputType.textQuery, fields: ["place_id"], key: MAPS_API_KEY },
+            params: { 
+                input: searchQuery, 
+                inputtype: PlaceInputType.textQuery, 
+                fields: ["place_id", "name", "formatted_address"], // Broaden the initial search
+                key: MAPS_API_KEY 
+            },
         });
 
         if (findPlaceRequest.data.status !== "OK" || !findPlaceRequest.data.candidates?.[0]?.place_id) {
-            console.warn("Maps API - findPlaceFromText failed:", findPlaceRequest.data.status);
-            return res.status(404).json({ error: `Could not find a location matching "${searchQuery}".` });
+            console.warn(`Maps API - findPlaceFromText failed for query "${searchQuery}":`, findPlaceRequest.data.status);
+            return res.status(404).json({ error: `Google Maps could not find a location matching "${searchQuery}".` });
         }
 
         const placeId = findPlaceRequest.data.candidates[0].place_id;
@@ -55,7 +60,6 @@ app.post("/maps/place-details", async (req, res) => {
         const detailsResponse = await mapsClient.placeDetails({
             params: {
                 place_id: placeId,
-                // Request all the specific fields needed by the frontend UI for maximum quality.
                 fields: ["name", "rating", "reviews", "website", "url", "photos", "formatted_address", "geometry"],
                 key: MAPS_API_KEY,
             },
@@ -63,17 +67,15 @@ app.post("/maps/place-details", async (req, res) => {
 
         if (detailsResponse.data.status !== "OK") {
              console.error("Maps API - placeDetails failed:", detailsResponse.data.status);
-            return res.status(500).json({ error: `Google Maps API Error: ${detailsResponse.data.status}` });
+            return res.status(500).json({ error: `Google Maps API Error on placeDetails: ${detailsResponse.data.status}` });
         }
 
         const placeDetails = detailsResponse.data.result;
 
-        // Construct full, high-resolution photo URLs. Handle the case where there are no photos.
         const photoUrls = (placeDetails.photos || []).map(p => 
             `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photoreference=${p.photo_reference}&key=${MAPS_API_KEY}`
         );
         
-        // Return the complete details, including the precise geometry for Street View and the photo URLs.
         res.json({ ...placeDetails, photoUrls });
 
     } catch (error) {
@@ -91,9 +93,8 @@ const generateAIContent = async (prompt: string, action: string) => {
         return result.response.text();
     } catch (error: any) {
         console.error(`Gemini API Error for action "${action}":`, error);
-        // Check for a specific permission-denied error from Google's API.
         if (error.message && error.message.includes("PERMISSION_DENIED")) {
-             throw new Error("AI API Call Failed: The 'Vertex AI API' is likely not enabled for this Google Cloud project. Please enable it in the Google Cloud Console to proceed.");
+             throw new Error("AI API Call Failed: The 'Vertex AI API' is not enabled for this Google Cloud project. Please go to the Google Cloud Console and enable it.");
         }
         throw new Error(`AI content generation failed. Please check the server logs.`);
     }
@@ -110,7 +111,6 @@ app.post("/gemini", async (req, res) => {
         switch (action) {
              case "getReviewSummary":
                 const { reviews } = payload;
-                // Add a failsafe for empty or non-existent reviews.
                 const reviewTexts = (reviews || []).map((r: any) => r.text).filter((text: string | null) => text?.trim()).join("\n---\n");
                 if (!reviewTexts) return res.json({ content: "There are no written reviews available to analyze for this location." });
                 prompt = `As a restaurant operations analyst, summarize customer reviews for "${locationName}". Identify key themes, recent positive feedback, and urgent areas for improvement. Use clear headings. Reviews:\n${reviewTexts}`;
@@ -151,7 +151,6 @@ app.post("/gemini", async (req, res) => {
 
     } catch (error) {
         console.error(`Error in /gemini for action ${action}:`, error);
-        // Send the specific, user-friendly error message from our helper function back to the client.
         res.status(503).json({ error: getErrorMessage(error) });
     }
 });
