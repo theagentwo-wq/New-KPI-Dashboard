@@ -91,7 +91,7 @@ router.post("/gemini", async (req, res) => {
         res.status(500).json({ error: `Failed to process AI request for action ${action}.` });
     }
 });
-router.get("/maps/apiKey", (req, res) => {
+router.get("/apiKey", (req, res) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
     }
@@ -140,6 +140,6 @@ router.post("/maps/placeDetails", async (req, res) => {
         res.status(500).json({ error: "Failed to process place details request." });
     }
 });
-app.use("/", router);
+app.use("/api", router);
 exports.api = v2_1.https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
 //# sourceMappingURL=index.js.map

@@ -56,7 +56,7 @@ router.post("/gemini", async (req, res) => {
     }
 });
 
-router.get("/maps/apiKey", (req, res) => {
+router.get("/apiKey", (req, res) => {
     try {
         res.json({ apiKey: process.env.MAPS_API_KEY });
     } catch (error) {
@@ -107,6 +107,6 @@ router.post("/maps/placeDetails", async (req, res) => {
     }
 });
 
-app.use("/", router);
+app.use("/api", router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
