@@ -122,10 +122,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         try {
             switch (type) {
                 case 'reviews': 
-                    if (placeDetails?.reviews) {
+                    if (placeDetails?.name && placeDetails?.reviews && placeDetails.reviews.length > 0) {
                         result = await getReviewSummary(placeDetails.name, placeDetails.reviews);
                     } else {
-                        throw new Error("Location name and reviews are required.");
+                        throw new Error("No reviews are available to analyze for this location.");
                     }
                     break;
                 case 'market': result = await getLocationMarketAnalysis(location); break;
@@ -168,8 +168,16 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     };
     
     useEffect(() => {
-        if (placeDetails && !analysisContent.reviews) {
-            handleAnalysis('reviews');
+        if (placeDetails) {
+            // If reviews exist, automatically fetch the summary.
+            if (placeDetails.reviews && placeDetails.reviews.length > 0) {
+                if (!analysisContent.reviews) { // Only fetch if we haven't already
+                    handleAnalysis('reviews');
+                }
+            } else {
+                // If there are no reviews, set the content to a message.
+                setAnalysisContent(prev => ({ ...prev, reviews: '<p class="text-slate-400 text-center">No reviews available to summarize for this location.</p>' }));
+            }
         }
     }, [placeDetails]);
 
@@ -216,9 +224,18 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             ) : <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
         }
         
+        // If content is loaded for the active tab, render it.
         if (content) return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
 
-        return <LoadingSpinner message="Preparing analysis..." />;
+        // Fallback for when content hasn't been generated yet.
+        const tabConfigItem = analysisTabConfig.find(t => t.id === activeAnalysisTab);
+        
+        // Special message for 'Reviews' if there are none, even before manual generation is attempted.
+        if (activeAnalysisTab === 'reviews' && placeDetails && (!placeDetails.reviews || placeDetails.reviews.length === 0)) {
+            return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name='reviews' className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">No Reviews Available</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">There are no Google reviews to analyze for this location.</p></div>;
+        }
+
+        return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p><button onClick={() => handleAnalysis(activeAnalysisTab)} className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><Icon name="sparkles" className="w-4 h-4" />Generate Analysis</button></div>;
     };
 
     return (
