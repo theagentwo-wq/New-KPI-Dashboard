@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getExecutiveSummary } from '../services/geminiService';
 import { View, Period } from '../types';
 import { Icon } from './Icon';
@@ -18,26 +18,38 @@ export const ExecutiveSummaryModal: React.FC<ExecutiveSummaryModalProps> = ({ is
   const [summaryHtml, setSummaryHtml] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGenerateSummary = async () => {
+  // FIX: Wrapped in useCallback, added robust error handling, and ensured data exists.
+  const handleGenerateSummary = useCallback(async () => {
+    if (!data) {
+      setSummaryHtml('');
+      return;
+    }
     setIsLoading(true);
     setSummaryHtml('');
-    if (data) {
+    try {
       const result = await getExecutiveSummary(data, view, period.label);
       const html = await marked.parse(result);
       setSummaryHtml(html);
+    } catch (error) {
+      console.error("AI Summary Error:", error);
+      try {
+        const errorHtml = await marked.parse("I'm sorry, but I was unable to generate the executive summary at this time.");
+        setSummaryHtml(errorHtml);
+      } catch (e) { /* Should not happen */ }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  };
+  }, [data, view, period.label]);
   
+  // FIX: Updated useEffect dependencies to correctly handle regeneration.
   useEffect(() => {
     if (isOpen) {
       handleGenerateSummary();
     } else {
-        // Reset state when modal is closed to ensure a fresh fetch next time
         setSummaryHtml('');
         setIsLoading(false);
     }
-  }, [isOpen, view, period.label]);
+  }, [isOpen, handleGenerateSummary]);
   
   const renderContent = () => {
     if (isLoading) {
@@ -59,13 +71,13 @@ export const ExecutiveSummaryModal: React.FC<ExecutiveSummaryModalProps> = ({ is
     
     return (
         <div className="text-center py-4 min-h-[200px] flex flex-col justify-center items-center">
-            <p className="text-slate-400 mb-3 text-sm">An error occurred, or no summary was generated.</p>
+            <p className="text-slate-400 mb-3 text-sm">No summary has been generated.</p>
             <button 
               onClick={handleGenerateSummary} 
               className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md inline-flex items-center gap-2"
             >
               <Icon name="sparkles" className="w-5 h-5" />
-              Try Again
+              Generate Summary
             </button>
       </div>
     );

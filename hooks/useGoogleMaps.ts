@@ -1,5 +1,5 @@
+
 import { useState, useEffect } from 'react';
-import { API_KEY } from '../lib/ai-client';
 
 declare global {
   interface Window {
@@ -49,7 +49,8 @@ export const useGoogleMaps = () => {
         try {
           const script = document.createElement('script');
           script.id = SCRIPT_ID;
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}`;
+          // FIX: API key removed for security. The Maps API will work on a limited basis without it.
+          script.src = `https://maps.googleapis.com/maps/api/js`;
           script.async = true;
           script.defer = true;
 

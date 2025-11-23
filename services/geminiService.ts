@@ -1,6 +1,20 @@
 
 import { callGeminiAPI } from '../lib/ai-client';
-import { Period, View, PerformanceData, HistoricalData, Weather, Audience, Kpi } from '../types';
+import { 
+  Period, 
+  View, 
+  PerformanceData, 
+  HistoricalData, 
+  Weather, 
+  Audience, 
+  Kpi, 
+  Note,
+  Anomaly,
+  AnalysisMode,
+  ForecastDataPoint,
+  DailyForecast,
+  WeatherInfo
+} from '../types';
 
 // Note: The 'generativeAI' client from the original file has been replaced
 // by the 'callGeminiAPI' proxy to ensure all calls go through our secure backend.
@@ -34,16 +48,48 @@ export const getLocationMarketAnalysis = (locationName: string) => {
   return callGeminiAPI('getLocationMarketAnalysis', { locationName });
 };
 
-export const generateHuddleBrief = (locationName: string, performanceData: PerformanceData, audience: Audience, weather: Weather | null) => {
-  return callGeminiAPI('generateHuddleBrief', { locationName, performanceData, audience, weather });
+export const generateHuddleBrief = (locationName: string, performanceData: PerformanceData, audience: Audience, weather: Weather | null): Promise<string> => {
+  return callGeminiAPI('generateHuddleBrief', { location: locationName, storeData: performanceData, audience, weather });
 };
 
-export const getSalesForecast = (locationName: string, weatherForecast: any, historicalData: any) => {
-    return callGeminiAPI('getSalesForecast', { locationName, weatherForecast, historicalData });
+export const getSalesForecast = (locationName: string, weatherForecast: DailyForecast[], historicalData: any): Promise<ForecastDataPoint[]> => {
+    return callGeminiAPI('getSalesForecast', { location: locationName, weatherForecast, historicalData });
 };
 
 export const getMarketingIdeas = (locationName: string, userLocation: any) => {
-    return callGeminiAPI('getMarketingIdeas', { locationName, userLocation });
+    return callGeminiAPI('getMarketingIdeas', { location: locationName, userLocation });
+};
+
+export const runWhatIfScenario = (data: any, prompt: string): Promise<{ analysis: string, args?: any }> => {
+  return callGeminiAPI('runWhatIfScenario', { data, userPrompt: prompt });
+};
+
+export const getNoteTrends = (notes: Note[]): Promise<string> => {
+  return callGeminiAPI('getNoteTrends', { notes });
+};
+
+export const getAnomalyDetections = (allStoresData: any, periodLabel: string): Promise<Anomaly[]> => {
+    return callGeminiAPI('getAnomalyDetections', { allStoresData, periodLabel });
+};
+
+export const getVarianceAnalysis = (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
+    return callGeminiAPI('getVarianceAnalysis', { location, kpi, variance, allKpis });
+};
+
+export const getQuadrantAnalysis = (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
+    return callGeminiAPI('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
+};
+
+export const getStrategicExecutiveAnalysis = (kpi: Kpi, periodLabel: string, companyTotal: number, directorData: any[], laggards: any[]): Promise<string> => {
+    return callGeminiAPI('getStrategicExecutiveAnalysis', { kpi, periodLabel, companyTotal, directorData, laggards });
+};
+
+export const startStrategicAnalysisJob = (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string, mode: AnalysisMode }): Promise<{ jobId: string }> => {
+    return callGeminiAPI('startStrategicAnalysis', payload);
+};
+
+export const chatWithStrategy = (context: string, userQuery: string, mode: AnalysisMode): Promise<string> => {
+    return callGeminiAPI('chatWithStrategy', { context, userQuery, mode });
 };
 
 // --- Import Job Functions (from original file, kept for compatibility) ---
@@ -98,4 +144,3 @@ export const deleteImportFile = async (filePath: string): Promise<void> => {
   // await callGeminiAPI('deleteFile', { filePath });
   return Promise.resolve();
 };
-

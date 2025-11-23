@@ -1,17 +1,16 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal } from './Modal';
-// CORRECT: Import the new, secure API client functions.
 import { callGeminiAPI, getPlaceDetails } from '../lib/ai-client';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-import { PerformanceData, Kpi, DailyForecast } from '../types';
+// FIX: Removed unused 'DailyForecast' import.
+import { PerformanceData, Kpi } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
 import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 
-// CORRECT: Define a local type for the place details we expect from our backend.
 interface PlaceDetails {
   name: string;
   rating?: number;
@@ -23,7 +22,6 @@ interface PlaceDetails {
   geometry?: { location: { lat: number; lng: number } };
 }
 
-// --- (Reusable sub-components like CustomTooltip, QuickStat, LoadingSpinner remain the same) ---
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -67,8 +65,6 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
-// --- Main Modal Component ---
-
 interface LocationInsightsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -105,7 +101,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const fetchInitialData = async () => {
                 try {
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
-                    // CORRECT: Use the secure, proxied API call.
                     const details = await getPlaceDetails(location);
                     setPlaceDetails(details);
                 } catch (error) {
@@ -121,18 +116,18 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     }, [isOpen, location]);
 
-    const handleAnalysis = async (type: AnalysisTab, audience?: Audience) => {
+    // FIX: Refactored to accept placeDetails as a parameter to avoid race conditions.
+    const handleAnalysis = useCallback(async (type: AnalysisTab, currentPlaceDetails: PlaceDetails | null, audience?: Audience) => {
         if (!location) return;
         setIsLoadingAnalysis(prev => ({ ...prev, [type]: true }));
         if (type === 'brief' && audience) setLoadingAudience(audience);
 
         let result: any = null;
         try {
-            // CORRECT: All calls now go through the single, secure callGeminiAPI function.
             switch (type) {
                 case 'reviews':
-                    if (placeDetails?.name && placeDetails?.reviews && placeDetails.reviews.length > 0) {
-                        result = await callGeminiAPI('getReviewSummary', { locationName: placeDetails.name, reviews: placeDetails.reviews });
+                    if (currentPlaceDetails?.name && currentPlaceDetails?.reviews && currentPlaceDetails.reviews.length > 0) {
+                        result = await callGeminiAPI('getReviewSummary', { locationName: currentPlaceDetails.name, reviews: currentPlaceDetails.reviews });
                     } else {
                         throw new Error("No reviews are available to analyze for this location.");
                     }
@@ -151,9 +146,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     const forecastData = await get7DayForecastForLocation(location);
                     if (forecastData) {
                          const aiForecast = await callGeminiAPI('getSalesForecast', { locationName: location, weatherForecast: forecastData, historicalData: 'N/A' });
-                         // The backend returns a string, we might need to parse it if it's JSON
-                         // For now, assuming it's a string as per the backend's simple return.
-                         result = { chartData: aiForecast, sevenDay: forecastData }; // This needs adjustment based on actual AI return format
+                         result = { chartData: aiForecast, sevenDay: forecastData };
                     } else {
                         throw new Error("7-day weather forecast is currently unavailable.");
                     }
@@ -179,20 +172,20 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
         setIsLoadingAnalysis(prev => ({ ...prev, [type]: false }));
         if (type === 'brief') setLoadingAudience(null);
-    };
+    }, [location, performanceData, userLocation]);
     
+    // FIX: Added handleAnalysis to the dependency array.
     useEffect(() => {
-        // This effect correctly triggers the 'reviews' analysis once placeDetails are loaded.
         if (placeDetails) {
             if (placeDetails.reviews && placeDetails.reviews.length > 0) {
                 if (!analysisContent.reviews) { 
-                    handleAnalysis('reviews');
+                    handleAnalysis('reviews', placeDetails);
                 }
             } else {
                 setAnalysisContent(prev => ({ ...prev, reviews: '<p class="text-slate-400 text-center">No reviews available to summarize for this location.</p>' }));
             }
         }
-    }, [placeDetails]);
+    }, [placeDetails, analysisContent.reviews, handleAnalysis]);
 
     const analysisTabConfig = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
@@ -208,8 +201,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const lon = placeDetails?.geometry?.location?.lng;
             if (!lat || !lon) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Street View Unavailable</h4><p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p></div>;
 
-            // CORRECT: The API key has been removed from the URL to prevent security risks.
-            // The Maps Embed API will work on a limited basis without a key.
             const embedUrl = `https://www.google.com/maps/embed/v1/streetview?location=${lat},${lon}&heading=210&pitch=10&fov=75`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
@@ -218,7 +209,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (placeDetailsError) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-red-400">Could not load location details.</h4><p className="text-slate-500 text-xs mt-1 break-all">{placeDetailsError}</p></div>;
         
         if (placeDetails) {
-            // CORRECT: The photo URLs are now correctly supplied by our secure backend call.
             const photos = placeDetails.photoUrls || [];
             return (
                 <div className="h-full flex flex-col">
@@ -246,8 +236,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         return null;
     };
 
-    // --- (The rest of the rendering logic for tabs, etc., remains largely the same) ---
-
     const renderAnalysisTabContent = () => {
         const content = analysisContent[activeAnalysisTab];
         const loading = isLoadingAnalysis[activeAnalysisTab];
@@ -255,16 +243,14 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
         if (activeAnalysisTab === 'brief') {
             const audiences: Audience[] = ['FOH', 'BOH', 'Managers'];
-            return <div className="space-y-4"><p className="text-sm text-slate-300">Generate a pre-shift huddle brief tailored to a specific team, including weather and holiday context.</p><div className="flex flex-wrap gap-2">{audiences.map(aud => <button key={aud} onClick={() => handleAnalysis('brief', aud)} disabled={loading} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50">{loading && loadingAudience === aud ? <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path></svg> : <Icon name="news" className="w-4 h-4" />}<span>Generate for <span className="font-bold">{aud}</span></span></button>)}</div>{content && Object.keys(content).length > 0 && <div className="space-y-4 pt-4 border-t border-slate-700">{(Object.keys(content) as Audience[]).map(aud => <div key={aud}><h4 className="font-bold text-cyan-400">Brief for {aud}</h4><div className="prose prose-sm prose-invert max-w-none text-slate-200 mt-2" dangerouslySetInnerHTML={{ __html: content[aud] }} /></div>)}</div>}</div>;
+            return <div className="space-y-4"><p className="text-sm text-slate-300">Generate a pre-shift huddle brief tailored to a specific team, including weather and holiday context.</p><div className="flex flex-wrap gap-2">{audiences.map(aud => <button key={aud} onClick={() => handleAnalysis('brief', placeDetails, aud)} disabled={loading} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50">{loading && loadingAudience === aud ? <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path></svg> : <Icon name="news" className="w-4 h-4" />}<span>Generate for <span className="font-bold">{aud}</span></span></button>)}</div>{content && Object.keys(content).length > 0 && <div className="space-y-4 pt-4 border-t border-slate-700">{(Object.keys(content) as Audience[]).map(aud => <div key={aud}><h4 className="font-bold text-cyan-400">Brief for {aud}</h4><div className="prose prose-sm prose-invert max-w-none text-slate-200 mt-2" dangerouslySetInnerHTML={{ __html: content[aud] }} /></div>)}</div>}</div>;
         }
 
-        // The forecast tab now has a problem because the AI returns a string, not chart data.
-        // This is a known issue from the refactor. I will add a temporary fix to display the raw AI output.
         if (activeAnalysisTab === 'forecast') {
-             if (content?.chartData) { // This `chartData` is actually a string now.
+             if (content?.chartData) {
                 return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content.chartData }} />;
              }
-             if (content) { // Fallback for any other content structure
+             if (content) {
                 return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
              }
         }
@@ -277,14 +263,14 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name='reviews' className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">No Reviews Available</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">There are no Google reviews to analyze for this location.</p></div>;
         }
 
-        return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p><button onClick={() => handleAnalysis(activeAnalysisTab)} className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><Icon name="sparkles" className="w-4 h-4" />Generate Analysis</button></div>;
+        return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p><button onClick={() => handleAnalysis(activeAnalysisTab, placeDetails)} className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><Icon name="sparkles" className="w-4 h-4" />Generate Analysis</button></div>;
     };
 
     return (
         <Modal 
             isOpen={isOpen} 
             onClose={onClose} 
-            title={`Store Hub: ${location}`} 
+            title={`Store Hub: ${location}`}
             size={isFullScreen ? 'fullscreen' : 'large'}
             headerControls={<button onClick={() => setIsFullScreen(!isFullScreen)} className="p-1 text-slate-400 hover:text-white"><Icon name={isFullScreen ? 'compress' : 'expand'} className="w-5 h-5" /></button>}
         >

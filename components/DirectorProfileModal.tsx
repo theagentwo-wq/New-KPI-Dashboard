@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
-import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData, Budget } from '../types';
+// FIX: Removed unused 'Budget' type.
+import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData } from '../types';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
 import { marked } from 'marked';
 import { KPI_CONFIG } from '../constants';
@@ -14,12 +15,11 @@ interface DirectorProfileModalProps {
   onClose: () => void;
   director?: DirectorProfile;
   performanceData: StorePerformanceData[];
-  budgets: Budget[];
+  // FIX: Removed unused 'budgets' prop.
   goals: Goal[];
   selectedKpi: Kpi;
   period: Period;
-  onUpdatePhoto: (directorId: string, file: File) => Promise<string>;
-  onUpdateContactInfo: (directorId: string, contactInfo: { email: string; phone: string }) => Promise<void>;
+  // FIX: Removed unused 'onUpdatePhoto' and 'onUpdateContactInfo' props.
   deployments: Deployment[];
   onAddDeployment: (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => void;
   onUpdateDeployment: (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>) => void;
@@ -28,9 +28,10 @@ interface DirectorProfileModalProps {
 
 type DeploymentTab = 'map' | 'timeline' | 'budget';
 
+// FIX: Removed unused props from component signature.
 export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ 
-    isOpen, onClose, director, performanceData, budgets, goals, selectedKpi, period, 
-    onUpdatePhoto, onUpdateContactInfo, deployments, onAddDeployment, onUpdateDeployment, onDeleteDeployment
+    isOpen, onClose, director, performanceData, goals, selectedKpi, period, 
+    deployments, onAddDeployment, onUpdateDeployment, onDeleteDeployment
 }) => {
   const [snapshot, setSnapshot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -88,8 +89,13 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
   useEffect(() => {
     const renderMarkdown = async () => {
         if (snapshot) {
+          try {
             const html = await marked.parse(snapshot);
             setSanitizedHtml(html);
+          } catch (e) {
+            console.error("Markdown parsing failed:", e);
+            setSanitizedHtml(`<p>Error rendering content.</p>`);
+          }
         } else {
             setSanitizedHtml('');
         }
@@ -101,9 +107,16 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     if (!director || !directorAggregateData) return;
     setIsLoading(true);
     setSnapshot('');
-    const result = await getDirectorPerformanceSnapshot(director.name, period.label, directorAggregateData);
-    setSnapshot(result);
-    setIsLoading(false);
+    try {
+      const result = await getDirectorPerformanceSnapshot(director.name, period.label, directorAggregateData);
+      setSnapshot(result);
+    } catch (error) {
+      console.error("AI Snapshot Error:", error);
+      // FIX: Escaped the apostrophe in the string.
+      setSnapshot('I\'m sorry, but I was unable to generate the performance snapshot at this time.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleOpenPlannerForCreate = () => {
@@ -148,12 +161,10 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({
     const currentYear = now.getFullYear();
     const activeDeployments = directorDeployments.filter(d => new Date(d.startDate) <= now && new Date(d.endDate) >= now);
     
-    // Safe budget calculation
     const totalBudgetSpentThisYear = directorDeployments
         .filter(d => new Date(d.startDate).getFullYear() === currentYear)
         .reduce((sum, d) => sum + (d.estimatedBudget || 0), 0);
         
-    // Default to 30000 if yearlyTravelBudget is missing on the profile
     const safeYearlyBudget = director.yearlyTravelBudget || 30000;
     const budgetPercentage = safeYearlyBudget > 0 ? (totalBudgetSpentThisYear / safeYearlyBudget) * 100 : 0;
     const remainingBudget = safeYearlyBudget - totalBudgetSpentThisYear;
