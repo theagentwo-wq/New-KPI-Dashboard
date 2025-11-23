@@ -38,7 +38,7 @@ export const callGeminiAPI = async (action: string, payload: any) => {
  * @returns Detailed information about the place.
  */
 export const getPlaceDetails = async (searchQuery: string) => {
-    const response = await fetch('/api/maps/place-details', {
+    const response = await fetch('/api/maps', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

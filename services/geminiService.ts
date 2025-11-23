@@ -41,11 +41,11 @@ export const getExecutiveSummary = (data: any, view: View, periodLabel: string) 
 };
 
 export const getReviewSummary = (locationName: string, reviews: any[]) => {
-  return callGeminiAPI('getReviewSummary', { locationName, reviews });
+  return callGeminiAPI('getReviewSummary', { location: locationName, reviews });
 };
 
 export const getLocationMarketAnalysis = (locationName: string) => {
-  return callGeminiAPI('getLocationMarketAnalysis', { locationName });
+  return callGeminiAPI('getLocationMarketAnalysis', { location: locationName });
 };
 
 export const generateHuddleBrief = (locationName: string, performanceData: PerformanceData, audience: Audience, weather: Weather | null): Promise<string> => {
