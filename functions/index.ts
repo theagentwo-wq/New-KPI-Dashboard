@@ -159,10 +159,4 @@ app.post("/gemini", async (req, res) => {
 
 
 // --- Export the Express App ---
-export const api = onRequest(
-    { 
-        secrets: ["GEMINI_KEY", "MAPS_KEY"],
-        serviceAccount: "firebase-adminsdk-fbvco@operations-kpi-dashboard.iam.gserviceaccount.com",
-    }, 
-    app
-);
+export const api = onRequest({ secrets: ["GEMINI_KEY", "MAPS_KEY"] }, app);
