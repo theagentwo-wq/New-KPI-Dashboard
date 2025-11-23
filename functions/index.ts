@@ -33,7 +33,7 @@ router.post("/gemini", async (req, res) => {
             case "getReviewSummary":
                 const { locationName, reviews } = payload;
                 if (!reviews || !locationName) return res.status(400).json({ error: "Location name and reviews are required." });
-                prompt = `Generate a concise summary of customer reviews for the restaurant "${locationName}". Highlight recurring positive themes (e.g., specific dishes, service quality, atmosphere) and negative feedback. Start with a 1-2 sentence overall sentiment analysis. Reviews: ${JSON.stringify(reviews)}`;
+                prompt = `Generate a concise summary of customer reviews for the restaurant \"${locationName}\". Highlight recurring positive themes (e.g., specific dishes, service quality, atmosphere) and negative feedback. Start with a 1-2 sentence overall sentiment analysis. Reviews: ${JSON.stringify(reviews)}`;
                 break;
             case "getLocationMarketAnalysis":
                 const { location } = payload;
@@ -42,7 +42,7 @@ router.post("/gemini", async (req, res) => {
                 break;
             case "generateHuddleBrief":
                 const { location: huddleLocation, storeData, audience, weather } = payload;
-                prompt = `Generate a pre-shift huddle brief for the "${audience}" team at the "${huddleLocation}" restaurant. Today's weather: ${weather ? JSON.stringify(weather) : 'not available'}. Key store data for the day: ${JSON.stringify(storeData)}. The brief should be upbeat, concise, and highlight 1-2 key focus areas for the upcoming shift.`;
+                prompt = `Generate a pre-shift huddle brief for the \"${audience}\" team at the \"${huddleLocation}\" restaurant. Today's weather: ${weather ? JSON.stringify(weather) : 'not available'}. Key store data for the day: ${JSON.stringify(storeData)}. The brief should be upbeat, concise, and highlight 1-2 key focus areas for the upcoming shift.`;
                 break;
             default:
                 return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
@@ -51,7 +51,7 @@ router.post("/gemini", async (req, res) => {
         const content = generationResult.response.text();
         res.json({ content });
     } catch (error) {
-        console.error(`Error in /gemini for action "${action}":`, error);
+        console.error(`Error in /gemini for action \"${action}\":`, error);
         res.status(500).json({ error: `Failed to process AI request for action ${action}.` });
     }
 });
@@ -81,7 +81,7 @@ router.post("/maps/placeDetails", async (req, res) => {
 
         if (findPlaceResponse.data.status !== 'OK' || !findPlaceResponse.data.candidates || findPlaceResponse.data.candidates.length === 0) {
             console.error("Maps API Error (findPlaceFromText):", findPlaceResponse.data.error_message);
-            return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for address: "${address}"` });
+            return res.status(404).json({ error: findPlaceResponse.data.error_message || `Could not find a location for address: \"${address}\"` });
         }
 
         const placeId = findPlaceResponse.data.candidates[0].place_id;
@@ -107,6 +107,6 @@ router.post("/maps/placeDetails", async (req, res) => {
     }
 });
 
-app.use("/api", router);
+app.use("/", router);
 
 export const api = https.onRequest({ secrets: ["MAPS_API_KEY", "GEMINI_API_KEY"] }, app);
