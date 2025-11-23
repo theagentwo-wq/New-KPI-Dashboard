@@ -121,7 +121,13 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         let result: any = null;
         try {
             switch (type) {
-                case 'reviews': result = await getReviewSummary(location); break;
+                case 'reviews': 
+                    if (placeDetails?.reviews) {
+                        result = await getReviewSummary(placeDetails.name, placeDetails.reviews);
+                    } else {
+                        throw new Error("Location name and reviews are required.");
+                    }
+                    break;
                 case 'market': result = await getLocationMarketAnalysis(location); break;
                 case 'brief': {
                     const weather = await getWeatherForLocation(location);
@@ -148,7 +154,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         } catch (error) {
             console.error(`Error fetching analysis for ${type}:`, error);
             const errorMsg = error instanceof Error ? error.message : 'Could not generate results.';
-            result = `<p class="text-red-400">${errorMsg}</p>`;
+            result = `<p class="text-red-400">Request failed: ${errorMsg}</p>`;
         }
         
         if (type === 'brief' && audience) {
@@ -161,6 +167,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (type === 'brief') setLoadingAudience(null);
     };
     
+    useEffect(() => {
+        if (placeDetails && !analysisContent.reviews) {
+            handleAnalysis('reviews');
+        }
+    }, [placeDetails]);
+
     const analysisTabConfig = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
         { id: 'market', label: 'Local Market', icon: 'sop' },
@@ -206,8 +218,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         
         if (content) return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
 
-        const tabConfigItem = analysisTabConfig.find(t => t.id === activeAnalysisTab);
-        return <div className="text-center flex flex-col items-center justify-center h-full"><Icon name={tabConfigItem?.icon || 'sparkles'} className="w-12 h-12 text-slate-600 mb-4" /><h4 className="font-bold text-slate-300">Analyze {tabConfigItem?.label}</h4><p className="text-sm text-slate-400 mt-1 max-w-sm">Get AI-powered insights for this location. Click the button below to generate the analysis.</p><button onClick={() => handleAnalysis(activeAnalysisTab)} className="mt-6 flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition-colors"><Icon name="sparkles" className="w-4 h-4" />Generate Analysis</button></div>;
+        return <LoadingSpinner message="Preparing analysis..." />;
     };
 
     return (

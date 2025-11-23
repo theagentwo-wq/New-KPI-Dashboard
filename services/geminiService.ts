@@ -3,7 +3,10 @@ import { View, Anomaly, ForecastDataPoint, DailyForecast, Kpi, PerformanceData, 
 export interface PlaceDetails {
     name: string;
     rating: number;
+    reviews?: any[];
     photoUrls: string[];
+    website?: string;
+    url?: string;
 }
 
 async function callAIApi(action: string, payload: any): Promise<any> {
@@ -139,8 +142,8 @@ export const getSalesForecast = async (location: string, weatherForecast: DailyF
     const result = await callAIApi('getSalesForecast', { location, weatherForecast });
     return result.forecast || [];
 };
-export const getReviewSummary = async (location: string): Promise<string> => {
-    const result = await callAIApi('getReviewSummary', { location });
+export const getReviewSummary = async (locationName: string, reviews: any[]): Promise<string> => {
+    const result = await callAIApi('getReviewSummary', { locationName, reviews });
     return result.content || "Could not generate review summary.";
 };
 export const getVarianceAnalysis = async (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
