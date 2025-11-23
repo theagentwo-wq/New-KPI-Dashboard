@@ -10,15 +10,10 @@
       {
         "source": "/api/**",
         "function": "api"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
       }
     ]
   },
   "functions": {
-    "source": "functions",
-    "predeploy": "npm --prefix functions run build"
+    "source": "functions"
   }
 }
