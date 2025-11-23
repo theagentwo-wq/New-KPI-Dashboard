@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './Modal';
 import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData, Budget } from '../types';

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { getInsights, getTrendAnalysis } from '../services/geminiService';
 import { View, Period, PerformanceData } from '../types';
