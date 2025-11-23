@@ -11,7 +11,6 @@ admin.initializeApp();
 const app = express();
 
 // --- Middleware ---
-// Middleware must be placed before route definitions.
 app.use(cors({ origin: true }));
 app.use(express.json());
 
@@ -28,6 +27,10 @@ const getErrorMessage = (error: any): string => {
 };
 
 // --- Route Handlers ---
+
+// Your firebase.json rewrite rule directs all requests starting with "/api" to this function.
+// The "/api" prefix is stripped by the rewrite rule before it hits the Express server.
+// Therefore, a request to "/api/maps/place-details" arrives here as "/maps/place-details".
 
 // Maps API Endpoint
 const mapsClient = new MapsClient({});
@@ -135,7 +138,7 @@ app.post("/gemini", async (req, res) => {
     }
 });
 
+
 // --- Export the Express App ---
-// The Cloud Function is configured to strip the "/api" prefix from the URL.
-// Therefore, the Express routes should NOT include "/api".
+// This single 'api' export is picked up by Firebase.
 export const api = onRequest({ secrets: ["GEMINI_KEY", "MAPS_KEY"] }, app);
