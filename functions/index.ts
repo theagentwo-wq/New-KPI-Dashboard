@@ -30,7 +30,7 @@ const getErrorMessage = (error: any): string => {
 
 // Maps API Endpoint
 const mapsClient = new MapsClient({});
-app.post("/maps/place-details", async (req, res) => {
+app.post("/api/maps/place-details", async (req, res) => {
     const { searchQuery } = req.body;
     if (!searchQuery) {
         return res.status(400).json({ error: "Missing 'searchQuery' in request body." });
@@ -100,7 +100,7 @@ const generateAIContent = async (prompt: string, action: string) => {
     }
 };
 
-app.post("/gemini", async (req, res) => {
+app.post("/api/gemini", async (req, res) => {
     const { action, payload } = req.body;
     if (!action || !payload) return res.status(400).json({ error: "Missing 'action' or 'payload'." });
 
@@ -126,11 +126,11 @@ app.post("/gemini", async (req, res) => {
                 const baseInfo = `- Location: ${locationName}\n- Weather: ${weather || "N/A"}\n- KPIs: ${performanceData || "N/A"}\n- Promotions: ${promotions}`;
 
                 if (audience === "FOH") {
-                    prompt = `Generate a fun, high-energy FOH pre-shift brief for "${locationName}". Goal: Motivate, drive sales, ensure amazing guest experience. ${baseInfo}. Today's Focus: 1. Sales Contest (e.g., 'Sell the most XYZ cocktail to win a prize!'). 2. Service Goal (e.g., 'Focus on 5-star reviews; mention review sites to happy guests'). 3. Shift Game (e.g., 'Secret Compliment game is on!').`;
+                    prompt = `Generate a fun, high-energy FOH pre-shift brief for "${locationName}". Goal: Motivate, drive sales, ensure amazing guest experience. ${baseInfo}. Today\'s Focus: 1. Sales Contest (e.g., \'Sell the most XYZ cocktail to win a prize!\'). 2. Service Goal (e.g., \'Focus on 5-star reviews; mention review sites to happy guests\'). 3. Shift Game (e.g., \'Secret Compliment game is on!\').`;
                 } else if (audience === "BOH") {
-                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal: Culinary excellence, safety, high standards. ${baseInfo}. Today's Focus: 1. Kitchen Safety ('Work clean, work safe. Sharp knives, hot pans. No shortcuts.'). 2. Health Standards ('If you wouldn't serve it to your family, don't serve it to a guest.'). 3. Passion & Pride ('Every plate has our signature. Make it count. Cook with passion.').`;
+                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal: Culinary excellence, safety, high standards. ${baseInfo}. Today\'s Focus: 1. Kitchen Safety (\'Work clean, work safe. Sharp knives, hot pans. No shortcuts.\'). 2. Health Standards (\'If you wouldn\'t serve it to your family, don\'t serve it to a guest.\'). 3. Passion & Pride (\'Every plate has our signature. Make it count. Cook with passion.\').`;
                 } else { // Managers
-                    prompt = `Generate a strategic, inspiring management pre-shift brief for "${locationName}". Goal: Align team, drive profit, foster positive culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership ('Be present. Connect with 5 tables personally. Touch tables, support the team.'). 2. Cost Control ('Watch waste on the ABC dish. Ensure perfect prep.'). 3. Culture Initiative ('What gets celebrated gets repeated. Publicly praise 3 team members today.').`;
+                    prompt = `Generate a strategic, inspiring management pre-shift brief for "${locationName}". Goal: Align team, drive profit, foster positive culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership (\'Be present. Connect with 5 tables personally. Touch tables, support the team.\'). 2. Cost Control (\'Watch waste on the ABC dish. Ensure perfect prep.\'). 3. Culture Initiative (\'What gets celebrated gets repeated. Publicly praise 3 team members today.\').`;
                 }
                 break;
 
@@ -140,7 +140,7 @@ app.post("/gemini", async (req, res) => {
                 break;
 
             case "getMarketingIdeas":
-                prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search to find current local trends, events, or news to inspire your ideas. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea]. Example: For Gen Z (Digital): - Low: 'Host an Instagram contest for best photo in the restaurant.' - Moderate: 'Partner with a local micro-influencer.'`;
+                prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search to find current local trends, events, or news to inspire your ideas. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea]. Example: For Gen Z (Digital): - Low: \'Host an Instagram contest for best photo in the restaurant.\' - Moderate: \'Partner with a local micro-influencer.\'`;
                 break;
             default:
                 return res.status(400).json({ error: `Unknown action: ${action}` });
