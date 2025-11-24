@@ -8,17 +8,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+
       - name: Install Root Dependencies
         run: npm install
+
       - name: Install Functions Dependencies
         run: npm install
         working-directory: ./functions
-      - name: Build Project
+
+      - name: Build Functions Backend
         run: npm run build
+        working-directory: ./functions
+
+      - name: Build Frontend Project
+        run: npm run build
+        env:
+          VITE_MAPS_API_KEY: ${{ secrets.VITE_MAPS_API_KEY }}
+          FIREBASE_CLIENT_CONFIG: ${{ secrets.FIREBASE_CLIENT_CONFIG }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@master
         with:
