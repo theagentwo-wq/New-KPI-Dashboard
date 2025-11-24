@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename)
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to \'\' to load all env regardless of the `VITE_` prefix.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
     // It makes the FIREBASE_CLIENT_CONFIG variable available to the build process.
     define: {
       'import.meta.env.FIREBASE_CLIENT_CONFIG': JSON.stringify(env.FIREBASE_CLIENT_CONFIG),
+      'import.meta.env.MAPS_KEY': JSON.stringify(env.MAPS_KEY),
     },
   }
 })
