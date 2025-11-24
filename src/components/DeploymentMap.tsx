@@ -33,7 +33,8 @@ declare namespace google.maps {
 }
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useGoogleMaps } from '../hooks/useGoogleMaps';
+// FIX: Corrected the import to use a default import instead of a named import.
+import useGoogleMaps from '../hooks/useGoogleMaps';
 import { Deployment, DirectorProfile } from '../types';
 import { STORE_DETAILS } from '../constants';
 
