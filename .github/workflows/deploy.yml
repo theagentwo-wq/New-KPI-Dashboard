@@ -20,11 +20,19 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Install Dependencies for Functions
+        run: npm ci
+        working-directory: ./functions
+
       - name: Build Frontend Project
         run: npm run build
         env:
           VITE_MAPS_KEY: ${{ secrets.VITE_MAPS_KEY }}
           VITE_FIREBASE_CLIENT_CONFIG: '${{ secrets.FIREBASE_CLIENT_CONFIG }}'
+
+      - name: Build Functions Project
+        run: npm run build
+        working-directory: ./functions
 
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@master
