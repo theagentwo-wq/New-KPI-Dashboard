@@ -14,10 +14,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Path Aliases - Added to fix deployment error */
+    /* Path Aliases - Corrected for src directory */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     },
 
     /* Linting */
@@ -27,7 +27,7 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": [".", "netlify/**/*.ts"],
+  "include": [".", "netlify/**/*.ts", "src"],
   "exclude": [
     "dist",
     "node_modules",
