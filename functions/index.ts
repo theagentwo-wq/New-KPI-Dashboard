@@ -93,7 +93,7 @@ app.post("/gemini", async (req, res) => {
                 if (audience === "FOH") {
                     prompt = `Generate a fun, high-energy FOH pre-shift huddle brief for "${locationName}". Goal is to motivate, drive sales, and ensure an amazing guest experience. ${baseInfo}. Today's Focus: 1. Sales Contest (e.g., 'Sell the most XYZ to win!'). 2. Service Goal (e.g., 'Focus on 5-star reviews; mention review sites'). 3. Shift Game (e.g., 'Secret Compliment game is on!').`;
                 } else if (audience === "BOH") {
-                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal is culinary excellence and safety. ${baseInfo}. Today's Focus: 1. Kitchen Safety ('Work clean, work safe.'). 2. Health Standards ('If you wouldn't serve it to your family, don't serve it.'). 3. Passion & Pride ('Every plate has our signature. Make it count.').`;
+                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal is to culinary excellence and safety. ${baseInfo}. Today's Focus: 1. Kitchen Safety ('Work clean, work safe.'). 2. Health Standards ('If you wouldn't serve it to your family, don't serve it.'). 3. Passion & Pride ('Every plate has our signature. Make it count.').`;
                 } else { // Managers
                     prompt = `Generate a strategic management pre-shift brief for "${locationName}". Goal is to align the team, drive profit, and foster culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership ('Connect with 5 tables personally.'). 2. Cost Control ('Watch waste on the ABC dish.'). 3. Culture Initiative ('Publicly praise 3 team members today.').`;
                 }
@@ -106,7 +106,7 @@ app.post("/gemini", async (req, res) => {
 
             case "getMarketingIdeas":
                 prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search for current local trends and events. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea].`;
-                break; // FIX: Added missing break statement
+                break;
 
             default:
                 return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
@@ -117,7 +117,6 @@ app.post("/gemini", async (req, res) => {
 
     } catch (error) {
         console.error(`Error in /gemini for action '${action}':`, error);
-        // FIX: Changed to 500 and improved error message
         res.status(500).json({ error: `Failed to process AI request for action: ${action}. Reason: ${getErrorMessage(error)}` });
     }
 });
