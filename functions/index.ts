@@ -124,7 +124,6 @@ app.post("/gemini", async (req, res) => {
 
 
 // --- Export the Express App ---
-// FIX: Added comment explaining the most likely cause of permission errors.
 // The 'secrets' array is empty as Vertex AI authenticates automatically via Application Default Credentials.
 // IMPORTANT: For this to work, the service account running this function 
 // (usually {project-id}@appspot.gserviceaccount.com) MUST have the "Vertex AI User" IAM role.
