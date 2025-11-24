@@ -60,7 +60,7 @@ The backend authenticates to the Gemini API using its service account identity. 
 You must update the security rules for Firestore and Firebase Storage to allow the application to read and write data.
 
 1.  **Firestore:** Go to **Firestore Database > Rules** in the Firebase Console and replace the rules with:
-    ```
+    '''
     rules_version = '2';
     service cloud.firestore {
       match /databases/{database}/documents {
@@ -69,9 +69,9 @@ You must update the security rules for Firestore and Firebase Storage to allow t
         }
       }
     }
-    ```
+    '''
 2.  **Storage:** Go to **Storage > Rules** in the Firebase Console and replace the rules with:
-    ```
+    '''
     rules_version = '2';
     service firebase.storage {
       match /b/{bucket}/o {
@@ -80,7 +80,7 @@ You must update the security rules for Firestore and Firebase Storage to allow t
         }
       }
     }
-    ```
+    '''
 3.  Click **"Publish"** for both sets of rules.
 
 ---
@@ -111,3 +111,22 @@ Deployment is handled automatically by GitHub Actions. For the deployment to suc
     *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
 
 With these secrets in place, every push to your repository's `main` branch will automatically deploy a new version of your application with the correct keys.
+
+---
+
+## Project Identification
+
+These are the official identifiers for the currently active Google Cloud and Firebase project.
+
+*   **Project Name:** `Firebase app`
+*   **Project ID:** `kpi-dashboardgit-9913298-66e65`
+*   **Project Number:** `265139900488`
+
+---
+
+## Assistant Instructions
+
+**For the AI Assistant:**
+
+1.  **Review this `README.md` file in its entirety before starting any new task.** It contains critical information about how the project is managed and configured.
+2.  If any part of a request is unclear, or if it seems to conflict with the information in this document, you **must** ask for clarification before taking any action.
