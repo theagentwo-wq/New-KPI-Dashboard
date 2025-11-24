@@ -10,7 +10,7 @@
     "build": "tsc"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "dist/index.js",
   "dependencies": {
