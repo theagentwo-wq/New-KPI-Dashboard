@@ -25,7 +25,7 @@ The development and deployment process is as follows:
 1.  **Code Editing**: All code is edited directly within this dedicated cloud IDE.
 2.  **Version Control**: Changes are committed and pushed to the project's GitHub repository.
 3.  **Secrets Management**: All API keys and configuration secrets are stored securely in the GitHub repository's **Secrets** section. They are injected into the application only during the deployment process.
-4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application to Firebase Hosting and Cloud Functions.
+4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application. This includes both the frontend (Firebase Hosting) and the backend (Cloud Functions).
 5.  **Branching Strategy**: All work should happen directly on the `main` branch.
 
 ---
@@ -45,17 +45,7 @@ For all features to work, you must enable four specific APIs in your Google Clou
     *   **Places API** (for photos and ratings)
     *   **Geocoding API** (for finding locations accurately)
 
-### 2. Grant Permissions for AI Features
-
-The backend authenticates to the Gemini API using its service account identity. You must grant it the correct permission.
-
-1.  Go to the **[IAM & Admin Page](https://console.cloud.google.com/iam-admin/iam)**.
-2.  Find the principal (service account) named **`[YOUR-PROJECT-ID]@appspot.gserviceaccount.com`**.
-3.  Click the **pencil icon** to edit its roles.
-4.  Click **"+ ADD ANOTHER ROLE"** and add the **"Vertex AI User"** role.
-5.  Click **"SAVE"**.
-
-### 3. Security Rules
+### 2. Security Rules
 
 This project's security rules for Firestore and Firebase Storage are configured to allow public read and write access. This is intentional to allow a small, trusted group of users to use the application without needing to sign in.
 
@@ -65,14 +55,24 @@ This project's security rules for Firestore and Firebase Storage are configured 
 
 ## Deployment and Secrets Configuration
 
-Deployment is handled automatically by GitHub Actions. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository.
+Deployment is handled automatically by a GitHub Action workflow. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository.
 
-### 1. Generate a Firebase CI Token
+### 1. Create a Service Account for Deployment
 
-1.  Open a new terminal in your cloud environment.
-2.  Run the command: `firebase login:ci`
-3.  This will open a new browser tab. Log in with the Google account associated with your Firebase project.
-4.  After authorizing, a new CI token will be printed directly to your terminal. **Copy this token immediately.** It will be used in the next step.
+The deployment process uses a Google Cloud service account for secure authentication.
+
+1.  Go to the **[IAM & Admin > Service Accounts Page](https://console.cloud.google.com/iam-admin/serviceaccounts)**.
+2.  Click **"+ CREATE SERVICE ACCOUNT"**.
+3.  Give it a name (e.g., `github-actions-deployer`) and an optional description.
+4.  Click **"CREATE AND CONTINUE"**.
+5.  In the "Grant this service account access to project" step, add the following three roles:
+    *   **Firebase Admin** (for deploying to Firebase)
+    *   **API Keys Admin** (for managing API keys)
+    *   **Vertex AI User** (for AI features)
+6.  Click **"CONTINUE"**, then click **"DONE"**.
+7.  Find the service account you just created in the list. Click the three-dot menu on the right and select **"Manage keys"**.
+8.  Click **"ADD KEY"** > **"Create new key"**.
+9.  Choose **JSON** as the key type and click **"CREATE"**. A JSON file will be downloaded to your computer. **This is the only time you can download this file.** Keep it secure.
 
 ### 2. Create a Google Maps API Key
 
@@ -92,7 +92,7 @@ Deployment is handled automatically by GitHub Actions. For the deployment to suc
 
 1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
 2.  Click **"New repository secret"** and create the following three secrets:
-    *   **`FIREBASE_TOKEN`**: Paste the CI token you generated.
+    *   **`FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD`**: Open the JSON service account key you downloaded and paste its entire contents here.
     *   **`VITE_MAPS_KEY`**: Paste the Google Maps API key you copied.
     *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
 
@@ -125,4 +125,4 @@ These are the official identifiers for the active projects.
 
 1.  **Review this `README.md` file in its entirety before starting any new task.** It contains critical information about how the project is managed and configured.
 2.  If any part of a request is unclear, or if it seems to conflict with the information in this document, you **must** ask for clarification before taking any action.
-3.  **Never look for local files.** All project code and configuration lives in the Firebase Studio and GitHub. The local file system is not part of the development workflow.
+3.  **Never assume a local file system or terminal.** All project code and configuration lives in this IDE and GitHub. The local file system is not part of the development workflow.
