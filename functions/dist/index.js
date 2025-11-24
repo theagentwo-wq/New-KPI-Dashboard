@@ -41,8 +41,7 @@ const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const google_maps_services_js_1 = require("@googlemaps/google-maps-services-js");
-const generative_ai_1 = require("@google/generative-ai");
+const vertexai_1 = require("@google-cloud/vertexai");
 // Initialize Firebase and Express
 admin.initializeApp();
 const app = (0, express_1.default)();
@@ -50,80 +49,53 @@ const app = (0, express_1.default)();
 app.use((0, cors_1.default)({ origin: true }));
 app.use(express_1.default.json());
 // --- Helper Functions ---
-const getApiKey = (keyName) => {
-    const key = process.env[keyName];
-    if (!key)
-        throw new Error(`Server configuration error: Secret ${keyName} is not set.`);
-    return key;
-};
 const getErrorMessage = (error) => {
     if (error instanceof Error)
         return error.message;
     return "An unknown error occurred.";
 };
-// --- Route Handlers ---
-// Maps API Endpoint
-const mapsClient = new google_maps_services_js_1.Client({});
-app.post("/maps/place-details", async (req, res) => {
-    const { searchQuery } = req.body;
-    if (!searchQuery) {
-        return res.status(400).json({ error: "Missing 'searchQuery' in request body." });
-    }
-    try {
-        const MAPS_API_KEY = getApiKey("MAPS_KEY");
-        const findPlaceRequest = await mapsClient.findPlaceFromText({
-            params: {
-                input: searchQuery,
-                inputtype: google_maps_services_js_1.PlaceInputType.textQuery,
-                fields: ["place_id", "name", "formatted_address"],
-                key: MAPS_API_KEY
-            },
-        });
-        if (findPlaceRequest.data.status !== "OK" || !findPlaceRequest.data.candidates?.[0]?.place_id) {
-            console.warn(`Maps API - findPlaceFromText failed for query "${searchQuery}":`, findPlaceRequest.data.status);
-            return res.status(404).json({ error: `Google Maps could not find a location matching "${searchQuery}".` });
-        }
-        const placeId = findPlaceRequest.data.candidates[0].place_id;
-        const detailsResponse = await mapsClient.placeDetails({
-            params: {
-                place_id: placeId,
-                fields: ["name", "rating", "reviews", "website", "url", "photos", "formatted_address", "geometry"],
-                key: MAPS_API_KEY,
-            },
-        });
-        if (detailsResponse.data.status !== "OK") {
-            console.error("Maps API - placeDetails failed:", detailsResponse.data.status);
-            return res.status(500).json({ error: `Google Maps API Error on placeDetails: ${detailsResponse.data.status}` });
-        }
-        const placeDetails = detailsResponse.data.result;
-        const photoUrls = (placeDetails.photos || []).map(p => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photoreference=${p.photo_reference}&key=${MAPS_API_KEY}`);
-        res.json({ ...placeDetails, photoUrls });
-    }
-    catch (error) {
-        console.error(`FATAL ERROR in /maps/place-details:`, error);
-        res.status(500).json({ error: getErrorMessage(error) });
-    }
-});
-// Gemini API Endpoint
+// --- AI Content Generation ---
 const generateAIContent = async (prompt, action) => {
     try {
-        const genAI = new generative_ai_1.GoogleGenerativeAI(getApiKey("GEMINI_KEY"));
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
+        // Initialize Vertex AI with the project details from the environment
+        const vertex_ai = new vertexai_1.VertexAI({ project: process.env.GCLOUD_PROJECT, location: 'us-central1' });
+        const model = 'gemini-1.5-pro-latest';
+        // Instantiate the generative model
+        const generativeModel = vertex_ai.preview.getGenerativeModel({
+            model: model,
+            generationConfig: {
+                'maxOutputTokens': 8192,
+                'temperature': 1,
+                'topP': 0.95,
+            },
+            // Use Google Search for real-time, grounded results
+            tools: [{
+                    'googleSearchRetrieval': {},
+                }],
+        });
+        const result = await generativeModel.generateContent(prompt);
+        if (!result.response.candidates?.[0]?.content.parts[0]?.text) {
+            console.error(`Vertex AI Error - Empty Response for action "${action}":`, JSON.stringify(result.response, null, 2));
+            throw new Error('The AI model returned an empty or invalid response.');
+        }
+        const responseText = result.response.candidates[0].content.parts[0].text;
+        return responseText;
     }
     catch (error) {
-        console.error(`Gemini API Error for action "${action}":`, error);
+        console.error(`Vertex AI Error for action "${action}":`, error);
         if (error.message && error.message.includes("PERMISSION_DENIED")) {
-            throw new Error("AI API Call Failed: The 'Vertex AI API' is not enabled for this Google Cloud project. Please go to the Google Cloud Console and enable it.");
+            throw new Error("AI API Call Failed: The 'Vertex AI User' role is likely missing for the service account. Please check your project's IAM settings.");
         }
-        throw new Error(`AI content generation failed. Please check the server logs.`);
+        // Re-throw the original error or a new one with more context
+        throw new Error(`AI content generation failed for action: ${action}. Please check the server logs.`);
     }
 };
+// --- Main Gemini API Endpoint ---
 app.post("/gemini", async (req, res) => {
     const { action, payload } = req.body;
-    if (!action || !payload)
+    if (!action || !payload) {
         return res.status(400).json({ error: "Missing 'action' or 'payload'." });
+    }
     let prompt = "";
     const { locationName } = payload;
     try {
@@ -131,45 +103,51 @@ app.post("/gemini", async (req, res) => {
             case "getReviewSummary":
                 const { reviews } = payload;
                 const reviewTexts = (reviews || []).map((r) => r.text).filter((text) => text?.trim()).join("\n---\n");
-                if (!reviewTexts)
+                if (!reviewTexts) {
                     return res.json({ content: "There are no written reviews available to analyze for this location." });
-                prompt = `As a restaurant operations analyst, summarize customer reviews for "${locationName}". Use Google Search to find recent reviews from the web to supplement the provided review data. Identify key themes, recent positive feedback, and urgent areas for improvement. Use clear headings. Reviews:\n${reviewTexts}`;
+                }
+                prompt = `As a restaurant operations analyst, summarize customer reviews for "${locationName}". Use Google Search to find recent reviews to supplement the provided data. Identify themes, positive feedback, and urgent improvement areas. Use clear headings. Reviews:\n${reviewTexts}`;
                 break;
             case "getLocationMarketAnalysis":
-                prompt = `Analyze the local market for "${locationName}". Be detailed and actionable. Use Google Search to find the most current information on local events, holidays, news, and consumer trends. Include sections for: 1. Recent & Upcoming Local Events & Holidays. 2. Current Macro/Micro Trends. 3. Competitive Landscape. 4. Actionable Opportunities (3-5 specific, creative ideas).`;
+                prompt = `Analyze the local market for the restaurant "${locationName}". Be detailed and actionable. Use Google Search to find current information on local events, holidays, news, and consumer trends. Include: 1. Upcoming Events & Holidays. 2. Current Market Trends. 3. Competitive Landscape. 4. Actionable Opportunities (3-5 specific, creative ideas).`;
                 break;
             case "generateHuddleBrief":
                 const { performanceData, audience, weather } = payload;
-                const promotions = "Check tupelohoneycafe.com for latest company promotions.";
+                const promotions = "Check company website for latest promotions.";
                 const baseInfo = `- Location: ${locationName}\n- Weather: ${weather || "N/A"}\n- KPIs: ${performanceData || "N/A"}\n- Promotions: ${promotions}`;
                 if (audience === "FOH") {
-                    prompt = `Generate a fun, high-energy FOH pre-shift brief for "${locationName}". Goal: Motivate, drive sales, ensure amazing guest experience. ${baseInfo}. Today's Focus: 1. Sales Contest (e.g., 'Sell the most XYZ cocktail to win a prize!'). 2. Service Goal (e.g., 'Focus on 5-star reviews; mention review sites to happy guests'). 3. Shift Game (e.g., 'Secret Compliment game is on!').`;
+                    prompt = `Generate a fun, high-energy FOH pre-shift huddle brief for "${locationName}". Goal is to motivate, drive sales, and ensure an amazing guest experience. ${baseInfo}. Today's Focus: 1. Sales Contest (e.g., 'Sell the most XYZ to win!'). 2. Service Goal (e.g., 'Focus on 5-star reviews; mention review sites'). 3. Shift Game (e.g., 'Secret Compliment game is on!').`;
                 }
                 else if (audience === "BOH") {
-                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal: Culinary excellence, safety, high standards. ${baseInfo}. Today's Focus: 1. Kitchen Safety ('Work clean, work safe. Sharp knives, hot pans. No shortcuts.'). 2. Health Standards ('If you wouldn't serve it to your family, don't serve it to a guest.'). 3. Passion & Pride ('Every plate has our signature. Make it count. Cook with passion.').`;
+                    prompt = `Generate a focused, passionate BOH pre-shift brief for "${locationName}" inspired by Anthony Bourdain. Goal is culinary excellence and safety. ${baseInfo}. Today's Focus: 1. Kitchen Safety ('Work clean, work safe.'). 2. Health Standards ('If you wouldn't serve it to your family, don't serve it.'). 3. Passion & Pride ('Every plate has our signature. Make it count.').`;
                 }
                 else { // Managers
-                    prompt = `Generate a strategic, inspiring management pre-shift brief for "${locationName}". Goal: Align team, drive profit, foster positive culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership ('Be present. Connect with 5 tables personally. Touch tables, support the team.'). 2. Cost Control ('Watch waste on the ABC dish. Ensure perfect prep.'). 3. Culture Initiative ('What gets celebrated gets repeated. Publicly praise 3 team members today.').`;
+                    prompt = `Generate a strategic management pre-shift brief for "${locationName}". Goal is to align the team, drive profit, and foster culture. ${baseInfo}. Strategic Focus: 1. Floor Leadership ('Connect with 5 tables personally.'). 2. Cost Control ('Watch waste on the ABC dish.'). 3. Culture Initiative ('Publicly praise 3 team members today.').`;
                 }
                 break;
             case "getSalesForecast":
                 const { historicalData, weatherForecast } = payload;
-                prompt = `As a data analyst, create a 7-day sales forecast for "${locationName}". Use Google Search to find any major upcoming local events, holidays, or news that could impact sales. Use this, along with the provided weather forecast and historical data, to create your forecast. Present as a simple, day-by-day list (e.g., "Monday: $XXXX (Sunny, 75°F) - Expected slight increase due to a local festival."). Data: Weather: ${JSON.stringify(weatherForecast)}, History: ${historicalData || "Use general restaurant sales patterns."}`;
+                prompt = `As a data analyst, create a 7-day sales forecast for "${locationName}". Use Google Search to find major upcoming local events or holidays. Use this, plus the provided weather, to create the forecast. Present as a simple, day-by-day list (e.g., "Monday: $XXXX (Sunny) - Increase due to local festival."). Data: Weather: ${JSON.stringify(weatherForecast)}, History: ${historicalData || "Use general restaurant sales patterns."}`;
                 break;
             case "getMarketingIdeas":
-                prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search to find current local trends, events, or news to inspire your ideas. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea]. Example: For Gen Z (Digital): - Low: 'Host an Instagram contest for best photo in the restaurant.' - Moderate: 'Partner with a local micro-influencer.'`;
-                break;
+                prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search for current local trends and events. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea].`;
+                break; // FIX: Added missing break statement
             default:
-                return res.status(400).json({ error: `Unknown action: ${action}` });
+                return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
         }
         const content = await generateAIContent(prompt, action);
         res.json({ content });
     }
     catch (error) {
-        console.error(`Error in /gemini for action ${action}:`, error);
-        res.status(503).json({ error: getErrorMessage(error) });
+        console.error(`Error in /gemini for action '${action}':`, error);
+        // FIX: Changed to 500 and improved error message
+        res.status(500).json({ error: `Failed to process AI request for action: ${action}. Reason: ${getErrorMessage(error)}` });
     }
 });
 // --- Export the Express App ---
-exports.api = (0, https_1.onRequest)({ secrets: ["GEMINI_KEY", "MAPS_KEY"] }, app);
+// FIX: Added comment explaining the most likely cause of permission errors.
+// The 'secrets' array is empty as Vertex AI authenticates automatically via Application Default Credentials.
+// IMPORTANT: For this to work, the service account running this function 
+// (usually {project-id}@appspot.gserviceaccount.com) MUST have the "Vertex AI User" IAM role.
+exports.api = (0, https_1.onRequest)({ secrets: [] }, app);
 //# sourceMappingURL=index.js.map
