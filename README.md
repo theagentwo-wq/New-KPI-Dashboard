@@ -7,146 +7,59 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Charts**: Recharts
-- **AI**: Google Gemini API
+- **Frontend Hosting**: Firebase Hosting
+- **Backend**: Cloud Functions for Firebase
+- **Database**: Firestore & Firebase Storage
+- **AI**: Google Gemini via Vertex AI
 - **Maps**: Google Maps Platform
-- **Database & Hosting**: Google Firebase (Firestore, Firebase Storage, Firebase Hosting)
-
-## Local Setup (Foolproof Guide)
-
-Follow these steps exactly to get the dashboard running locally.
-
-### 1. Prerequisites
-
-- Node.js (v18 or later)
-- npm or yarn
-- Firebase CLI
-
-### 2. Installation
-
-```bash
-# Clone the repository
-git clone <repository-url>
-
-# Navigate into the project directory
-cd operations-kpi-dashboard
-
-# Install all project dependencies
-npm install
-
-# Install the Firebase CLI globally if you haven't already
-npm install -g firebase-tools
-```
-
-### 3. Configure Your API Keys
-
-This is the most important step. All API keys are managed in a local environment file.
-
-1.  **Find the template file:** In the project root, you will find a file named `.env.local.example`.
-2.  **Rename the file:** Rename this file to **`.env.local`**.
-3.  **Edit `.env.local`:** Open the new `.env.local` file and replace the placeholder values with your actual keys.
-    *   `GEMINI_API_KEY`: Get this from [Google AI Studio](https://makersuite.google.com/app/apikey).
-    *   `MAPS_API_KEY`: Get this from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). See the "Google Maps API Key Guide" below.
-    *   `FIREBASE_CLIENT_CONFIG`: Get this from your Firebase project console. See the "Firebase Configuration Guide" section below for detailed, step-by-step instructions.
-
-### 4. Run the Development Server
-
-The `npm run dev` command starts the frontend application. **You must restart this server any time you change your `.env.local` file.**
-
-```bash
-# Run the local development server
-npm run dev
-```
-
-The application will now be running at `http://localhost:5173` (or another port if 5173 is in use).
-
-## Deployment to Firebase Hosting
-
-### 1. Login to Firebase
-
-If you haven't already, log in to the Firebase CLI.
-
-```bash
-firebase login
-```
-
-### 2. Configure Firebase for your project
-
-If this is the first time deploying, you may need to initialize Firebase.
-
-```bash
-firebase init
-```
-Follow the prompts, selecting "Hosting" and connecting it to your existing Firebase project.
-
-### 3. Build and Deploy
-
-This single command will build your project and deploy it to Firebase Hosting.
-
-```bash
-npm run build && firebase deploy --only hosting
-```
-
-Your site will be live at the URL provided by Firebase.
+- **Deployment**: Automated via GitHub Actions
 
 ---
 
-## Google Maps API Key Guide
+## How This Project is Managed
 
-A dedicated API key is required for the Store Hub map features.
+This project is managed entirely through a cloud-based workflow. **No local development environment, terminal, or command-line tools are required.**
 
-### Step 1: Create the API Key
+The development and deployment process is as follows:
 
-1.  Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
-2.  Make sure you have a project selected.
-3.  Click **"+ CREATE CREDENTIALS"** at the top of the page and select **"API key"**.
-4.  Copy the new API key that is generated. This is the value you will use.
+1.  **Code Editing**: All code is edited directly within Google's cloud environment (e.g., the Firebase Console's editor or a connected Cloud Shell).
+2.  **Version Control**: Changes are committed and pushed to the project's GitHub repository.
+3.  **Secrets Management**: All API keys and configuration secrets are stored securely in the GitHub repository's **Secrets** section. They are injected into the application only during the deployment process.
+4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application to Firebase Hosting and Cloud Functions.
+5.  **Cloud Infrastructure**: API access and permissions are managed in the Google Cloud Console.
 
-### Step 2: Enable the Correct APIs (Important Update)
+---
 
-You must enable three specific APIs for all map features to work.
+## Cloud Project Setup (First-Time Only)
+
+Before the application can be deployed for the first time, the underlying Google Cloud and Firebase services must be configured.
+
+### 1. Enable Google Cloud APIs
+
+For all features to work, you must enable four specific APIs in your Google Cloud project.
 
 1.  Go to the **[Google Cloud API Library](https://console.cloud.google.com/apis/library)**.
 2.  Search for and **ENABLE** each of the following APIs one by one:
+    *   **Vertex AI API** (for Gemini AI features)
     *   **Maps Embed API** (for Street View)
     *   **Places API** (for photos and ratings)
     *   **Geocoding API** (for finding locations accurately)
 
-### Step 3: Add the Key to Your Project
+### 2. Grant Permissions for AI Features
 
--   **For Local Development:** Paste the key into your `.env.local` file for the `MAPS_API_KEY` variable.
--   **For Deployment:** Firebase Hosting automatically has access to your project's configuration. No extra steps are needed if you configured your `.env.local` file correctly.
+The backend authenticates to the Gemini API using its service account identity. You must grant it the correct permission.
 
----
+1.  Go to the **[IAM & Admin Page](https://console.cloud.google.com/iam-admin/iam)**.
+2.  Find the principal (service account) named **`[YOUR-PROJECT-ID]@appspot.gserviceaccount.com`**.
+3.  Click the **pencil icon** to edit its roles.
+4.  Click **"+ ADD ANOTHER ROLE"** and add the **"Vertex AI User"** role.
+5.  Click **"SAVE"**.
 
-## Firebase Configuration Guide
+### 3. Update Security Rules
 
-Follow these steps to configure your Firebase project correctly.
+You must update the security rules for Firestore and Firebase Storage to allow the application to read and write data.
 
-### Step 1: Get Your Firebase Config Object
-
-1.  In the Firebase Console, go to **Project Settings > General**.
-2.  Scroll down to the **"Your apps"** card. If you don't have one, create a new Web app (`</>`).
-3.  In the app settings, find the **"SDK setup and configuration"** section and select **"Config"**.
-4.  Copy the `firebaseConfig` object.
-
-### Step 2: Format the Config for Environment Variables
-
-1.  Copy the entire object, from the opening `{` to the closing `}`.
-2.  Paste it into a text editor and **remove all newlines and extra spaces** so it becomes a **single, continuous line of text**.
-3.  This single line is the value you will paste into your `.env.local` file for `FIREBASE_CLIENT_CONFIG`.
-
-#### ✅ Correct Final Format:
-`{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}`
-
-### Step 3: Update Firestore Security Rules (Required)
-
-By default, your database is locked. For this demo app, we need to allow read/write operations.
-
-1.  Go to the **Firebase Console**.
-2.  Navigate to **Firestore Database > Rules**.
-3.  Replace the existing rules with the following:
+1.  **Firestore:** Go to **Firestore Database > Rules** in the Firebase Console and replace the rules with:
     ```
     rules_version = '2';
     service cloud.firestore {
@@ -157,32 +70,44 @@ By default, your database is locked. For this demo app, we need to allow read/wr
       }
     }
     ```
-4.  Click **"Publish"**.
-
-### Step 4: Update Firebase Storage Security Rules (Required for Importer)
-
-The new data importer uploads files to Firebase Storage for analysis. We need to create a rule to allow this.
-
-1.  Go to the **Firebase Console**.
-2.  Navigate to **Storage > Rules**.
-3.  Replace the existing rules with the following:
+2.  **Storage:** Go to **Storage > Rules** in the Firebase Console and replace the rules with:
     ```
     rules_version = '2';
     service firebase.storage {
       match /b/{bucket}/o {
-        // Allow anyone to upload to the temporary 'imports' folder.
-        // Also allow the app to delete from this folder after processing.
-        match /imports/{allPaths=**} {
-          allow write, delete: if true;
-        }
-
-        // Secure other folders (like director photos, note attachments)
-        // by requiring user authentication for writes.
-        match /{path}/{allPaths=**} {
-          allow read;
-          allow write: if request.auth != null;
+        match /{allPaths=**} {
+          allow read, write: if true; // WARNING: Allows public access. For demo purposes only.
         }
       }
     }
     ```
-4.  Click **"Publish"**. Changes can take a minute. After this step, the data importer will be fully functional.
+3.  Click **"Publish"** for both sets of rules.
+
+---
+
+## Deployment and Secrets Configuration
+
+Deployment is handled automatically by GitHub Actions. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository.
+
+### 1. Create a Google Maps API Key
+
+1.  Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
+2.  Click **"+ CREATE CREDENTIALS"** and select **"API key"**.
+3.  **Copy the new API key immediately.** This will be used in the next step.
+
+### 2. Get Your Firebase Configuration
+
+1.  In the **Firebase Console**, go to **Project Settings > General**.
+2.  Scroll to the **"Your apps"** card and select your web app.
+3.  Find the **"SDK setup and configuration"** section and select **"Config"**.
+4.  Copy the `firebaseConfig` object. It must be formatted as a **single, continuous line of JSON text.**
+    *   **✅ Correct Format:** `{"apiKey":"...","authDomain":"...","projectId":"..."}`
+
+### 3. Add Keys to GitHub Secrets
+
+1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
+2.  Click **"New repository secret"** and create the following two secrets:
+    *   **`MAPS_KEY`**: Paste the Google Maps API key you copied.
+    *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
+
+With these secrets in place, every push to your repository's `main` branch will automatically deploy a new version of your application with the correct keys.
