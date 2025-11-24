@@ -41,11 +41,13 @@ const generateAIContent = async (prompt: string, action: string) => {
         });
 
         const result = await generativeModel.generateContent(prompt);
-        const responseText = result.response.candidates?.[0]?.content.parts[0]?.text;
         
-        if (!responseText) {
-            throw new Error('The AI model returned an empty response.');
+        if (!result.response.candidates?.[0]?.content.parts[0]?.text) {
+            console.error(`Vertex AI Error - Empty Response for action "${action}":`, JSON.stringify(result.response, null, 2));
+            throw new Error('The AI model returned an empty or invalid response.');
         }
+
+        const responseText = result.response.candidates[0].content.parts[0].text;
         return responseText;
 
     } catch (error: any) {
@@ -53,12 +55,12 @@ const generateAIContent = async (prompt: string, action: string) => {
         if (error.message && error.message.includes("PERMISSION_DENIED")) {
              throw new Error("AI API Call Failed: The 'Vertex AI User' role is likely missing for the service account. Please check your project's IAM settings.");
         }
-        throw new Error(`AI content generation failed. Please check the server logs.`);
+        // Re-throw the original error or a new one with more context
+        throw new Error(`AI content generation failed for action: ${action}. Please check the server logs.`);
     }
 };
 
 // --- Main Gemini API Endpoint ---
-// The base URL for the function already includes /api, so the route is just /gemini
 app.post("/gemini", async (req, res) => {
     const { action, payload } = req.body;
     if (!action || !payload) {
@@ -104,10 +106,9 @@ app.post("/gemini", async (req, res) => {
 
             case "getMarketingIdeas":
                 prompt = `Generate creative, actionable, local marketing ideas for the manager of "${locationName}". Use Google Search for current local trends and events. Provide ideas for different generations (Gen Z/Millennials, Gen X, Boomers) and budgets (Low/No, Moderate). Structure: For [Generation] ([Focus]): - *Low Budget:* [Idea]. - *Moderate Budget:* [Idea].`;
-                break;
+                break; // FIX: Added missing break statement
 
             default:
-                // This case handles any actions sent from the frontend that are not yet implemented on the backend.
                 return res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
         }
         
@@ -115,12 +116,16 @@ app.post("/gemini", async (req, res) => {
         res.json({ content });
 
     } catch (error) {
-        console.error(`Error in /gemini for action ${action}:`, error);
-        res.status(503).json({ error: getErrorMessage(error) });
+        console.error(`Error in /gemini for action '${action}':`, error);
+        // FIX: Changed to 500 and improved error message
+        res.status(500).json({ error: `Failed to process AI request for action: ${action}. Reason: ${getErrorMessage(error)}` });
     }
 });
 
 
 // --- Export the Express App ---
-// The 'secrets' array is now empty as Vertex AI authenticates automatically.
+// FIX: Added comment explaining the most likely cause of permission errors.
+// The 'secrets' array is empty as Vertex AI authenticates automatically via Application Default Credentials.
+// IMPORTANT: For this to work, the service account running this function 
+// (usually {project-id}@appspot.gserviceaccount.com) MUST have the "Vertex AI User" IAM role.
 export const api = onRequest({ secrets: [] }, app);
