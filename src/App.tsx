@@ -6,7 +6,7 @@ import { ScenarioModeler } from '@/components/ScenarioModeler.tsx';
 import { DirectorProfileModal } from '@/components/DirectorProfileModal.tsx';
 import { BudgetPlanner } from '@/components/BudgetPlanner.tsx';
 import { GoalSetter } from '@/components/GoalSetter.tsx';
-import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, uploadDirectorPhoto, updateDirectorPhotoUrl, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, updateDirectorContactInfo, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob, getDeployments, addDeployment, updateDeployment, deleteDeployment } from '@/services/firebaseService.ts';
+import { getNotes, addNote as addNoteToDb, updateNoteContent, deleteNoteById, initializeFirebaseService, FirebaseStatus, getDirectorProfiles, getPerformanceData, getBudgets, getGoals, addGoal, updateBudget, savePerformanceDataForPeriod, batchImportActualsData, batchImportBudgetData, listenToImportJob, listenToAnalysisJob, cancelAnalysisJob, getDeployments, addDeployment, updateDeployment, deleteDeployment } from '@/services/firebaseService.ts';
 import { Sidebar } from '@/components/Sidebar.tsx';
 import { DashboardPage } from '@/pages/DashboardPage.tsx';
 import { NewsFeedPage } from '@/pages/NewsFeedPage.tsx';
@@ -158,18 +158,6 @@ const App: React.FC = () => {
     const deleteNoteHandler = async (noteId: string) => {
         await deleteNoteById(noteId);
         setNotes(prevNotes => prevNotes.filter(n => n.id !== noteId));
-    };
-    
-    const handleUpdateDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
-        const photoUrl = await uploadDirectorPhoto(directorId, file);
-        await updateDirectorPhotoUrl(directorId, photoUrl);
-        setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, photo: photoUrl } : d));
-        return photoUrl;
-    };
-
-    const handleUpdateDirectorContactInfo = async (directorId: string, contactInfo: { email: string; phone: string }) => {
-        await updateDirectorContactInfo(directorId, contactInfo);
-        setDirectors(prev => prev.map(d => d.id === directorId ? { ...d, ...contactInfo } : d));
     };
 
     const handleUpdateBudget = async (storeId: string, year: number, month: number, kpi: Kpi, target: number) => {
@@ -374,12 +362,9 @@ const App: React.FC = () => {
                 onClose={() => setProfileOpen(false)} 
                 director={selectedDirector} 
                 performanceData={performanceData}
-                budgets={budgets}
                 goals={goals}
                 selectedKpi={Kpi.Sales} 
                 period={getInitialPeriod()}
-                onUpdatePhoto={handleUpdateDirectorPhoto}
-                onUpdateContactInfo={handleUpdateDirectorContactInfo}
                 deployments={deployments}
                 onAddDeployment={handleAddDeployment}
                 onUpdateDeployment={handleUpdateDeployment}
