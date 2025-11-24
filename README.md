@@ -22,11 +22,11 @@ This project is managed entirely through a cloud-based workflow. **No local deve
 
 The development and deployment process is as follows:
 
-1.  **Code Editing**: All code is edited directly within Google's cloud environment (e.g., the Firebase Console's editor or a connected Cloud Shell).
+1.  **Code Editing**: All code is edited directly within this dedicated cloud IDE.
 2.  **Version Control**: Changes are committed and pushed to the project's GitHub repository.
 3.  **Secrets Management**: All API keys and configuration secrets are stored securely in the GitHub repository's **Secrets** section. They are injected into the application only during the deployment process.
 4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application to Firebase Hosting and Cloud Functions.
-5.  **Cloud Infrastructure**: API access and permissions are managed in the Google Cloud Console.
+5.  **Branching Strategy**: All work should happen directly on the `main` branch.
 
 ---
 
@@ -55,33 +55,11 @@ The backend authenticates to the Gemini API using its service account identity. 
 4.  Click **"+ ADD ANOTHER ROLE"** and add the **"Vertex AI User"** role.
 5.  Click **"SAVE"**.
 
-### 3. Update Security Rules
+### 3. Security Rules
 
-You must update the security rules for Firestore and Firebase Storage to allow the application to read and write data.
+This project's security rules for Firestore and Firebase Storage are configured to allow public read and write access. This is intentional to allow a small, trusted group of users to use the application without needing to sign in.
 
-1.  **Firestore:** Go to **Firestore Database > Rules** in the Firebase Console and replace the rules with:
-    '''
-    rules_version = '2';
-    service cloud.firestore {
-      match /databases/{database}/documents {
-        match /{document=**} {
-          allow read, write: if true; // WARNING: Allows public access. For demo purposes only.
-        }
-      }
-    }
-    '''
-2.  **Storage:** Go to **Storage > Rules** in the Firebase Console and replace the rules with:
-    '''
-    rules_version = '2';
-    service firebase.storage {
-      match /b/{bucket}/o {
-        match /{allPaths=**} {
-          allow read, write: if true; // WARNING: Allows public access. For demo purposes only.
-        }
-      }
-    }
-    '''
-3.  Click **"Publish"** for both sets of rules.
+**Warning:** This configuration means that anyone with the link to your project can read and write data. This is suitable for a demo or for a very limited, trusted audience.
 
 ---
 
@@ -89,13 +67,20 @@ You must update the security rules for Firestore and Firebase Storage to allow t
 
 Deployment is handled automatically by GitHub Actions. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository.
 
-### 1. Create a Google Maps API Key
+### 1. Generate a Firebase CI Token
+
+1.  Open a new terminal in your cloud environment.
+2.  Run the command: `firebase login:ci`
+3.  This will open a new browser tab. Log in with the Google account associated with your Firebase project.
+4.  After authorizing, a new CI token will be printed directly to your terminal. **Copy this token immediately.** It will be used in the next step.
+
+### 2. Create a Google Maps API Key
 
 1.  Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
 2.  Click **"+ CREATE CREDENTIALS"** and select **"API key"**.
 3.  **Copy the new API key immediately.** This will be used in the next step.
 
-### 2. Get Your Firebase Configuration
+### 3. Get Your Firebase Configuration
 
 1.  In the **Firebase Console**, go to **Project Settings > General**.
 2.  Scroll to the **"Your apps"** card and select your web app.
@@ -103,10 +88,11 @@ Deployment is handled automatically by GitHub Actions. For the deployment to suc
 4.  Copy the `firebaseConfig` object. It must be formatted as a **single, continuous line of JSON text.**
     *   **✅ Correct Format:** `{"apiKey":"...","authDomain":"...","projectId":"..."}`
 
-### 3. Add Keys to GitHub Secrets
+### 4. Add Keys to GitHub Secrets
 
 1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
-2.  Click **"New repository secret"** and create the following two secrets:
+2.  Click **"New repository secret"** and create the following three secrets:
+    *   **`FIREBASE_TOKEN`**: Paste the CI token you generated.
     *   **`VITE_MAPS_KEY`**: Paste the Google Maps API key you copied.
     *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
 
@@ -119,7 +105,7 @@ With these secrets in place, every push to your repository's `main` branch will 
 These are the official identifiers for the active projects.
 
 ### GitHub Repository
-*   **Repository:** `thegreatezt-wq/New-KPI-Dashboard`
+*   **Repository:** `theagentwo-wq/New-KPI-Dashboard`
 
 ### Google Cloud Project
 *   **Project Name:** `Firebase app`

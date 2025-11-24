@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      // WARNING: Allows public access. For demo or limited-audience purposes only.
+      allow read, write: if true;
+    }
+  }
+}

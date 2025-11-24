@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // WARNING: Allows public access. For demo or limited-audience purposes only.
+      allow read, write: if true;
+    }
+  }
+}
