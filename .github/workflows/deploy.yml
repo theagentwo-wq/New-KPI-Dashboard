@@ -1,41 +1,34 @@
-name: Deploy to Firebase
+name: Build and Deploy to Firebase
+
 on:
   push:
     branches:
       - main
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '18'
 
-      - name: Install Root Dependencies
-        run: npm install
-
-      - name: Install Functions Dependencies
-        run: npm install
-        working-directory: ./functions
-
-      - name: Build Functions Backend
-        run: npm run build
-        working-directory: ./functions
+      - name: Install Dependencies
+        run: npm ci
 
       - name: Build Frontend Project
         run: npm run build
         env:
-          VITE_MAPS_API_KEY: ${{ secrets.VITE_MAPS_API_KEY }}
-          FIREBASE_CLIENT_CONFIG: ${{ secrets.FIREBASE_CLIENT_CONFIG }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_MAPS_KEY: ${{ secrets.VITE_MAPS_KEY }}
+          VITE_FIREBASE_CLIENT_CONFIG: '${{ secrets.FIREBASE_CLIENT_CONFIG }}'
 
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only functions,hosting
+          args: deploy --only hosting,functions
         env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}
-          PROJECT_ID: operations-kpi-dashboard
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
