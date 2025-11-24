@@ -107,7 +107,7 @@ Deployment is handled automatically by GitHub Actions. For the deployment to suc
 
 1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
 2.  Click **"New repository secret"** and create the following two secrets:
-    *   **`MAPS_KEY`**: Paste the Google Maps API key you copied.
+    *   **`VITE_MAPS_KEY`**: Paste the Google Maps API key you copied.
     *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
 
 With these secrets in place, every push to your repository's `main` branch will automatically deploy a new version of your application with the correct keys.
