@@ -57,7 +57,7 @@ This project's security rules for Firestore and Firebase Storage are configured 
 
 ## Deployment and Secrets Configuration
 
-Deployment is handled automatically by a GitHub Action workflow. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository. in Addition Keys are also kept in the google cloud Secret Manager
+Deployment is handled automatically by a GitHub Action workflow. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository. in Addition Keys are also kept in the google cloud Secret Manager.
 
 ### 1. Create a Service Account for Deployment
 
