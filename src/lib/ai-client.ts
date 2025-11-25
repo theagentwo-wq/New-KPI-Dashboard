@@ -1,6 +1,12 @@
 
 // This file is the single, secure interface for communicating with backend and Google APIs.
 
+interface GoogleWindow extends Window {
+  google: any;
+}
+
+declare let window: GoogleWindow;
+
 const API_BASE_URL = "/api"; // Use a relative path to leverage Firebase Hosting rewrites
 
 /**
@@ -49,11 +55,11 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
       fields: ['name', 'rating', 'reviews', 'website', 'url', 'photos', 'formatted_address', 'geometry'],
     };
 
-    service.findPlaceFromQuery(request, (results, status) => {
+    service.findPlaceFromQuery(request, (results: any, status: any) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
         const place = results[0];
         // The photo URLs from the API need to be processed to be usable.
-        const photoUrls = place.photos?.map(photo => photo.getUrl({ maxWidth: 400 })) || [];
+        const photoUrls = place.photos?.map((photo: any) => photo.getUrl({ maxWidth: 400 })) || [];
         
         resolve({ ...place, photoUrls });
 

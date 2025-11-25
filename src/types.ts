@@ -1,169 +1,140 @@
 export enum Kpi {
   Sales = 'Sales',
-  SOP = 'SOP', // Store Operating Profit
+  Guests = 'Guests',
+  Labor = 'Labor%',
+  SOP = 'SOP%',
+  AvgTicket = 'Avg Ticket',
   PrimeCost = 'Prime Cost',
-  AvgReviews = 'Avg. Reviews',
-  FoodCost = 'Food Cost',
-  VariableLabor = 'Variable Labor',
-  CulinaryAuditScore = 'Culinary Audit Score'
+  AvgReviews = 'Avg Reviews',
 }
 
-export type PerformanceData = {
-  [key in Kpi]?: number; // Make properties optional
-};
-
-export interface FinancialLineItem {
-  name: string;
-  actual: number;
-  budget?: number;
-  category: 'Sales' | 'COGS' | 'Labor' | 'Operating Expenses' | 'Other';
-  indent?: number; // For visual hierarchy (0 = main, 1 = sub)
+export enum View {
+  TotalCompany = 'Total Company',
+  RegionA = 'Region A',
+  RegionB = 'Region B',
+  RegionC = 'Region C',
 }
 
-export interface StorePerformanceData {
-  storeId: string;
-  weekStartDate: Date;
-  data: PerformanceData;
-  pnl?: FinancialLineItem[]; // Added specifically for the full P&L view
+export enum NoteCategory {
+  General = 'General',
+  Operations = 'Operations',
+  Marketing = 'Marketing',
+  HR = 'HR',
+  GuestFeedback = 'Guest Feedback',
 }
 
 export interface Period {
-  type: 'Week' | 'Month' | 'Quarter' | 'Year';
-  label: string;
   startDate: Date;
   endDate: Date;
 }
 
-export type ComparisonMode = 'vs. Budget' | 'vs. Prior Period' | 'vs. Last Year';
+export interface PerformanceData {
+  [Kpi.Sales]?: number;
+  [Kpi.Guests]?: number;
+  [Kpi.Labor]?: number;
+  [Kpi.SOP]?: number;
+  [Kpi.AvgTicket]?: number;
+  [Kpi.PrimeCost]?: number;
+  [Kpi.AvgReviews]?: number;
+}
 
-export type View = 'Total Company' | 'Danny' | 'Heather' | 'Ryan' | 'Robert';
+export interface StorePerformanceData {
+  storeId: string;
+  data: PerformanceData;
+}
+
+export interface HistoricalData {
+  date: string;
+  [Kpi.Sales]: number;
+}
+
+export interface Weather {
+  temp: number;
+  description: string;
+  icon: string;
+}
+
+export type Audience = 'FOH' | 'BOH' | 'Managers';
+
+export interface Note {
+  id: string;
+  monthlyPeriodLabel: string;
+  timestamp: number;
+  category: NoteCategory;
+  content: string;
+  scope: {
+    view: View;
+    storeId?: string;
+  };
+  imageDataUrl?: string;
+}
+
+export interface Anomaly {
+  id: string;
+  storeId: string;
+  kpi: Kpi;
+  value: number;
+  expected: number;
+  variance: number;
+  periodLabel: string;
+  significance: 'High' | 'Medium' | 'Low';
+}
+
+export type AnalysisMode = 'Financial' | 'Operational' | 'Marketing' | 'HR';
+
+export interface DailyForecast {
+  day: string;
+  temp: number;
+  icon: string;
+  description: string;
+}
+
+export interface ForecastDataPoint {
+    name: string;
+    predictedSales: number;
+    weatherIcon: string;
+    weatherDescription: string;
+}
+
+export interface WeatherInfo {
+    temperature: number;
+    description: string;
+    icon: string;
+}
 
 export interface Budget {
   storeId: string;
-  month: number; // 1-12
   year: number;
-  targets: PerformanceData;
-}
-
-export interface DirectorProfile {
-  id: View;
-  name: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  title: string;
-  stores: string[];
-  photo: string;
-  bio: string;
-  homeLocation: string;
-  yearlyTravelBudget: number;
+  month: number;
+  targets: Partial<PerformanceData>;
 }
 
 export interface Goal {
-  // FIX: Add id property to match Firestore document structure.
-  id: string;
-  directorId: View;
-  quarter: number; // 1-4
+  directorId: View; 
+  quarter: number;
   year: number;
   kpi: Kpi;
   target: number;
 }
 
-export type NoteCategory = 'Marketing' | 'Staffing' | 'Reviews' | 'Facilities' | 'General';
-
-export interface Note {
-  id: string;
-  monthlyPeriodLabel: string;
-  view: View;
-  storeId?: string; // Optional: for store-specific notes
-  category: NoteCategory;
-  content: string;
-  createdAt: string;
-  imageUrl?: string;
+export interface DirectorProfile {
+    id: string;
+    name: string;
+    lastName: string;
+    title: string;
+    photo: string;
+    stores: string[];
+    email: string;
+    phone: string;
 }
-
-export interface Anomaly {
-  id: string;
-  location: string;
-  kpi: Kpi;
-  deviation: number;
-  periodLabel: string;
-  summary: string;
-  analysis: string;
-}
-
-export interface ForecastDataPoint {
-    date: string;
-    predictedSales: number;
-    weatherIcon?: string;
-    weatherDescription?: string;
-}
-
-export type WeatherCondition = 'sunny' | 'cloudy' | 'rain' | 'snow' | 'windy' | 'thunderstorm' | 'loading';
-
-export interface WeatherInfo {
-  condition: WeatherCondition;
-  temperature: number;
-  shortForecast: string;
-  detailedForecast: string;
-}
-
-export interface DailyForecast {
-    date: string;
-    condition: WeatherCondition;
-    temperature: number;
-    shortForecast: string;
-}
-
-export interface StoreDetails {
-  address: string;
-  lat: number;
-  lon: number;
-}
-
-export interface SavedView {
-  name: string;
-  period: Period;
-  view: View;
-  comparisonMode: ComparisonMode;
-  periodType: 'Week' | 'Month' | 'Quarter' | 'Year';
-}
-
-export interface DataMappingTemplate {
-  id: string;
-  name: string;
-  headers: string[]; // The headers from the original file
-  mappings: { [header: string]: Kpi | 'Store Name' | 'Week Start Date' | 'Year' | 'Month' | 'ignore' };
-}
-
-// FIX: Add DataItem type for use in PerformanceMatrix and DashboardPage
-export type DataItem = {
-    actual: PerformanceData;
-    comparison?: PerformanceData;
-    variance: PerformanceData;
-} | {
-    aggregated: PerformanceData;
-    comparison?: PerformanceData;
-    variance: PerformanceData;
-};
 
 export interface Deployment {
-  id: string;
-  directorId: View;
-  deployedPerson: 'Director' | string; // 'Director' or the name of the Strike Team member
-  destination: string; // Store ID
-  startDate: string; // ISO string
-  endDate: string; // ISO string
-  purpose: string;
-  estimatedBudget: number;
-  createdAt: string;
+    id: string;
+    directorId: string;
+    type: 'Training' | 'Mentorship' | 'Performance Turnaround' | 'New Store Opening';
+    startDate: string; // ISO date string
+    endDate: string; // ISO date string
+    stores: string[];
+    description: string;
+    createdAt: number; // Timestamp
 }
-
-export interface StrategicAnalysisData {
-    location: string;
-    primaryMetric: number;
-    secondaryMetric: number;
-    rank: number;
-}
-
-export type AnalysisMode = 'General' | 'Financial' | 'Operational' | 'Marketing';

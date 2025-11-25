@@ -1,19 +1,18 @@
 
 import { callGeminiAPI } from '../lib/ai-client';
 import { 
-  Period, 
+  Period,
   View, 
   PerformanceData, 
   HistoricalData, 
-  Weather, 
+  Weather,
   Audience, 
   Kpi, 
   Note,
   Anomaly,
   AnalysisMode,
   ForecastDataPoint,
-  DailyForecast,
-  WeatherInfo
+  DailyForecast
 } from '../types';
 
 // Note: The 'generativeAI' client from the original file has been replaced
