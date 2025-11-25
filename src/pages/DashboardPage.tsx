@@ -17,12 +17,12 @@ import { getPerformanceData, getBudgets } from '../services/firebaseService';
 import { KPISummaryCards } from '../components/KPISummaryCards';
 
 interface DashboardPageProps {
-    currentView: View;
+    activePeriod: Period;
+    activeView: View;
     notes: Note[];
     onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
     onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
     onDeleteNote: (noteId: string) => void;
-    dbStatus: FirebaseStatus;
     loadedData: StorePerformanceData[];
     setLoadedData: React.Dispatch<React.SetStateAction<StorePerformanceData[]>>;
     budgets: Budget[];
@@ -33,12 +33,11 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ 
-    currentView, notes, onAddNote, onUpdateNote, onDeleteNote, dbStatus, loadedData, 
+    activePeriod, activeView, notes, onAddNote, onUpdateNote, onDeleteNote, loadedData, 
     setLoadedData, budgets: initialBudgets, isAlertsModalOpen, setIsAlertsModalOpen,
     isExecutiveSummaryOpen, setIsExecutiveSummaryOpen 
 }) => {
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Week');
-    const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
     const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
@@ -52,47 +51,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
     const [comparisonData, setComparisonData] = useState<StorePerformanceData[]>([]);
 
-    // Enhanced data fetching to handle multi-year periods (e.g., Q4 crossing years)
-    useEffect(() => {
-        const fetchCurrentPeriodDataAndBudgets = async () => {
-            if (dbStatus.status !== 'connected') return;
-
-            const startYear = currentPeriod.startDate.getFullYear();
-            const endYear = currentPeriod.endDate.getFullYear();
-            const yearsToFetch = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
-
-            const promises: Promise<any>[] = [
-                getPerformanceData(currentPeriod.startDate, currentPeriod.endDate)
-            ];
-
-            yearsToFetch.forEach(year => {
-                promises.push(getBudgets(year));
-            });
-
-            const results = await Promise.all(promises);
-            const performanceData = results[0];
-            // Combine all budget results (indices 1+)
-            const allFetchedBudgets = results.slice(1).flat();
-
-            setLoadedData(performanceData);
-            setFetchedBudgets(allFetchedBudgets);
-        };
-
-        fetchCurrentPeriodDataAndBudgets();
-    }, [currentPeriod, dbStatus.status, setLoadedData]);
-
     const comparisonPeriod = useMemo(() => {
         switch (comparisonMode) {
-            case 'vs. Prior Period': return getPreviousPeriod(currentPeriod);
-            case 'vs. Last Year': return getYoYPeriod(currentPeriod);
-            case 'vs. Budget': return currentPeriod;
+            case 'vs. Prior Period': return getPreviousPeriod(activePeriod);
+            case 'vs. Last Year': return getYoYPeriod(activePeriod);
+            case 'vs. Budget': return activePeriod;
             default: return undefined;
         }
-    }, [comparisonMode, currentPeriod]);
+    }, [comparisonMode, activePeriod]);
 
     useEffect(() => {
         const fetchComparisonData = async () => {
-            if (comparisonPeriod && comparisonMode !== 'vs. Budget' && dbStatus.status === 'connected') {
+            if (comparisonPeriod && comparisonMode !== 'vs. Budget') {
                 const data = await getPerformanceData(comparisonPeriod.startDate, comparisonPeriod.endDate);
                 setComparisonData(data);
             } else {
@@ -100,15 +70,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             }
         };
         fetchComparisonData();
-    }, [comparisonPeriod, comparisonMode, dbStatus.status]);
+    }, [comparisonPeriod, comparisonMode]);
     
     useEffect(() => {
         const today = new Date();
         const relevantPeriods = ALL_PERIODS.filter((p: Period) => p.type === periodType);
         const newPeriod = relevantPeriods.find((p: Period) => today >= p.startDate && today <= p.endDate) || relevantPeriods[relevantPeriods.length - 1];
-        if (newPeriod) {
-            setCurrentPeriod(newPeriod);
-        }
     }, [periodType]);
 
     const periodsForType = useMemo(() => {
@@ -116,24 +83,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [periodType]);
 
     const currentPeriodIndex = useMemo(() => {
-        return periodsForType.findIndex((p: Period) => p.label === currentPeriod.label);
-    }, [periodsForType, currentPeriod]);
+        return periodsForType.findIndex((p: Period) => p.label === activePeriod.label);
+    }, [periodsForType, activePeriod]);
 
     const handlePreviousPeriod = () => {
         if (currentPeriodIndex > 0) {
-            setCurrentPeriod(periodsForType[currentPeriodIndex - 1]);
         }
     };
 
     const handleNextPeriod = () => {
         if (currentPeriodIndex < periodsForType.length - 1) {
-            setCurrentPeriod(periodsForType[currentPeriodIndex + 1]);
         }
     };
 
     const handleResetView = useCallback(() => {
         setPeriodType('Week');
-        setCurrentPeriod(getInitialPeriod());
         setComparisonMode('vs. Prior Period');
         setSelectedKpi(Kpi.Sales);
     }, []);
@@ -149,9 +113,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, []);
 
     const directorStores = useMemo(() => {
-        if (currentView === 'Total Company') return ALL_STORES;
-        return DIRECTORS.find((d: DirectorProfile) => d.id === currentView)?.stores || [];
-    }, [currentView]);
+        if (activeView === 'Total Company') return ALL_STORES;
+        return DIRECTORS.find((d: DirectorProfile) => d.id === activeView)?.stores || [];
+    }, [activeView]);
 
     const processDataForTable = useCallback((
         actualData: StorePerformanceData[],
@@ -271,8 +235,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, []);
 
     const allStoresProcessedData = useMemo(() => {
-        return processDataForTable(loadedData, comparisonData, fetchedBudgets, comparisonMode, currentPeriod);
-    }, [loadedData, comparisonData, fetchedBudgets, comparisonMode, currentPeriod, processDataForTable]);
+        return processDataForTable(loadedData, comparisonData, fetchedBudgets, comparisonMode, activePeriod);
+    }, [loadedData, comparisonData, fetchedBudgets, comparisonMode, activePeriod, processDataForTable]);
     
     const processedDataForTable = useMemo(() => {
         const filtered: { [key: string]: any } = {};
@@ -323,7 +287,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [allStoresProcessedData]);
 
     const summaryDataForCards = useMemo(() => {
-        if (currentView === 'Total Company') {
+        if (activeView === 'Total Company') {
             const aggregated: PerformanceData = {};
             Object.values(Kpi).forEach(kpi => {
                 const kpiConfig = KPI_CONFIG[kpi];
@@ -339,12 +303,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             return aggregated;
         }
         
-        const directorData = directorAggregates[currentView];
+        const directorData = directorAggregates[activeView];
         if (directorData && 'aggregated' in directorData) {
             return directorData.aggregated;
         }
         return undefined;
-    }, [currentView, allStoresProcessedData, directorAggregates]);
+    }, [activeView, allStoresProcessedData, directorAggregates]);
 
     const handleLocationSelect = useCallback((location: string) => {
         setSelectedLocation(location);
@@ -371,6 +335,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     data={summaryDataForCards}
                     selectedKpi={selectedKpi}
                     onKpiSelect={setSelectedKpi}
+                    period={activePeriod}
+                    view={activeView}
                 />
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
@@ -378,8 +344,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     <CompanyStoreRankings
                          data={processedDataForTable}
                          selectedKpi={selectedKpi}
-                         currentView={currentView}
-                         period={currentPeriod}
+                         currentView={activeView}
+                         period={activePeriod}
                          periodType={periodType}
                          setPeriodType={setPeriodType}
                          comparisonMode={comparisonMode}
@@ -397,14 +363,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         addNote={onAddNote}
                         updateNote={onUpdateNote}
                         deleteNote={onDeleteNote}
-                        currentView={currentView}
-                        mainDashboardPeriod={currentPeriod}
-                        dbStatus={dbStatus}
+                        currentView={activeView}
+                        mainDashboardPeriod={activePeriod}
                     />
                 </div>
                 <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
-                    <PerformanceMatrix periodLabel={currentPeriod.label} currentView={currentView} allStoresData={allStoresProcessedData} directorAggregates={directorAggregates} />
-                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={currentView} period={currentPeriod} userLocation={userLocation} />
+                    <PerformanceMatrix periodLabel={activePeriod.label} currentView={activeView} allStoresData={allStoresProcessedData} directorAggregates={directorAggregates} />
+                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={activeView} period={activePeriod} userLocation={userLocation} />
                 </div>
             </div>
              <LocationInsightsModal 
@@ -431,8 +396,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 isOpen={isExecutiveSummaryOpen}
                 onClose={() => setIsExecutiveSummaryOpen(false)}
                 data={directorAggregates}
-                view={currentView}
-                period={currentPeriod}
+                view={activeView}
+                period={activePeriod}
             />
         </div>
     );
