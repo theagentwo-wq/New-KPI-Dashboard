@@ -194,4 +194,4 @@ const generateAIContent = async (prompt: string, action: string) => {
     }
 };
 
-export const api = onRequest({ secrets: ["VITE_MAPS_KEY"] }, app);
+export const api = onRequest({ secrets: ["VITE_MAPS_KEY", "GEMINI_API_KEY"] }, app);
