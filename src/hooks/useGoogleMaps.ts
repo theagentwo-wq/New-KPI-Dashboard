@@ -56,7 +56,7 @@ const useGoogleMaps = (): UseGoogleMapsResult => {
                     const script = document.createElement('script');
                     script.id = SCRIPT_ID;
                     // FIX: Changed to VITE_MAPS_KEY to align with Vite's environment variable requirements.
-                    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_MAPS_KEY}`;
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_MAPS_KEY}&libraries=places,marker`;
                     script.async = true;
                     script.defer = true;
           
