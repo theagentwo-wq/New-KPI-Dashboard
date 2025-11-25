@@ -194,10 +194,4 @@ const generateAIContent = async (prompt: string, action: string) => {
     }
 };
 
-export const api = onRequest(
-    { 
-        secrets: ["VITE_MAPS_KEY"], 
-        serviceAccount: "kpi-dashboardgit-9913298-66e65@appspot.gserviceaccount.com" 
-    }, 
-    app
-);
+export const api = onRequest({ secrets: ["VITE_MAPS_KEY"] }, app);
