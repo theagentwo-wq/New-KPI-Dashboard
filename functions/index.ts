@@ -1,11 +1,11 @@
 
-// V8 - Add getExecutiveSummary case to resolve final AI feature failure
+// V10 - Final casing fix for TypeScript build error
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
 import { VertexAI } from "@google-cloud/vertexai";
-import { Client } from "@googlemaps/google-maps-services-js";
+import { Client, PlaceInputType } from "@googlemaps/google-maps-services-js";
 
 // Initialize Firebase and Express
 admin.initializeApp();
@@ -40,7 +40,7 @@ app.post("/getPlaceDetails", async (req, res) => {
         const findPlaceResponse = await mapsClient.findPlaceFromText({
             params: {
                 input: location,
-                inputtype: 'textquery',
+                inputtype: PlaceInputType.textQuery, // FIX: Correct casing
                 fields: ['place_id', 'name'],
                 key: apiKey,
             },
