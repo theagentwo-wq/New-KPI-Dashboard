@@ -38,7 +38,7 @@ const generateMockPnl = (sales: number): FinancialLineItem[] => {
 };
 
 export const FinancialsPage: React.FC = () => {
-    const [currentView, setCurrentView] = useState<View>('Total Company');
+    const [currentView, setCurrentView] = useState<View>(View.TotalCompany);
     const [selectedStore, setSelectedStore] = useState<string>('All Stores');
     const [periodType, setPeriodType] = useState<'Week' | 'Month' | 'Quarter' | 'Year'>('Month');
     const [currentPeriod, setCurrentPeriod] = useState<Period>(getInitialPeriod());
@@ -142,7 +142,7 @@ export const FinancialsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                      <select 
                         value={currentView} 
-                        onChange={(e) => { setCurrentView(e.target.value as View); setSelectedStore(e.target.value === 'Total Company' ? 'All Stores' : 'All Region'); }} 
+                        onChange={(e) => { setCurrentView(e.target.value as View); setSelectedStore(e.target.value === View.TotalCompany ? 'All Stores' : 'All Region'); }} 
                         className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm"
                     >
                         <option value="Total Company">Total Company</option>
@@ -174,7 +174,7 @@ export const FinancialsPage: React.FC = () => {
 
             {/* P&L Table */}
             <div className="flex-1 bg-slate-800 rounded-lg border border-slate-700 overflow-hidden flex flex-col">
-                <div className="overflow-y-auto custom-scrollbar flex-1">
+                <div className="overflow-y-.auto custom-scrollbar flex-1">
                     <table className="w-full text-sm text-left text-slate-300">
                         <thead className="text-xs text-cyan-400 uppercase bg-slate-900/80 sticky top-0 z-10 backdrop-blur-sm">
                             <tr>

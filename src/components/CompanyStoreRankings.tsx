@@ -78,7 +78,7 @@ const RankingRow = React.memo(({
             </td>
             <td className="p-3 text-center">
                 <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     {weather && <WeatherIcon condition={weather.condition} size={20} />}
+                     {weather && <WeatherIcon condition={weather.condition} className="w-5 h-5" />}
                 </div>
             </td>
             <td className="p-3 text-right">
