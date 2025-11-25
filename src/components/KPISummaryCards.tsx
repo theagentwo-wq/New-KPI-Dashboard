@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Kpi, PerformanceData } from '../types';
+import { Kpi, PerformanceData, Period, View } from '../types';
 import { KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 import { Icon } from './Icon';
 import { AnimatedNumberDisplay } from './AnimatedNumberDisplay';
@@ -9,6 +9,8 @@ interface KPISummaryCardsProps {
     data?: PerformanceData;
     selectedKpi: Kpi;
     onKpiSelect: (kpi: Kpi) => void;
+    period: Period;
+    view: View;
 }
 
 const cardVariants: any = {
@@ -85,7 +87,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
     );
 };
 
-export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selectedKpi, onKpiSelect }) => {
+export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selectedKpi, onKpiSelect, period, view }) => {
     const kpisToShow: Kpi[] = [
         Kpi.Sales,
         Kpi.SOP,

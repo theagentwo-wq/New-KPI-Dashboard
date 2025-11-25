@@ -17,12 +17,12 @@ import {
     savePerformanceDataForPeriod,
     getDirectorProfiles,
     addGoal as fbAddGoal,
+    getPerformanceData,
+    getBudgets
 } from './services/firebaseService';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { ImportDataModal } from './components/ImportDataModal';
 import { StrategyHubModal } from './components/StrategyHubModal';
-// NOTE: Assuming ScenarioModelerModal exists, will create if not.
-// import { ScenarioModelerModal } from './components/ScenarioModelerModal';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -61,6 +61,33 @@ const App = () => {
     init();
   }, []);
 
+  useEffect(() => {
+    const fetchData = async () => {
+        if (dbStatus.status !== 'connected') return;
+
+        const startYear = activePeriod.startDate.getFullYear();
+        const endYear = activePeriod.endDate.getFullYear();
+        const yearsToFetch = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+
+        const promises: Promise<any>[] = [
+            getPerformanceData(activePeriod.startDate, activePeriod.endDate)
+        ];
+
+        yearsToFetch.forEach(year => {
+            promises.push(getBudgets(year));
+        });
+
+        const results = await Promise.all(promises);
+        const performanceData = results[0];
+        const allFetchedBudgets = results.slice(1).flat();
+
+        setLoadedData(performanceData);
+        setBudgets(allFetchedBudgets);
+    };
+
+    fetchData();
+  }, [activePeriod, dbStatus.status]);
+
   const handleAddNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<void> => {
     const newNote = await fbAddNote(monthlyPeriodLabel, category, content, scope, imageDataUrl);
     setNotes(prev => [newNote, ...prev]);
@@ -93,12 +120,12 @@ const App = () => {
     switch (activePage) {
       case 'Dashboard':
         return <DashboardPage 
-                    currentView={activeView}
+                    activeView={activeView}
+                    activePeriod={activePeriod}
                     notes={notes}
                     onAddNote={handleAddNote}
                     onUpdateNote={handleUpdateNote}
                     onDeleteNote={handleDeleteNote}
-                    dbStatus={dbStatus}
                     loadedData={loadedData}
                     setLoadedData={setLoadedData}
                     budgets={budgets}
