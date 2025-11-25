@@ -1,5 +1,5 @@
 
-// V3 - Forcing redeployment to the correct project
+// V4 - Force redeployment to sync serverless functions
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
@@ -36,9 +36,7 @@ const generateAIContent = async (prompt: string, action: string) => {
                 'topP': 0.95,
             },
             // Use Google Search for real-time, grounded results
-            tools: [{
-                'googleSearchRetrieval': {},
-            }],
+            tools: [{'googleSearchRetrieval': {},}],
         });
 
         const result = await generativeModel.generateContent(prompt);
