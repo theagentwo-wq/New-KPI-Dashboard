@@ -1,14 +1,13 @@
-// NOTE: Firebase SDK is dynamically imported inside `initializeFirebaseService`.
 let firebase: any = null;
 
-import { Note, NoteCategory, View, DirectorProfile, DataMappingTemplate, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FinancialLineItem } from '../types';
+import { Note, NoteCategory, View, DirectorProfile, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FinancialLineItem, FileUploadResult } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 
 export type FirebaseStatus = 
-  | { status: 'initializing' }
-  | { status: 'connected' }
-  | { status: 'error', message: string, rawValue?: string };
+  | { status: 'initializing'; error?: null; }
+  | { status: 'connected'; error?: null; }
+  | { status: 'error'; error: string; };
 
 let app: any = null;
 let db: any = null;
@@ -17,12 +16,8 @@ let notesCollection: any = null;
 let directorsCollection: any = null;
 let actualsCollection: any = null;
 let budgetsCollection: any = null;
-let mappingsCollection: any = null;
 let goalsCollection: any = null;
-let analysisJobsCollection: any = null;
-let importJobsCollection: any = null;
 let deploymentsCollection: any = null;
-
 
 let isInitialized = false;
 
@@ -39,7 +34,6 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
             appId: "1:888247978360:web:58ee0decf65dbf83fb208d"
         };
         
-        // Dynamically import the Firebase compat SDK at runtime
         if (!firebase) {
             try {
                 const compat = await import('firebase/compat/app');
@@ -64,10 +58,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         directorsCollection = db.collection('directors');
         actualsCollection = db.collection('performance_actuals');
         budgetsCollection = db.collection('budgets');
-        mappingsCollection = db.collection('data_mapping_templates');
         goalsCollection = db.collection('goals');
-        analysisJobsCollection = db.collection('analysis_jobs');
-        importJobsCollection = db.collection('import_jobs');
         deploymentsCollection = db.collection('deployments');
         
         isInitialized = true;
@@ -77,10 +68,9 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     } catch (error: any) {
         console.error("Firebase Initialization Error:", error);
         isInitialized = false;
-        
         return { 
-            status: 'error', 
-            message: `Firebase initialization failed. Please check your Firebase configuration in services/firebaseService.ts and ensure all placeholder values have been replaced with your actual project credentials.`
+            status: 'error',
+            error: `Firebase initialization failed. Please check your Firebase configuration in services/firebaseService.ts and ensure all placeholder values have been replaced with your actual project credentials.`
         };
     }
 };
@@ -114,39 +104,27 @@ const cleanAndMatchStoreName = (rawName: string): string | null => {
     return null;
 }
 
-export const uploadFile = async (file: File): Promise<{ fileUrl: string, filePath: string }> => {
+export const uploadFile = async (file: File): Promise<FileUploadResult> => {
     if (!storage) throw new Error("Firebase Storage not initialized.");
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${file.name}`;
+    const uploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const uniqueFileName = `${uploadId}-${file.name}`;
     const filePath = `imports/${uniqueFileName}`;
     const storageRef = storage.ref(filePath);
     await storageRef.put(file);
     const fileUrl = await storageRef.getDownloadURL();
-    return { fileUrl, filePath };
+    return { uploadId, fileUrl, filePath, fileName: file.name, mimeType: file.type };
 };
 
-export const uploadTextAsFile = async (text: string, chunkName: string): Promise<{ fileUrl: string, filePath: string }> => {
+export const uploadTextAsFile = async (text: string, chunkName: string): Promise<FileUploadResult> => {
     if (!storage) throw new Error("Firebase Storage not initialized.");
     const blob = new Blob([text], { type: 'text/plain' });
-    const uniqueFileName = `${Date.now()}-${chunkName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+    const uploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const uniqueFileName = `${uploadId}-${chunkName.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
     const filePath = `imports/${uniqueFileName}`;
     const storageRef = storage.ref(filePath);
     await storageRef.put(blob);
     const fileUrl = await storageRef.getDownloadURL();
-    return { fileUrl, filePath };
-};
-
-export const deleteFileByPath = async (filePath: string): Promise<void> => {
-    if (!storage) {
-        console.warn("Firebase Storage not initialized, skipping file deletion.");
-        return;
-    }
-    try {
-        const storageRef = storage.ref(filePath);
-        await storageRef.delete();
-    } catch (error) {
-        console.error(`Failed to delete temporary file: ${filePath}`, error);
-        // Don't throw, as this is a non-critical cleanup step
-    }
+    return { uploadId, fileUrl, filePath, fileName: chunkName, mimeType: 'text/plain' };
 };
 
 export const batchImportActualsData = async (data: any[]): Promise<void> => {
@@ -164,11 +142,10 @@ export const batchImportActualsData = async (data: any[]): Promise<void> => {
                  return;
             }
 
-            // Extract standard KPIs for the Dashboard
             const performanceData: PerformanceData = {};
             for (const key in row) {
                 const kpi = key as Kpi;
-                if (kpi in Kpi) {
+                if (Object.values(Kpi).includes(kpi)) {
                     let value = row[key];
                     if (typeof value === 'string') {
                         value = value.replace(/[\$,%]/g, '');
@@ -185,7 +162,6 @@ export const batchImportActualsData = async (data: any[]): Promise<void> => {
                 }
             }
 
-            // NEW: Handle detailed P&L data if present
             const pnlData: FinancialLineItem[] = [];
             if (row.pnl && Array.isArray(row.pnl)) {
                 row.pnl.forEach((item: any) => {
@@ -238,7 +214,7 @@ export const batchImportBudgetData = async (data: any[]): Promise<void> => {
             const targets: PerformanceData = {};
             for (const key in row) {
                 const kpi = key as Kpi;
-                if (kpi in Kpi) {
+                if (Object.values(Kpi).includes(kpi)) {
                      let value = row[key];
                     if (typeof value === 'string') {
                         value = value.replace(/[\$,%]/g, '');
@@ -268,7 +244,6 @@ export const batchImportBudgetData = async (data: any[]): Promise<void> => {
 };
 
 
-// --- Data Fetching Functions ---
 export const getPerformanceData = async (startDate: Date, endDate: Date): Promise<StorePerformanceData[]> => {
     if (!actualsCollection) return [];
     const q = actualsCollection.where('weekStartDate', '>=', startDate).where('weekStartDate', '<=', endDate);
@@ -304,21 +279,20 @@ export const updateBudget = async (storeId: string, year: number, month: number,
     await docRef.set(budgetData, { merge: true });
 };
 
-// --- Goal Functions ---
-export const getGoals = async (): Promise<Goal[]> => {
+export const getGoalsForDirector = async (directorId: string, period: Period): Promise<Goal[]> => {
     if (!goalsCollection) return [];
-    const snapshot = await goalsCollection.get();
+    const q = goalsCollection.where('directorId', '==', directorId).where('year', '==', period.year).where('quarter', '==', period.quarter);
+    const snapshot = await q.get();
     return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Goal));
 };
 
-export const addGoal = async (directorId: View, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {
+export const addGoal = async (directorId: string, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {
     if (!goalsCollection) throw new Error("Firebase not initialized.");
     const newGoal = { directorId, quarter, year, kpi, target };
     const docRef = await goalsCollection.add(newGoal);
     return { id: docRef.id, ...newGoal };
 };
 
-// --- Existing Functions (Notes, Directors) ---
 export const getNotes = async (): Promise<Note[]> => {
     if (!notesCollection) return [];
     const q = notesCollection.orderBy('createdAt', 'desc');
@@ -329,8 +303,7 @@ export const getNotes = async (): Promise<Note[]> => {
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
     if (!notesCollection || !db) throw new Error("Firebase not initialized.");
     const createdAtTimestamp = firebase.firestore.Timestamp.now();
-    const newNoteData: any = { monthlyPeriodLabel, category, content, view: scope.view, createdAt: createdAtTimestamp };
-    if (scope.storeId) newNoteData.storeId = scope.storeId;
+    const newNoteData: any = { monthlyPeriodLabel, category, content, scope, createdAt: createdAtTimestamp };
     const docRef = await notesCollection.add(newNoteData);
     let finalImageUrl: string | undefined = undefined;
     if (imageDataUrl) {
@@ -375,25 +348,6 @@ export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
     }
 };
 
-export const uploadDirectorPhoto = async (directorId: string, file: File): Promise<string> => {
-    if (!storage) throw new Error("Firebase Storage not initialized.");
-    const storageRef = storage.ref(`director_photos/${directorId}/${file.name}`);
-    await storageRef.put(file);
-    return storageRef.getDownloadURL();
-};
-
-export const updateDirectorPhotoUrl = async (directorId: string, photoUrl: string): Promise<void> => {
-    if (!db) throw new Error("Firebase not initialized.");
-    await db.collection('directors').doc(directorId).update({ photo: photoUrl });
-};
-
-export const updateDirectorContactInfo = async (directorId: string, contactInfo: { email: string; phone: string }): Promise<void> => {
-    if (!db) throw new Error("Firebase not initialized.");
-    await db.collection('directors').doc(directorId).update(contactInfo);
-};
-
-
-// --- Manual Data Entry Function ---
 export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData): Promise<void> => {
     if (!db || !actualsCollection) throw new Error("Firebase not initialized.");
     
@@ -402,7 +356,7 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
     }
     
     const weeksInPeriod = ALL_PERIODS.filter((p: Period) => 
-        p.type === 'Week' && 
+        p.type === 'weekly' && 
         p.startDate >= period.startDate && 
         p.endDate <= period.endDate
     );
@@ -425,7 +379,7 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
             const value = data[kpi];
             if (value !== undefined) {
                 const kpiConfig = KPI_CONFIG[kpi];
-                if (kpiConfig.format === 'currency') {
+                if (kpiConfig.aggregation === 'sum') {
                     dataForThisWeek[kpi] = value / weekCount;
                 } else {
                     dataForThisWeek[kpi] = value;
@@ -445,176 +399,13 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
     await batch.commit();
 };
 
-export const getAggregatedPerformanceDataForPeriod = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
-    if (!actualsCollection) throw new Error("Firebase not initialized.");
-
-    const storeDataSnapshot = await actualsCollection
-        .where('storeId', '==', storeId)
-        .get();
-
-    if (storeDataSnapshot.empty) {
-        return null;
-    }
-    
-    const weeklyData: PerformanceData[] = storeDataSnapshot.docs
-        .map((doc: any) => {
-            const data = doc.data();
-            return {
-                ...data,
-                weekStartDate: (data.weekStartDate as any).toDate()
-            } as StorePerformanceData;
-        })
-        .filter((item: StorePerformanceData) => 
-            item.weekStartDate >= period.startDate && 
-            item.weekStartDate <= period.endDate
-        )
-        .map((item: StorePerformanceData) => item.data);
-
-    if (weeklyData.length === 0) {
-        return null;
-    }
-
-    const aggregatedData: PerformanceData = {};
-    const kpiCounts: Partial<{ [key in Kpi]: number }> = {};
-
-    weeklyData.forEach((week: PerformanceData) => {
-        for (const key in week) {
-            const kpi = key as Kpi;
-            const value = week[kpi];
-
-            if (value !== undefined && !isNaN(value)) {
-                if (aggregatedData[kpi] === undefined) {
-                    aggregatedData[kpi] = 0;
-                    kpiCounts[kpi] = 0;
-                }
-                aggregatedData[kpi]! += value;
-                kpiCounts[kpi]! += 1;
-            }
-        }
-    });
-
-    for (const key in aggregatedData) {
-        const kpi = key as Kpi;
-        const kpiConfig = KPI_CONFIG[kpi];
-        const count = kpiCounts[kpi]!;
-
-        if (kpiConfig.format !== 'currency' && count > 0) {
-            aggregatedData[kpi]! /= count;
-        }
-    }
-
-    return aggregatedData;
-};
-
-// --- Analysis Job Functions ---
-export const createAnalysisJob = async (payload: { fileUrl: string, filePath: string, mimeType: string, fileName: string }): Promise<string> => {
-    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
-    const docRef = await analysisJobsCollection.add({
-        ...payload,
-        status: 'pending',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    return docRef.id;
-};
-
-export const updateAnalysisJob = async (jobId: string, data: any): Promise<void> => {
-    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
-    await analysisJobsCollection.doc(jobId).update({
-        ...data,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-};
-
-export const listenToAnalysisJob = (jobId: string, callback: (data: any) => void): (() => void) => {
-    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
-    return analysisJobsCollection.doc(jobId).onSnapshot((doc: any) => {
-        if (doc.exists) {
-            callback({ id: doc.id, ...doc.data() });
-        }
-    });
-};
-
-export const cancelAnalysisJob = async (jobId: string): Promise<void> => {
-    if (!analysisJobsCollection) throw new Error("Firebase not initialized for analysis jobs.");
-    // We don't truly stop the background function, but we mark it as cancelled
-    // so the frontend can stop listening and move on.
-    await updateAnalysisJob(jobId, { status: 'cancelled' });
-};
-
-
-// --- Import Job Functions ---
-export const createImportJob = async (payload: any): Promise<string> => {
-    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
-    const docRef = await importJobsCollection.add({
-        ...payload,
-        status: 'pending',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    return docRef.id;
-};
-
-export const updateImportJob = async (jobId: string, data: any): Promise<void> => {
-    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
-    await importJobsCollection.doc(jobId).update({
-        ...data,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-};
-
-export const listenToImportJob = (jobId: string, callback: (data: any) => void): (() => void) => {
-    if (!importJobsCollection) throw new Error("Firebase not initialized for import jobs.");
-    return importJobsCollection.doc(jobId).onSnapshot((doc: any) => {
-        if (doc.exists) {
-            callback({ id: doc.id, ...doc.data() });
-        }
-    });
-};
-
-// --- Deployment Planner Functions ---
-export const getDeployments = async (): Promise<Deployment[]> => {
+export const getDeploymentsForDirector = async (directorId: string): Promise<Deployment[]> => {
     if (!deploymentsCollection) return [];
-    const snapshot = await deploymentsCollection.orderBy('startDate', 'desc').get();
-    return snapshot.docs.map((doc: any) => ({
-        id: doc.id,
+    const q = deploymentsCollection.where('directorId', '==', directorId);
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc: any) => ({ 
+        id: doc.id, 
         ...doc.data(),
-        createdAt: (doc.data().createdAt as any).toDate().toISOString()
-    } as Deployment));
-};
-
-export const addDeployment = async (deploymentData: Omit<Deployment, 'id' | 'createdAt'>): Promise<Deployment> => {
-    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
-    const createdAtTimestamp = firebase.firestore.Timestamp.now();
-    const newDeploymentData = { ...deploymentData, createdAt: createdAtTimestamp };
-    const docRef = await deploymentsCollection.add(newDeploymentData);
-    return { id: docRef.id, ...newDeploymentData, createdAt: createdAtTimestamp.toDate().toISOString() };
-};
-
-export const updateDeployment = async (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>): Promise<void> => {
-    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
-    await deploymentsCollection.doc(deploymentId).update(updates);
-};
-
-export const deleteDeployment = async (deploymentId: string): Promise<void> => {
-    if (!deploymentsCollection) throw new Error("Firebase not initialized for deployments.");
-    await deploymentsCollection.doc(deploymentId).delete();
-};
-
-
-// Note: saveDataMappingTemplate, getDataMappingTemplates, deleteDataMappingTemplate are kept but unused by the main flow.
-// They could be used for a future "manual mapping" feature.
-export const saveDataMappingTemplate = async (template: Omit<DataMappingTemplate, 'id'>): Promise<DataMappingTemplate> => {
-    if (!mappingsCollection) throw new Error("Firebase not initialized.");
-    const docRef = await mappingsCollection.add({ ...template, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-    return { id: docRef.id, ...template };
-};
-
-export const getDataMappingTemplates = async (): Promise<DataMappingTemplate[]> => {
-    if (!mappingsCollection) return [];
-    const snapshot = await mappingsCollection.orderBy('name').get();
-    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as DataMappingTemplate));
-};
-
-export const deleteDataMappingTemplate = async (templateId: string): Promise<void> => {
-    if (!db) throw new Error("Firebase not initialized.");
-    await db.collection('data_mapping_templates').doc(templateId).delete();
+        createdAt: doc.data().createdAt.toDate().toISOString()
+     } as Deployment));
 };

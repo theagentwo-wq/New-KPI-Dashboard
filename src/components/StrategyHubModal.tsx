@@ -5,13 +5,12 @@ import { uploadFile } from '../services/firebaseService';
 import { startStrategicAnalysisJob, deleteImportFile, chatWithStrategy } from '../services/geminiService';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
-import { AnalysisMode } from '../types';
+import { AnalysisMode, FileUploadResult, Period, View } from '../types';
 
-// Define the shape of the job object, to be managed by App.tsx
 export interface ActiveAnalysisJob {
   id: string;
   status: 'idle' | 'pending' | 'processing' | 'complete' | 'error' | 'cancelled';
-  result?: string; // This will hold the HTML result
+  result?: string;
   error?: string;
   fileName?: string;
   mode?: AnalysisMode;
@@ -20,9 +19,8 @@ export interface ActiveAnalysisJob {
 interface StrategyHubModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activeJob: ActiveAnalysisJob | null;
-  setActiveJob: React.Dispatch<React.SetStateAction<ActiveAnalysisJob | null>>;
-  onCancel: () => void;
+  activePeriod: Period;
+  activeView: View;
 }
 
 interface ChatMessage {
@@ -41,38 +39,38 @@ const processingMessages = [
 ];
 
 const MODE_CONFIG: { [key in AnalysisMode]: { icon: string; color: string; desc: string } } = {
-    'General': { icon: 'brain', color: 'text-cyan-400', desc: 'Balanced overview of all key metrics.' },
-    'Financial': { icon: 'budget', color: 'text-green-400', desc: 'Deep dive on margins, P&L, and ROI.' },
-    'Operational': { icon: 'dashboard', color: 'text-blue-400', desc: 'Focus on labor, efficiency, and execution.' },
-    'Marketing': { icon: 'sparkles', color: 'text-purple-400', desc: 'Sentiment, brand, and growth opportunities.' },
+    [AnalysisMode.General]: { icon: 'brain', color: 'text-cyan-400', desc: 'Balanced overview of all key metrics.' },
+    [AnalysisMode.Financial]: { icon: 'budget', color: 'text-green-400', desc: 'Deep dive on margins, P&L, and ROI.' },
+    [AnalysisMode.Operational]: { icon: 'dashboard', color: 'text-blue-400', desc: 'Focus on labor, efficiency, and execution.' },
+    [AnalysisMode.Marketing]: { icon: 'sparkles', color: 'text-purple-400', desc: 'Sentiment, brand, and growth opportunities.' },
+    [AnalysisMode.HR]: { icon: 'users', color: 'text-yellow-400', desc: 'Analyzes staffing, and employee sentiment.' },
 };
 
-export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activeJob, setActiveJob, onCancel }) => {
+export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activePeriod, activeView }) => {
   const [stagedFile, setStagedFile] = useState<File | null>(null);
-  const [selectedMode, setSelectedMode] = useState<AnalysisMode>('General');
+  const [selectedMode, setSelectedMode] = useState<AnalysisMode>(AnalysisMode.General);
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   
-  // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Derive state from props
+  const [activeJob, setActiveJob] = useState<ActiveAnalysisJob | null>(null);
+
   const jobStatus = activeJob?.status || 'idle';
   const error = jobStatus === 'error' ? activeJob?.error || null : null;
   const isLoading = jobStatus === 'pending' || jobStatus === 'processing';
 
   const resetLocalState = () => {
     setStagedFile(null);
-    setSelectedMode('General');
+    setSelectedMode(AnalysisMode.General);
     setChatMessages([]);
     setChatInput('');
   };
   
   const handleFullClose = () => {
-    // Only reset the job if it's finished or errored.
     if (jobStatus === 'complete' || jobStatus === 'error' || jobStatus === 'idle' || jobStatus === 'cancelled') {
       setActiveJob(null);
       resetLocalState();
@@ -83,7 +81,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (jobStatus === 'processing') {
-      setCurrentProcessingMessage(processingMessages[0]); // Start at the beginning
+      setCurrentProcessingMessage(processingMessages[0]);
       interval = setInterval(() => {
         setCurrentProcessingMessage(prev => {
           const currentIndex = processingMessages.indexOf(prev);
@@ -95,13 +93,11 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   }, [jobStatus]);
 
   useEffect(() => {
-    // When the modal is opened without an active job, reset local state.
     if (isOpen && !activeJob) {
       resetLocalState();
     }
   }, [isOpen, activeJob]);
 
-  // Populate chat with initial result when job completes
   useEffect(() => {
       if (jobStatus === 'complete' && activeJob?.result && chatMessages.length === 0) {
           const processResult = async () => {
@@ -112,7 +108,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       }
   }, [jobStatus, activeJob?.result]);
 
-  // Auto-scroll chat
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
@@ -150,29 +145,22 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   const handleAnalyze = async () => {
     if (!stagedFile) return;
 
-    let filePath: string | null = null;
+    let uploadInfo: FileUploadResult | null = null;
 
     try {
-      // Set initial pending state in parent
       setActiveJob({ id: 'temp-id', status: 'pending', fileName: stagedFile.name, mode: selectedMode });
 
       const uploadResult = await uploadFile(stagedFile);
-      filePath = uploadResult.filePath;
+      uploadInfo = { ...uploadResult, mimeType: stagedFile.type, fileName: stagedFile.name };
       
-      const { jobId } = await startStrategicAnalysisJob({
-        ...uploadResult,
-        mimeType: stagedFile.type,
-        fileName: stagedFile.name,
-        mode: selectedMode
-      });
+      const { jobId } = await startStrategicAnalysisJob(uploadInfo, selectedMode, activePeriod, activeView);
       
-      // Update parent state with real job ID
       setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name, mode: selectedMode });
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";
       setActiveJob({ id: 'error-id', status: 'error', error: `Analysis submission failed: ${errorMsg}`, fileName: stagedFile.name });
-      if (filePath) await deleteImportFile(filePath);
+      if (uploadInfo?.filePath) await deleteImportFile(uploadInfo.filePath);
     }
   };
   
@@ -185,7 +173,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       setIsChatLoading(true);
       
       try {
-          const response = await chatWithStrategy(activeJob.result, text, activeJob.mode || 'General');
+          const response = await chatWithStrategy(activeJob.result, text, activeJob.mode || AnalysisMode.General);
           const html = await marked.parse(response);
           setChatMessages(prev => [...prev, { sender: 'ai', text: response, html }]);
       } catch (e) {
@@ -195,6 +183,11 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
           setIsChatLoading(false);
       }
   };
+
+  const handleCancel = () => {
+    // Here you would call a function to cancel the job on the backend
+    setActiveJob(prev => prev ? { ...prev, status: 'cancelled' } : null);
+  }
 
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.add('border-cyan-500', 'bg-slate-700'); };
   const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); dropzoneRef.current?.classList.remove('border-cyan-500', 'bg-slate-700'); };
@@ -237,7 +230,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
                   <div ref={chatEndRef} />
               </div>
               
-              {/* Suggested Actions */}
               {chatMessages.length > 0 && !isChatLoading && (
                   <div className="px-4 py-2 flex gap-2 overflow-x-auto">
                       <button onClick={() => handleSendMessage("What are the top 3 risks?")} className="whitespace-nowrap px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-full text-xs text-slate-300 border border-slate-600">Identify Risks</button>
@@ -262,7 +254,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
                           disabled={!chatInput.trim() || isChatLoading}
                           className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                          <Icon name="plus" className="w-5 h-5 rotate-90" /> {/* Using rotate to look like send arrow */}
+                          <Icon name="plus" className="w-5 h-5 rotate-90" />
                       </button>
                   </div>
               </div>
@@ -292,8 +284,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
 
     return (
       <div className="flex flex-col h-full">
-          {/* Mode Selection */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               {(Object.keys(MODE_CONFIG) as AnalysisMode[]).map(mode => (
                   <button
                     key={mode}
@@ -342,7 +333,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     if (isLoading) {
       return (
         <>
-            <button onClick={onCancel} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">Cancel Job</button>
+            <button onClick={handleCancel} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">Cancel Job</button>
             <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Run in Background</button>
         </>
       );
@@ -359,7 +350,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       );
     }
     
-    // Default state: 'idle'
     return (
       <>
         <button onClick={handleFullClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>

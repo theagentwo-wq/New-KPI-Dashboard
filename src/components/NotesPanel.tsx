@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Note, NoteCategory, View, Period, DirectorProfile } from '../types';
+import { Note, NoteCategory, View, Period, PeriodType } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { getNoteTrends } from '../services/geminiService';
 import { marked } from 'marked';
-import { FirebaseStatus } from '../services/firebaseService';
+import { FirebaseStatus } from '../types';
 
 interface NotesPanelProps {
   allNotes: Note[];
@@ -20,37 +20,39 @@ interface NotesPanelProps {
   dbStatus: FirebaseStatus;
 }
 
-// Styles for the filter pills at the top
 const categoryFilterColors: { [key in NoteCategory]: { base: string, active: string, text: string } } = {
-  'General':    { base: 'bg-slate-700 hover:bg-slate-600',    active: 'bg-slate-500',    text: 'text-slate-200' },
-  'Marketing':  { base: 'bg-blue-900/60 hover:bg-blue-800/70',    active: 'bg-blue-500',    text: 'text-blue-300' },
-  'Staffing':   { base: 'bg-yellow-900/60 hover:bg-yellow-800/70', active: 'bg-yellow-500', text: 'text-yellow-300' },
-  'Reviews':    { base: 'bg-purple-900/60 hover:bg-purple-800/70',  active: 'bg-purple-500',  text: 'text-purple-300' },
-  'Facilities': { base: 'bg-orange-900/60 hover:bg-orange-800/70', active: 'bg-orange-500',  text: 'text-orange-300' },
+  [NoteCategory.General]: { base: 'bg-slate-700 hover:bg-slate-600', active: 'bg-slate-500', text: 'text-slate-200' },
+  [NoteCategory.Operations]: { base: 'bg-teal-900/60 hover:bg-teal-800/70', active: 'bg-teal-500', text: 'text-teal-300' },
+  [NoteCategory.Marketing]: { base: 'bg-blue-900/60 hover:bg-blue-800/70', active: 'bg-blue-500', text: 'text-blue-300' },
+  [NoteCategory.HR]: { base: 'bg-indigo-900/60 hover:bg-indigo-800/70', active: 'bg-indigo-500', text: 'text-indigo-300' },
+  [NoteCategory.GuestFeedback]: { base: 'bg-pink-900/60 hover:bg-pink-800/70', active: 'bg-pink-500', text: 'text-pink-300' },
+  [NoteCategory.Staffing]: { base: 'bg-yellow-900/60 hover:bg-yellow-800/70', active: 'bg-yellow-500', text: 'text-yellow-300' },
+  [NoteCategory.Facilities]: { base: 'bg-orange-900/60 hover:bg-orange-800/70', active: 'bg-orange-500', text: 'text-orange-300' },
+  [NoteCategory.Reviews]: { base: 'bg-purple-900/60 hover:bg-purple-800/70', active: 'bg-purple-500', text: 'text-purple-300' },
 };
 
-// Styles for the tags on individual notes
 const categoryDisplayColors: { [key in NoteCategory]: { bg: string, text: string } } = {
-  'General':    { bg: 'bg-slate-600/50', text: 'text-slate-300' },
-  'Marketing':  { bg: 'bg-blue-500/20', text: 'text-blue-300' },
-  'Staffing':   { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
-  'Reviews':    { bg: 'bg-purple-500/20', text: 'text-purple-300' },
-  'Facilities': { bg: 'bg-orange-500/20', text: 'text-orange-300' },
+  [NoteCategory.General]: { bg: 'bg-slate-600/50', text: 'text-slate-300' },
+  [NoteCategory.Operations]: { bg: 'bg-teal-500/20', text: 'text-teal-300' },
+  [NoteCategory.Marketing]: { bg: 'bg-blue-500/20', text: 'text-blue-300' },
+  [NoteCategory.HR]: { bg: 'bg-indigo-500/20', text: 'text-indigo-300' },
+  [NoteCategory.GuestFeedback]: { bg: 'bg-pink-500/20', text: 'text-pink-300' },
+  [NoteCategory.Staffing]: { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
+  [NoteCategory.Facilities]: { bg: 'bg-orange-500/20', text: 'text-orange-300' },
+  [NoteCategory.Reviews]: { bg: 'bg-purple-500/20', text: 'text-purple-300' },
 };
-
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[600px]', dbStatus }) => {
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<NoteCategory>('General');
+  const [category, setCategory] = useState<NoteCategory>(NoteCategory.General);
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Speech to Text State
   const [isListening, setIsListening] = useState(false);
-  const isListeningRef = useRef(false); // Track intent to listen across closures
+  const isListeningRef = useRef(false);
   const recognitionRef = useRef<any>(null);
 
-  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'Month')!, [mainDashboardPeriod]);
+  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'monthly')!, [mainDashboardPeriod]);
   const [notesPeriod, setNotesPeriod] = useState<Period>(initialMonthlyPeriod);
 
   const defaultScope = JSON.stringify({ view: currentView });
@@ -58,7 +60,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [editCategory, setEditCategory] = useState<NoteCategory>('General');
+  const [editCategory, setEditCategory] = useState<NoteCategory>(NoteCategory.General);
   
   const [isTrendsModalOpen, setTrendsModalOpen] = useState(false);
   const [isTrendsLoading, setIsTrendsLoading] = useState(false);
@@ -74,7 +76,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     if (filterCategory !== 'All') {
       setCategory(filterCategory);
     } else {
-      setCategory('General');
+      setCategory(NoteCategory.General);
     }
   }, [filterCategory]);
 
@@ -90,9 +92,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setFilterCategory('All'); 
   }, [currentView]);
 
-  // --- Speech Recognition Setup ---
   useEffect(() => {
-    // Check browser support
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -103,7 +103,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
     recognition.onresult = (event: any) => {
         let finalTranscript = '';
-
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
                 finalTranscript += event.results[i][0].transcript;
@@ -121,7 +120,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
     recognition.onerror = (event: any) => {
         console.error("Speech recognition error", event.error);
-        // If permission denied or serious error, stop trying
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             isListeningRef.current = false;
             setIsListening(false);
@@ -129,11 +127,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     };
     
     recognition.onend = () => {
-        // Only restart if the user still wants to be listening (intent is true)
         if (isListeningRef.current) {
-            try {
-                recognition.start();
-            } catch (e) {
+            try { recognition.start(); } catch (e) {
                 console.error("Failed to restart recognition", e);
                 isListeningRef.current = false;
                 setIsListening(false);
@@ -147,7 +142,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
     return () => {
         if (recognition) {
-            recognition.onend = null; // Prevent restart on unmount
+            recognition.onend = null;
             recognition.stop();
         }
     };
@@ -160,12 +155,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
 
     if (isListening) {
-        // User wants to stop
         isListeningRef.current = false;
         setIsListening(false);
         recognitionRef.current.stop();
     } else {
-        // User wants to start
         isListeningRef.current = true;
         setIsListening(true);
         try {
@@ -178,8 +171,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
   };
 
-
-  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'Month'), []);
+  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'monthly'), []);
 
   const handlePrevPeriod = () => {
     const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
@@ -230,22 +222,24 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   const noteScopeOptions = useMemo(() => {
     const options: { label: string, value: string }[] = [];
-    if (currentView === 'Total Company') {
-      options.push({ label: "Total Company Notes", value: JSON.stringify({ view: 'Total Company' }) });
-      DIRECTORS.forEach((d: DirectorProfile) => {
-        options.push({ label: `Notes for ${d.name}'s Region`, value: JSON.stringify({ view: d.id }) });
-      });
-    } else {
-      const director = DIRECTORS.find(d => d.id === currentView);
-      if (director) {
-        options.push({ label: `Notes for ${director.name}'s Region`, value: JSON.stringify({ view: director.id }) });
-        director.stores.forEach((store: string) => {
-          options.push({ label: store, value: JSON.stringify({ view: director.id, storeId: store }) });
+    const directors = DIRECTORS;
+    if (currentView === View.TotalCompany) {
+        options.push({ label: "Total Company Notes", value: JSON.stringify({ view: View.TotalCompany }) });
+        directors.forEach(d => {
+            options.push({ label: `Notes for ${d.name}'s Region`, value: JSON.stringify({ view: d.id as View }) });
         });
-      }
+    } else {
+        const director = directors.find(d => d.id === currentView);
+        if (director) {
+            options.push({ label: `Notes for ${director.name}'s Region`, value: JSON.stringify({ view: director.id as View }) });
+            director.stores.forEach(store => {
+                options.push({ label: store, value: JSON.stringify({ view: director.id as View, storeId: store }) });
+            });
+        }
     }
     return options;
-  }, [currentView]);
+}, [currentView]);
+
 
   const filteredNotes = useMemo(() => {
     if (!notesPeriod) return [];
@@ -253,8 +247,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     return allNotes
         .filter((note: Note) => 
             note.monthlyPeriodLabel === notesPeriod.label &&
-            note.view === scope.view &&
-            (note.storeId || undefined) === scope.storeId
+            note.scope.view === scope.view &&
+            (note.scope.storeId || undefined) === scope.storeId
         )
         .filter((note: Note) => 
             filterCategory === 'All' || note.category === filterCategory
@@ -283,23 +277,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
     
-    const isConnectionError = dbStatus.message?.includes('config');
+    const isConnectionError = dbStatus.error?.includes('config');
     const title = isConnectionError ? "Database Connection Failed" : "Database Error";
 
     return (
       <div className="p-3 bg-yellow-900/50 border border-yellow-700 rounded-md space-y-2">
         <div className="text-center">
           <p className="text-sm text-yellow-300 font-semibold">Notes Feature Disabled: {title}</p>
-          <p className="text-xs text-yellow-400 mt-1 whitespace-pre-wrap">{dbStatus.message}</p>
+          <p className="text-xs text-yellow-400 mt-1 whitespace-pre-wrap">{dbStatus.error}</p>
         </div>
-        {dbStatus.rawValue && (
-          <div className="text-left">
-            <p className="text-xs text-yellow-300 font-semibold mb-1">Problematic value received for `FIREBASE_CLIENT_CONFIG`:</p>
-            <code className="block w-full text-xs text-slate-200 bg-slate-800 p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
-              {dbStatus.rawValue}
-            </code>
-          </div>
-        )}
       </div>
     );
   };
@@ -332,12 +318,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           filteredNotes.map((note: Note) => (
             <motion.div 
               key={note.id} 
-              {...({
-                layout: true,
-                initial: { opacity: 0, y: 20 },
-                animate: { opacity: 1, y: 0 },
-                exit: { opacity: 0, transition: { duration: 0.2 } }
-              } as any)}
+              {...({ layout: true, initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, transition: { duration: 0.2 } } } as any)}
               className="bg-slate-700/50 p-3 rounded-md"
             >
               {editingNoteId === note.id ? (
@@ -391,7 +372,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           case 'initializing': return 'Connecting...';
           case 'error': return 'Database not connected.';
           case 'connected': 
-            if (filterCategory === 'All') return `Add new note (will be saved as General)...`
+            if (filterCategory === 'All') return `Add new note (will be saved as ${NoteCategory.General})...`
             return `Add new note (will be saved as ${filterCategory})...`;
       }
   }
@@ -401,7 +382,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   return (
     <>
       <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
-        {/* Header */}
         <div className="p-4 border-b border-slate-700 space-y-2">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -429,7 +409,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             <DiagnosticErrorPanel />
         </div>
         
-        {/* Filters */}
          <div className="p-4 border-b border-slate-700 space-y-3">
             <input
               type="search"
@@ -439,7 +418,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
             />
             <div className="flex flex-wrap items-center gap-2">
-                {allNoteCategories.map((cat: 'All' | NoteCategory) => {
+                {allNoteCategories.map((cat) => {
                     if (cat === 'All') {
                         return (
                             <button
@@ -469,12 +448,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             </div>
         </div>
 
-        {/* Note List */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
         
-        {/* Composition Area */}
         <div className="p-4 border-t border-slate-700 space-y-3 bg-slate-800/50">
           <textarea
             value={content}

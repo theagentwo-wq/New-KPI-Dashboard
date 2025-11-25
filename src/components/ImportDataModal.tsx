@@ -6,8 +6,8 @@ import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
 import { resizeImage } from '../utils/imageUtils';
+import { FileUploadResult } from '../types';
 
-// FIX: Add 'pending' to the step type to represent the initial state of a job.
 type ImportStep = 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';
 
 interface ExtractedData {
@@ -31,9 +31,8 @@ interface ImportDataModalProps {
   onClose: () => void;
   activeJob: ActiveJob | null;
   setActiveJob: React.Dispatch<React.SetStateAction<ActiveJob | null>>;
-  onConfirmImport: (verifiedData: ExtractedData[]) => void;
+  onConfirmImport: (job: FileUploadResult) => void;
 }
-
 
 const processingMessages = [
     'Starting secure analysis... this may take up to 2 minutes for complex files...',
@@ -80,7 +79,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [stagedText, setStagedText] = useState<string>('');
   const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
-  const [pastedStoreData, setPastedStoreData] = useState<Record<string, string>>({});
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -92,7 +90,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStagedText('');
     setStagedWorkbook(null);
     setSelectedSheets([]);
-    setPastedStoreData({});
   };
   
   useEffect(() => {
@@ -150,11 +147,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   }, [isOpen, handlePaste]);
   
   const handleToggleSheet = (sheetName: string) => setSelectedSheets(prev => prev.includes(sheetName) ? prev.filter(s => s !== sheetName) : [...prev, sheetName]);
-  
-  const handleAnalyzePastedData = () => {
-    const jobs = (Object.entries(pastedStoreData) as [string, string][]).filter(([, text]) => text.trim()).map(([storeName, text]) => ({ type: 'text-chunk' as const, content: text, name: `Pasted data for ${storeName}` }));
-    if (jobs.length > 0) runAnalysisJobs(jobs);
-  };
 
   const handleAnalyze = () => {
     let jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[] = [];
@@ -176,27 +168,26 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     if (jobs.length === 0) return;
     
-    let filePath: string | null = null;
+    let fileUploadResult: FileUploadResult | null = null;
     try {
-        const job = jobs[0]; // Simplified for single job submission, can be extended for multi-job
-        const { jobId } = await (async () => {
+        const job = jobs[0];
+        const { jobId, ...uploadResult } = await (async () => {
             if (job.type === 'file') {
-                const uploadResult = await uploadFile(job.content as File);
-                filePath = uploadResult.filePath;
-                return startImportJob({ ...uploadResult, mimeType: (job.content as File).type, fileName: job.name }, 'document');
+                const res = await uploadFile(job.content as File);
+                fileUploadResult = { ...res, mimeType: (job.content as File).type, fileName: job.name, uploadId: res.uploadId, fileUrl: res.fileUrl, filePath: res.filePath};
+                return { ...await startImportJob(fileUploadResult, 'document'), ...fileUploadResult };
             } else {
-                const uploadResult = await uploadTextAsFile(job.content as string, job.name);
-                filePath = uploadResult.filePath;
-                return startImportJob(uploadResult, 'text');
+                const res = await uploadTextAsFile(job.content as string, job.name);
+                fileUploadResult = { ...res, mimeType: 'text/plain', fileName: job.name, uploadId: res.uploadId, fileUrl: res.fileUrl, filePath: res.filePath };
+                return { ...await startImportJob(fileUploadResult, 'text'), ...fileUploadResult };
             }
         })();
 
-        // FIX: Set initial step to 'pending' to correctly reflect the job's starting state.
         setActiveJob({ id: jobId, step: 'pending', statusLog: [`[1/1] Submitting job for '${job.name}'...`], progress: { current: 0, total: 1 }, errors: [], extractedData: [] });
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to submit job.';
         setActiveJob(prev => ({ ...prev!, step: 'error', errors: [...(prev?.errors || []), errorMsg] }));
-        if (filePath) await deleteImportFile(filePath);
+        if (fileUploadResult?.filePath) await deleteImportFile(fileUploadResult.filePath);
     }
   };
 
@@ -207,7 +198,19 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       setActiveJob({ ...activeJob, extractedData: newData });
   };
   
-  const handleConfirmImport = () => { if (activeJob) onConfirmImport(activeJob.extractedData); };
+  const handleConfirm = () => { 
+    if (activeJob) {
+        // This is a placeholder for what would be a more complex mapping and validation before confirming.
+        const confirmedJob = {
+            uploadId: activeJob.id,
+            fileName: activeJob.extractedData[0]?.sourceName || 'imported-data',
+            filePath: '', // This would need to be tracked from the initial upload
+            fileUrl: '',
+            mimeType: ''
+        }
+        onConfirmImport(confirmedJob);
+    }
+  }; 
   
   const handleFullClose = () => {
       setActiveJob(null);
@@ -277,7 +280,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             </div>
           </div>
         );
-      // FIX: Add 'pending' case to be handled by the same UI as 'processing'.
       case 'pending':
       case 'processing':
       case 'finished':
@@ -310,11 +312,10 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
           </>);
           case 'verify': return (<>
               <button onClick={() => setActiveJob(null)} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Back</button>
-              <button onClick={handleConfirmImport} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md shadow-lg shadow-cyan-900/20">Confirm & Import</button>
+              <button onClick={handleConfirm} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md shadow-lg shadow-cyan-900/20">Confirm & Import</button>
           </>);
           case 'finished':
           case 'error': return <button onClick={handleFullClose} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md shadow-lg shadow-cyan-900/20">Close</button>;
-          // FIX: Add 'pending' case to be handled by the same UI as 'processing'.
           case 'pending':
           case 'processing': return <button onClick={onClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Run in Background</button>;
       }
@@ -324,7 +325,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     <Modal isOpen={isOpen} onClose={handleFullClose} title="Universal Data Hub" size="large">
       <div className="space-y-4">
         {renderContent()}
-        {activeJob?.errors.length > 0 && (
+        {activeJob && activeJob.errors && activeJob.errors.length > 0 && (
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-red-400">Errors Encountered:</h3>
             {activeJob.errors.map((err, i) => (<p key={i} className="text-xs text-red-400 bg-red-900/30 p-1.5 rounded-md">{err}</p>))}

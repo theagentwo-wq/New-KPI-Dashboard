@@ -1,49 +1,19 @@
-
 import { callGeminiAPI } from '../lib/ai-client';
-import { 
-  Period,
-  View, 
-  PerformanceData, 
-  HistoricalData, 
-  Weather,
-  Audience, 
-  Kpi, 
-  Note,
-  Anomaly,
-  AnalysisMode,
-  ForecastDataPoint,
-  DailyForecast
-} from '../types';
+import { Period, View, PerformanceData, Note, Anomaly, AnalysisMode, FileUploadResult, Audience, Weather, Kpi, ForecastDataPoint, DailyForecast, DataItem } from '../types';
 
-// Note: The 'generativeAI' client from the original file has been replaced
-// by the 'callGeminiAPI' proxy to ensure all calls go through our secure backend.
-
-/**
- * A service layer for all interactions with the Gemini AI API.
- * It uses a proxy (`callGeminiAPI`) to securely communicate with the backend.
- */
-
-export const getInsights = (data: any, view: View, periodLabel: string, query: string, userLocation: any) => {
-  return callGeminiAPI('getInsights', { data, view, periodLabel, query, userLocation });
+export const getInsights = (data: Record<string, DataItem>, view: View, period: Period, userLocation: { latitude: number, longitude: number } | null): Promise<any> => {
+  return callGeminiAPI('getInsights', { data, view, period, userLocation });
 };
 
-export const getTrendAnalysis = (historicalData: HistoricalData[], view: View) => {
-  return callGeminiAPI('getTrendAnalysis', { historicalData, view });
+export const getExecutiveSummary = (data: { [key: string]: DataItem }, view: View, period: Period): Promise<string> => {
+  return callGeminiAPI('getExecutiveSummary', { data, view, period });
 };
 
-export const getDirectorPerformanceSnapshot = (directorName: string, periodLabel: string, aggregateData: PerformanceData) => {
-  return callGeminiAPI('getDirectorPerformanceSnapshot', { directorName, periodLabel, aggregateData });
+export const getReviewSummary = (locationName: string): Promise<any> => {
+  return callGeminiAPI('getReviewSummary', { location: locationName });
 };
 
-export const getExecutiveSummary = (data: any, view: View, periodLabel: string) => {
-  return callGeminiAPI('getExecutiveSummary', { data, view, periodLabel });
-};
-
-export const getReviewSummary = (locationName: string, reviews: any[]) => {
-  return callGeminiAPI('getReviewSummary', { location: locationName, reviews });
-};
-
-export const getLocationMarketAnalysis = (locationName: string) => {
+export const getLocationMarketAnalysis = (locationName: string): Promise<any> => {
   return callGeminiAPI('getLocationMarketAnalysis', { location: locationName });
 };
 
@@ -51,54 +21,37 @@ export const generateHuddleBrief = (locationName: string, performanceData: Perfo
   return callGeminiAPI('generateHuddleBrief', { location: locationName, storeData: performanceData, audience, weather });
 };
 
-export const getSalesForecast = (locationName: string, weatherForecast: DailyForecast[], historicalData: any): Promise<ForecastDataPoint[]> => {
+export const getSalesForecast = (locationName: string, weatherForecast: DailyForecast[] | null, historicalData: any): Promise<ForecastDataPoint[]> => {
     return callGeminiAPI('getSalesForecast', { location: locationName, weatherForecast, historicalData });
 };
 
-export const getMarketingIdeas = (locationName: string, userLocation: any) => {
+export const getMarketingIdeas = (locationName: string, userLocation: { latitude: number, longitude: number } | null): Promise<any> => {
     return callGeminiAPI('getMarketingIdeas', { location: locationName, userLocation });
-};
-
-export const runWhatIfScenario = (data: any, prompt: string): Promise<{ analysis: string, args?: any }> => {
-  return callGeminiAPI('runWhatIfScenario', { data, userPrompt: prompt });
 };
 
 export const getNoteTrends = (notes: Note[]): Promise<string> => {
   return callGeminiAPI('getNoteTrends', { notes });
 };
 
-export const getAnomalyDetections = (allStoresData: any, periodLabel: string): Promise<Anomaly[]> => {
+export const getAnomalyDetections = (allStoresData: Record<string, DataItem>, periodLabel: string): Promise<Anomaly[]> => {
     return callGeminiAPI('getAnomalyDetections', { allStoresData, periodLabel });
+};
+
+export const getAnomalyInsights = (anomaly: Anomaly, data: Record<string, DataItem>): Promise<string> => {
+    return callGeminiAPI('getAnomalyInsights', { anomaly, data });
 };
 
 export const getVarianceAnalysis = (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
     return callGeminiAPI('getVarianceAnalysis', { location, kpi, variance, allKpis });
 };
 
-export const getQuadrantAnalysis = (data: any[], periodLabel: string, kpiAxes: { x: Kpi, y: Kpi, z: Kpi }): Promise<string> => {
-    return callGeminiAPI('getQuadrantAnalysis', { data, periodLabel, kpiAxes });
-};
-
-export const getStrategicExecutiveAnalysis = (kpi: Kpi, periodLabel: string, companyTotal: number, directorData: any[], laggards: any[]): Promise<string> => {
-    return callGeminiAPI('getStrategicExecutiveAnalysis', { kpi, periodLabel, companyTotal, directorData, laggards });
-};
-
-export const startStrategicAnalysisJob = (payload: { fileUrl: string, mimeType: string, fileName: string, filePath: string, mode: AnalysisMode }): Promise<{ jobId: string }> => {
-    return callGeminiAPI('startStrategicAnalysis', payload);
+export const startStrategicAnalysisJob = (payload: FileUploadResult, mode: AnalysisMode, period: Period, view: View): Promise<{ jobId: string }> => {
+    return callGeminiAPI('startStrategicAnalysis', { ...payload, mode, period, view });
 };
 
 export const chatWithStrategy = (context: string, userQuery: string, mode: AnalysisMode): Promise<string> => {
     return callGeminiAPI('chatWithStrategy', { context, userQuery, mode });
 };
-
-// --- Import Job Functions (from original file, kept for compatibility) ---
-
-interface FileUploadResult {
-  filePath: string;
-  uploadId: string;
-  mimeType: string;
-  fileName: string;
-}
 
 export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
@@ -139,7 +92,5 @@ export const deleteImportFile = async (filePath: string): Promise<void> => {
   console.warn(
     `[INFO] File deletion requested for: ${filePath}. This is a placeholder.`
   );
-  // In a real implementation, this would call a secure backend endpoint.
-  // await callGeminiAPI('deleteFile', { filePath });
   return Promise.resolve();
 };
