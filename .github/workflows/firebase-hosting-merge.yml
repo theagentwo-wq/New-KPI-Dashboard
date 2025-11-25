@@ -20,6 +20,8 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+        env:
+          VITE_MAPS_KEY: ${{ secrets.VITE_MAPS_KEY }}
 
       - name: Install functions dependencies
         run: npm ci --prefix functions
