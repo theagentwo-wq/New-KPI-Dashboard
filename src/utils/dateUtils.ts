@@ -1,4 +1,3 @@
-is taking a long time
 import { Period } from '../types';
 
 export const getPeriodOptions = (): Period[] => {

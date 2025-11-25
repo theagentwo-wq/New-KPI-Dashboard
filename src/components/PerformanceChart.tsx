@@ -1,4 +1,4 @@
-This is taking a long time doin gthis one by onemptied.  Just fix all teh errors in the componants
+
 import { Kpi, Period, View, PerformanceData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { KPI_CONFIG } from '../constants';
@@ -12,6 +12,14 @@ interface PerformanceChartProps {
 
 export const PerformanceChart: React.FC<PerformanceChartProps> = ({ activeKpi, period, view, data }) => {
     const kpiConfig = KPI_CONFIG[activeKpi];
+
+    if (!kpiConfig) {
+        return (
+            <div className="bg-slate-800 rounded-lg p-4 h-full flex items-center justify-center">
+                <p className="text-slate-400">Invalid KPI selected.</p>
+            </div>
+        );
+    }
 
     const chartData = data.map(d => ({ ...d.data, date: d.date }));
 
