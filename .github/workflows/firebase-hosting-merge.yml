@@ -1,5 +1,5 @@
-name: Deploy to Firebase Hosting on merge
-'on':
+# Deploy to Firebase Hosting on merge
+on:
   push:
     branches:
       - main
@@ -25,6 +25,9 @@ jobs:
 
       - name: Install functions dependencies
         run: npm ci --prefix functions
+
+      - name: Build functions
+        run: npm run build --prefix functions
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
