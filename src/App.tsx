@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
-import { View, Period, Note, NoteCategory, FirebaseStatus, StorePerformanceData, Budget, DirectorProfile, Goal, Kpi } from './types';
+import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FileUploadResult } from './types';
 import { DIRECTORS } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
 import { 
@@ -18,11 +17,14 @@ import {
     getDirectorProfiles,
     addGoal as fbAddGoal,
     getPerformanceData,
-    getBudgets
+    getBudgets,
+    getGoalsForDirector,
+    getDeploymentsForDirector,
 } from './services/firebaseService';
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { ImportDataModal } from './components/ImportDataModal';
 import { StrategyHubModal } from './components/StrategyHubModal';
+import { FirebaseStatus } from './types';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -36,14 +38,16 @@ const App = () => {
   const [loadedData, setLoadedData] = useState<StorePerformanceData[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [directors, setDirectors] = useState<DirectorProfile[]>(DIRECTORS);
-
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isExecutiveSummaryOpen, setIsExecutiveSummaryOpen] = useState(false);
   const [isDirectorProfileOpen, setIsDirectorProfileOpen] = useState(false);
   const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | null>(null);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
+  const [activeJob, setActiveJob] = useState<FileUploadResult | null>(null);
   const [isStrategyHubOpen, setStrategyHubOpen] = useState(false);
-  const [isScenarioModelerOpen, setScenarioModelerOpen] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -107,14 +111,27 @@ const App = () => {
       await savePerformanceDataForPeriod(storeId, period, data);
   };
 
-  const handleOpenProfile = (director: DirectorProfile) => {
+  const handleOpenProfile = async (director: DirectorProfile) => {
     setSelectedDirector(director);
+    if (dbStatus.status === 'connected') {
+        const [directorGoals, directorDeployments] = await Promise.all([
+            getGoalsForDirector(director.id, activePeriod),
+            getDeploymentsForDirector(director.id)
+        ]);
+        setGoals(directorGoals);
+        setDeployments(directorDeployments);
+    }
     setIsDirectorProfileOpen(true);
   };
     
   const handleSaveGoal = async (goal: Omit<Goal, 'id'>) => {
-      await fbAddGoal(goal.directorId, goal.quarter, goal.year, goal.kpi, goal.target);
+      const newGoal = await fbAddGoal(goal.directorId, goal.quarter, goal.year, goal.kpi, goal.target);
+      setGoals(prev => [...prev, newGoal]);
   };
+  
+  const handleConfirmImport = (job: FileUploadResult) => {
+      setActiveJob(job);
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -127,12 +144,12 @@ const App = () => {
                     onUpdateNote={handleUpdateNote}
                     onDeleteNote={handleDeleteNote}
                     loadedData={loadedData}
-                    setLoadedData={setLoadedData}
                     budgets={budgets}
                     isAlertsModalOpen={isAlertsModalOpen}
                     setIsAlertsModalOpen={setIsAlertsModalOpen}
                     isExecutiveSummaryOpen={isExecutiveSummaryOpen}
                     setIsExecutiveSummaryOpen={setIsExecutiveSummaryOpen}
+                    dbStatus={dbStatus}
                 />;
       case 'Data Entry':
         return <DataEntryPage onSave={handleSaveData} />;
@@ -156,7 +173,7 @@ const App = () => {
         onOpenProfile={handleOpenProfile}
         onOpenAlerts={() => setIsAlertsModalOpen(true)}
         onOpenDataEntry={() => setImportModalOpen(true)}
-        onOpenScenarioModeler={() => setScenarioModelerOpen(true)}
+        onOpenScenarioModeler={() => {}}
         onOpenExecutiveSummary={() => setIsExecutiveSummaryOpen(true)}
         onOpenStrategyHub={() => setStrategyHubOpen(true)}
       />
@@ -177,11 +194,16 @@ const App = () => {
         director={selectedDirector}
         activePeriod={activePeriod}
         onSaveGoal={handleSaveGoal}
+        directorGoals={goals}
+        directorDeployments={deployments}
       />}
 
       <ImportDataModal
         isOpen={isImportModalOpen}
         onClose={() => setImportModalOpen(false)}
+        activeJob={activeJob}
+        setActiveJob={setActiveJob}
+        onConfirmImport={handleConfirmImport}
       />
       
       <StrategyHubModal
@@ -190,8 +212,6 @@ const App = () => {
         activePeriod={activePeriod}
         activeView={activeView}
       />
-      
-      {/* <ScenarioModelerModal isOpen={isScenarioModelerOpen} onClose={() => setScenarioModelerOpen(false)} /> */}
     </div>
   );
 };

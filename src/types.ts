@@ -1,4 +1,3 @@
-
 export enum Kpi {
   Sales = 'Sales',
   Guests = 'Guests',
@@ -30,11 +29,14 @@ export enum NoteCategory {
   Reviews = 'Reviews',
 }
 
+export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type PeriodOption = 'Day' | 'Week' | 'Month' | 'Quarter' | 'Year';
+
 export interface Period {
   startDate: Date;
   endDate: Date;
   label: string;
-  type: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  type: PeriodType;
 }
 
 export interface PerformanceData {
@@ -44,7 +46,8 @@ export interface PerformanceData {
 export interface StorePerformanceData {
   storeId: string;
   data: PerformanceData;
-  pnl?: FinancialLineItem[]; 
+  pnl?: FinancialLineItem[];
+  weekStartDate?: string; // Added for firebaseService compatibility
 }
 
 export interface HistoricalData {
@@ -89,7 +92,7 @@ export interface Anomaly {
   analysis?: string;
 }
 
-export type AnalysisMode = 'Financial' | 'Operational' | 'Marketing' | 'HR';
+export type AnalysisMode = 'Financial' | 'Operational' | 'Marketing' | 'HR' | 'General';
 
 export interface DailyForecast {
   day: string;
@@ -97,6 +100,7 @@ export interface DailyForecast {
   icon: string;
   description: string;
   date: string;
+  condition: WeatherCondition; // Added for weatherService compatibility
 }
 
 export interface ForecastDataPoint {
@@ -106,9 +110,11 @@ export interface ForecastDataPoint {
   weatherDescription: string;
 }
 
+export type WeatherCondition = 'sunny' | 'cloudy' | 'rain' | 'storm' | 'snow' | 'windy' | 'thunderstorm' | 'loading';
+
 export interface WeatherInfo {
   temperature: number;
-  description:string;
+  description: string;
   condition: WeatherCondition;
   shortForecast: string;
   detailedForecast: string;
@@ -127,12 +133,14 @@ export interface Goal {
   quarter: number;
   year: number;
   kpi: Kpi;
-  target: number;
+  target: number; 
+  targetValue?: number; // Added for compatibility
+  endDate?: string; // Added for compatibility
 }
 
 export interface DirectorProfile {
   id: string;
-  name: string;
+  name: string;       // Changed from firstName
   lastName: string;
   title: string;
   photo: string;
@@ -145,10 +153,10 @@ export interface DirectorProfile {
 }
 
 export enum DeploymentType {
-    Training = 'Training',
-    Mentorship = 'Mentorship',
-    PerformanceTurnaround = 'Performance Turnaround',
-    NewStoreOpening = 'New Store Opening',
+  Training = 'Training',
+  Mentorship = 'Mentorship',
+  PerformanceTurnaround = 'Performance Turnaround',
+  NewStoreOpening = 'New Store Opening',
 }
 
 export interface Deployment {
@@ -164,27 +172,30 @@ export interface Deployment {
   destination: string;
   purpose: string;
   estimatedBudget: number;
+  status?: string; // Added for compatibility
 }
 
 export interface DataItem {
-    id: string;
-    value: number;
-    name: string;
+  id: string;
+  value: number;
+  name: string;
+  actual?: PerformanceData | number;      // Added for compatibility
+  aggregated?: PerformanceData | number; // Added for compatibility
 }
 
 export interface StoreDetails {
-    address: string;
-    lat: number;
-    lon: number;
+  address: string;
+  lat: number;
+  lon: number;
 }
 
 export interface FinancialLineItem {
-    name: string;
-    actual: number;
-    budget: number;
-    variance: number;
-    category: string;
-    indent?: boolean;
+  name: string;
+  actual: number;
+  budget: number;
+  variance: number; // Added missing property
+  category: string;
+  indent?: boolean;
 }
 
 export interface SavedView {
@@ -192,8 +203,6 @@ export interface SavedView {
   name: string;
   kpis: Kpi[];
 }
-
-export type WeatherCondition = 'sunny' | 'cloudy' | 'rain' | 'storm' | 'snow' | 'windy';
 
 export interface FileUploadResult {
   filePath: string;
@@ -203,10 +212,21 @@ export interface FileUploadResult {
   fileUrl: string;
 }
 
-export type ComparisonMode = 'period' | 'yoy';
+export type ComparisonMode = 'vs. Prior Period' | 'vs. Last Year' | 'vs. Budget';
 
 export interface DataMappingTemplate {
   id: string;
   name: string;
   mapping: { [key: string]: string };
+}
+
+export interface FirebaseStatus {
+  status: 'initializing' | 'connected' | 'error';
+  error?: string;
+}
+
+export interface User {
+    // Define user properties if needed, left empty as it's unused for now
+    id: string;
+    name: string;
 }
