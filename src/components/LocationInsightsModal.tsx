@@ -201,7 +201,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const lon = placeDetails?.geometry?.location?.lng;
             if (!lat || !lon) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Street View Unavailable</h4><p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p></div>;
 
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?location=${lat},${lon}&heading=210&pitch=10&fov=75`;
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 
