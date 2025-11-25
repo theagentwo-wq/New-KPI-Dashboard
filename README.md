@@ -36,12 +36,14 @@ Before the application can be deployed for the first time, the underlying Google
 
 ### 1. Enable Google Cloud APIs
 
-For all features to work, you must enable four specific APIs in your Google Cloud project.
+For all features to work, you must enable six specific APIs in your Google Cloud project.
 
 1.  Go to the **[Google Cloud API Library](https://console.cloud.google.com/apis/library)**.
 2.  Search for and **ENABLE** each of the following APIs one by one:
     *   **Vertex AI API** (for Gemini AI features)
-    *   **Maps Embed API** (for Street View)
+    *   **Maps JavaScript API** (the core for all map functionality)
+    *   **Street View Static API** (to display Street View images)
+    *   **Maps Embed API** (for embedding maps)
     *   **Places API** (for photos and ratings)
     *   **Geocoding API** (for finding locations accurately)
 
