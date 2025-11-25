@@ -1,330 +1,201 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Modal } from './Modal';
-// FIX: Removed unused 'Budget' type.
-import { DirectorProfile, Kpi, Period, PerformanceData, Deployment, Goal, StorePerformanceData } from '../types';
-import { getDirectorPerformanceSnapshot } from '../services/geminiService';
-import { marked } from 'marked';
-import { KPI_CONFIG } from '../constants';
-import { Icon } from './Icon';
-import { DeploymentPlannerModal } from './DeploymentPlannerModal';
+import React, { useState, useMemo } from 'react';
+import {
+    DirectorProfile, 
+    Deployment, 
+    Goal, 
+    Period,
+    Kpi
+} from '../types';
+import { X, Briefcase, Target, User, MapPin, Edit, TrendingUp, BarChart, DollarSign } from 'lucide-react';
 import { DeploymentMap } from './DeploymentMap';
+import { GoalSetter } from './GoalSetter';
+import { KPI_CONFIG } from '../constants';
 
 interface DirectorProfileModalProps {
   isOpen: boolean;
+  director: DirectorProfile | null;
   onClose: () => void;
-  director?: DirectorProfile;
-  performanceData: StorePerformanceData[];
-  // FIX: Removed unused 'budgets' prop.
-  goals: Goal[];
-  selectedKpi: Kpi;
-  period: Period;
-  // FIX: Removed unused 'onUpdatePhoto' and 'onUpdateContactInfo' props.
-  deployments: Deployment[];
-  onAddDeployment: (deploymentData: Omit<Deployment, 'id' | 'createdAt'>) => void;
-  onUpdateDeployment: (deploymentId: string, updates: Partial<Omit<Deployment, 'id' | 'createdAt'>>) => void;
-  onDeleteDeployment: (deploymentId: string) => void;
+  onSaveGoal: (goal: Omit<Goal, 'id'>) => void;
+  directorGoals: Goal[];
+  directorDeployments: Deployment[];
+  activePeriod: Period;
 }
 
-type DeploymentTab = 'map' | 'timeline' | 'budget';
+const TabButton = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
+    <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold transition-colors ${active ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>
+        {children}
+    </button>
+)
 
-// FIX: Removed unused props from component signature.
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ 
-    isOpen, onClose, director, performanceData, goals, selectedKpi, period, 
-    deployments, onAddDeployment, onUpdateDeployment, onDeleteDeployment
-}) => {
-  const [snapshot, setSnapshot] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sanitizedHtml, setSanitizedHtml] = useState('');
-  
-  const [isPlannerOpen, setIsPlannerOpen] = useState(false);
-  const [editingDeployment, setEditingDeployment] = useState<Deployment | null>(null);
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, director, onClose, onSaveGoal, directorGoals, directorDeployments, activePeriod }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showGoalSetter, setShowGoalSetter] = useState(false);
 
-  const [activeDeploymentTab, setActiveDeploymentTab] = useState<DeploymentTab>('map');
-  
-  const directorDeployments = useMemo(() => {
-    if (!director) return [];
-    return deployments.filter(d => d.directorId === director.id);
-  }, [deployments, director]);
+  const travelBudgetUsed = useMemo(() => {
+    if (!directorDeployments) return 0;
+    return directorDeployments.reduce((acc, dep) => acc + (dep.estimatedBudget || 0), 0);
+  }, [directorDeployments]);
 
-  const directorGoals = useMemo(() => {
-    if (!director) return [];
-    const currentYear = new Date().getFullYear();
-    const currentQuarter = Math.floor((new Date().getMonth() / 3)) + 1;
-    return goals.filter(g => g.directorId === director.id && g.year === currentYear && g.quarter === currentQuarter);
-  }, [goals, director]);
+  if (!isOpen || !director) return null;
 
-  const directorStoreData = useMemo(() => {
-    if (!director) return [];
-    return performanceData.filter(pd => director.stores.includes(pd.storeId));
-  }, [performanceData, director]);
+  const travelBudgetProgress = director.yearlyTravelBudget > 0 ? (travelBudgetUsed / director.yearlyTravelBudget) * 100 : 0;
 
-  const directorAggregateData = useMemo(() => {
-    const data: PerformanceData = {};
-    if (directorStoreData.length === 0) return data;
-    
-    for (const kpi of Object.values(Kpi)) {
-        const kpiConfig = KPI_CONFIG[kpi];
-        const values = directorStoreData.map(pd => pd.data[kpi]).filter(v => v !== undefined && !isNaN(v)) as number[];
-        if (values.length > 0) {
-            if (kpiConfig.format === 'currency') {
-                data[kpi] = values.reduce((sum, v) => sum + v, 0);
-            } else {
-                data[kpi] = values.reduce((sum, v) => sum + v, 0) / values.length;
-            }
-        }
-    }
-    return data;
-  }, [directorStoreData]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSnapshot('');
-      setSanitizedHtml('');
-      setActiveDeploymentTab('map');
-      setEditingDeployment(null);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const renderMarkdown = async () => {
-        if (snapshot) {
-          try {
-            const html = await marked.parse(snapshot);
-            setSanitizedHtml(html);
-          } catch (e) {
-            console.error("Markdown parsing failed:", e);
-            setSanitizedHtml(`<p>Error rendering content.</p>`);
-          }
-        } else {
-            setSanitizedHtml('');
-        }
-    };
-    renderMarkdown();
-  }, [snapshot]);
-
-  const handleGenerateSnapshot = async () => {
-    if (!director || !directorAggregateData) return;
-    setIsLoading(true);
-    setSnapshot('');
-    try {
-      const result = await getDirectorPerformanceSnapshot(director.name, period.label, directorAggregateData);
-      setSnapshot(result);
-    } catch (error) {
-      console.error("AI Snapshot Error:", error);
-      // FIX: Escaped the apostrophe in the string.
-      setSnapshot('I\'m sorry, but I was unable to generate the performance snapshot at this time.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleOpenPlannerForCreate = () => {
-    setEditingDeployment(null);
-    setIsPlannerOpen(true);
-  };
-  
-  const handleOpenPlannerForEdit = (deployment: Deployment) => {
-    setEditingDeployment(deployment);
-    setIsPlannerOpen(true);
+  const handleSaveGoal = (goal: Omit<Goal, 'id'>) => {
+    onSaveGoal(goal);
+    setShowGoalSetter(false);
   };
 
-  const handleDeleteDeployment = (deploymentId: string) => {
-    if (window.confirm("Are you sure you want to delete this deployment plan?")) {
-      onDeleteDeployment(deploymentId);
-    }
-  };
-  
-  const topStore = useMemo(() => {
-    if (!directorStoreData || directorStoreData.length === 0) {
-      return 'N/A';
-    }
-    const kpiConfig = KPI_CONFIG[selectedKpi];
-    const sortedStores = [...directorStoreData].sort((a, b) => {
-        const aPerf = a.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-        const bPerf = b.data[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-        return kpiConfig.higherIsBetter ? bPerf - aPerf : aPerf - bPerf;
-    });
-    return sortedStores[0].storeId;
-  }, [directorStoreData, selectedKpi]);
-
-  if (!director) return null;
-  
-  const getBudgetBarColor = (percentage: number) => {
-    if (percentage > 90) return 'bg-red-500';
-    if (percentage > 75) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const renderDeploymentContent = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const activeDeployments = directorDeployments.filter(d => new Date(d.startDate) <= now && new Date(d.endDate) >= now);
-    
-    const totalBudgetSpentThisYear = directorDeployments
-        .filter(d => new Date(d.startDate).getFullYear() === currentYear)
-        .reduce((sum, d) => sum + (d.estimatedBudget || 0), 0);
-        
-    const safeYearlyBudget = director.yearlyTravelBudget || 30000;
-    const budgetPercentage = safeYearlyBudget > 0 ? (totalBudgetSpentThisYear / safeYearlyBudget) * 100 : 0;
-    const remainingBudget = safeYearlyBudget - totalBudgetSpentThisYear;
-    
-    switch (activeDeploymentTab) {
-      case 'map':
-        return <DeploymentMap activeDeployments={activeDeployments} director={director} />;
-      case 'timeline':
-        return (
-          <div className="max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-            {directorDeployments.length > 0 ? directorDeployments.map(d => (
-              <div key={d.id} className="text-xs p-2 bg-slate-800/50 rounded-md flex justify-between items-start">
-                <div>
-                    <p className="font-bold text-slate-200">{d.deployedPerson === 'Director' ? `${director.name} ${director.lastName}` : d.deployedPerson} to {d.destination}</p>
-                    <p className="text-slate-400">{new Date(d.startDate).toLocaleDateString()} - {new Date(d.endDate).toLocaleDateString()}</p>
-                    <p className="text-slate-300 italic">Purpose: {d.purpose}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                    <span className="text-cyan-400 font-mono font-semibold">{(d.estimatedBudget || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</span>
-                    <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={() => handleOpenPlannerForEdit(d)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
-                        <button onClick={() => handleDeleteDeployment(d.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
-                    </div>
-                </div>
-              </div>
-            )) : <p className="text-xs text-slate-400 text-center py-4">No deployments planned.</p>}
-          </div>
-        );
-      case 'budget':
-        return (
-           <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-slate-700 shadow-lg">
-             <div className="flex items-center justify-between mb-6">
-                <h4 className="text-lg font-bold text-white">Travel Budget FY{currentYear}</h4>
-                <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
-                    <Icon name="budget" className="w-6 h-6 text-cyan-400" />
-                </div>
-             </div>
-
-             <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Spent</p>
-                    <p className="text-2xl font-bold text-white">
-                        {totalBudgetSpentThisYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
-                    </p>
-                </div>
-                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Remaining</p>
-                    <p className={`text-2xl font-bold ${remainingBudget < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                        {remainingBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
-                    </p>
-                </div>
-             </div>
-
-             <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between">
-                    <div>
-                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-cyan-300 bg-cyan-500/20">
-                            Budget Utilization
-                        </span>
-                    </div>
-                    <div className="text-right">
-                        <span className="text-xs font-semibold inline-block text-slate-300">
-                            {budgetPercentage.toFixed(1)}%
-                        </span>
-                    </div>
-                </div>
-                <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-slate-700 border border-slate-600">
-                    <div style={{ width: `${Math.min(budgetPercentage, 100)}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${getBudgetBarColor(budgetPercentage)} transition-all duration-700 ease-out`}></div>
-                </div>
-                <p className="text-xs text-slate-500 text-center">
-                    Total Budget: <span className="text-slate-300 font-medium">{safeYearlyBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</span>
-                </p>
-             </div>
-           </div>
-        );
-    }
-  };
+  const renderContent = () => {
+      switch(activeTab) {
+          case 'goals':
+              return <GoalsTab directorGoals={directorGoals} onSetGoal={() => setShowGoalSetter(true)} />;
+          case 'deployments':
+              return <DeploymentsTab directorDeployments={directorDeployments} director={director} />;
+          case 'performance':
+              return <PerformanceTab />;
+          default:
+            return <OverviewTab director={director} travelBudgetUsed={travelBudgetUsed} travelBudgetProgress={travelBudgetProgress} />;
+      }
+  }
 
   return (
-    <>
-      <Modal isOpen={isOpen} onClose={onClose} title={`${director.name} ${director.lastName}'s Hub`} size="large">
-        <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-1/3 space-y-4">
-                <div className="text-center">
-                    <img src={director.photo} alt={`${director.name} ${director.lastName}`} className="w-32 h-32 rounded-full border-4 border-slate-700 object-cover mx-auto"/>
-                    <h3 className="text-xl font-bold text-slate-200 mt-2">{`${director.name} ${director.lastName}`}</h3>
-                    <p className="text-cyan-400">{director.title}</p>
-                </div>
-
-                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
-                    <h4 className="text-md font-bold text-slate-300">Details</h4>
-                    <div className="text-sm space-y-1 text-slate-300">
-                        <p><strong>Email:</strong> <a href={`mailto:${director.email}`} className="text-cyan-400 hover:underline">{director.email}</a></p>
-                        <p><strong>Phone:</strong> <a href={`tel:${director.phone}`} className="text-cyan-400 hover:underline">{director.phone}</a></p>
-                        <p><strong>Home:</strong> {director.homeLocation}</p>
-                    </div>
-                    <h4 className="text-md font-bold text-slate-300 pt-2 border-t border-slate-700">Region Stores</h4>
-                    <div className="text-sm space-y-1 text-slate-300 max-h-24 overflow-y-auto custom-scrollbar pr-2">
-                        {director.stores.map(store => <p key={store}>{store}</p>)}
-                    </div>
-                </div>
-                
-                 <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-3">
-                     <h4 className="text-md font-bold text-slate-300">Goals & Performance</h4>
-                      <div className="bg-slate-800 p-3 rounded-md">
-                        <p className="text-xs text-slate-400 mb-1">Top Performing Store (by {selectedKpi})</p>
-                        <p className="font-bold text-cyan-400 flex items-center gap-2"><Icon name="trophy" className="w-4 h-4" />{topStore}</p>
-                      </div>
-                      <div className="bg-slate-800 p-3 rounded-md">
-                        <p className="text-xs text-slate-400 mb-1">Active Q{Math.floor((new Date().getMonth() / 3)) + 1} Goals</p>
-                        {directorGoals.length > 0 ? (
-                            <ul className="text-xs space-y-1">
-                                {directorGoals.map(g => <li key={g.id} className="flex justify-between"><span>{g.kpi}:</span> <span className="font-bold text-white">{g.target}</span></li>)}
-                            </ul>
-                        ) : <p className="text-xs text-slate-500">No goals set.</p>}
-                      </div>
-                </div>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4 animate-fade-in">
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-5xl border border-slate-700 max-h-[90vh] flex flex-col">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-start">
+          <div className="flex items-center">
+            <img src={director.photo} alt={`${director.firstName} ${director.lastName}`} className="w-20 h-20 rounded-full border-2 border-cyan-400 object-cover"/>
+            <div className="ml-4">
+              <h2 className="text-2xl font-bold text-white">{director.firstName} {director.lastName}</h2>
+              <p className="text-md text-slate-400">{director.title}</p>
             </div>
-            <div className="w-full md:w-2/3 space-y-4">
-                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-lg font-bold text-slate-300">Deployments</h4>
-                        <button onClick={handleOpenPlannerForCreate} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-3 rounded-md transition-colors">
-                            <Icon name="plus" className="w-4 h-4" /> Plan New
-                        </button>
-                    </div>
-                    <div className="flex border-b border-slate-700 mb-2">
-                        <button onClick={() => setActiveDeploymentTab('map')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'map' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Map</button>
-                        <button onClick={() => setActiveDeploymentTab('timeline')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'timeline' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Timeline</button>
-                        <button onClick={() => setActiveDeploymentTab('budget')} className={`flex-1 py-2 text-sm font-semibold ${activeDeploymentTab === 'budget' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}>Budget</button>
-                    </div>
-                    <div>{renderDeploymentContent()}</div>
-                </div>
-
-                <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-lg font-bold text-cyan-400">AI Performance Snapshot</h4>
-                        {(!isLoading && snapshot) && (<button onClick={handleGenerateSnapshot} className="text-xs flex items-center gap-1 text-cyan-400 hover:text-cyan-300"><Icon name="sparkles" className="w-4 h-4" />Regenerate</button>)}
-                    </div>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center space-x-2 min-h-[100px]"><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div><div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div><p className="text-slate-400">Generating AI snapshot...</p></div>
-                    ) : sanitizedHtml ? (
-                        <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: sanitizedHtml }}></div>
-                    ) : (
-                        <div className="text-center py-4"><p className="text-slate-400 mb-3">Get an AI-powered summary of this director's performance for {period.label}.</p><button onClick={handleGenerateSnapshot} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md inline-flex items-center gap-2"><Icon name="sparkles" className="w-5 h-5" />Generate Snapshot</button></div>
-                    )}
-                    </div>
-                </div>
-            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
         </div>
-      </Modal>
-      <DeploymentPlannerModal 
-        isOpen={isPlannerOpen}
-        onClose={() => setIsPlannerOpen(false)}
-        director={director}
-        existingDeployment={editingDeployment}
-        onAddDeployment={onAddDeployment}
-        onUpdateDeployment={onUpdateDeployment}
-      />
-    </>
+
+        <div className="border-b border-slate-700">
+            <nav className="flex px-4">
+                <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Overview</TabButton>
+                <TabButton active={activeTab === 'goals'} onClick={() => setActiveTab('goals')}>Goals</TabButton>
+                <TabButton active={activeTab === 'deployments'} onClick={() => setActiveTab('deployments')}>Deployments</TabButton>
+                <TabButton active={activeTab === 'performance'} onClick={() => setActiveTab('performance')}>Performance</TabButton>
+            </nav>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-grow">
+            {renderContent()}
+        </div>
+
+        {showGoalSetter && 
+            <GoalSetter 
+                director={director}
+                onClose={() => setShowGoalSetter(false)} 
+                onSave={handleSaveGoal}
+                activePeriod={activePeriod}
+                isOpen={showGoalSetter}
+            />
+        }
+
+        <div className="p-4 bg-slate-900/50 border-t border-slate-700 text-right rounded-b-lg">
+            <button onClick={onClose} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                Close
+            </button>
+        </div>
+      </div>
+    </div>
   );
 };
+
+// Sub-components for Tabs
+
+const OverviewTab = ({ director, travelBudgetUsed, travelBudgetProgress }: { director: DirectorProfile, travelBudgetUsed: number, travelBudgetProgress: number }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h3 className="font-semibold text-cyan-400 mb-3 flex items-center"><User size={18} className="mr-2"/> About</h3>
+            <p className="text-sm text-slate-300 italic leading-relaxed">{director.bio}</p>
+        </div>
+        <div className="space-y-4">
+            <div>
+                <h3 className="font-semibold text-cyan-400 mb-2 flex items-center"><MapPin size={18} className="mr-2"/> Details</h3>
+                <div className="text-sm text-slate-300 grid grid-cols-2 gap-2">
+                    <span><strong>Home Base:</strong> {director.homeLocation}</span>
+                    <span><strong>Email:</strong> <a href={`mailto:${director.email}`} className="text-cyan-400 hover:underline">{director.email}</a></span>
+                    <span><strong>Phone:</strong> {director.phone}</span>
+                    <span><strong>Manages:</strong> {director.stores.length} stores</span>
+                </div>
+            </div>
+             <div>
+              <h3 className="font-semibold text-cyan-400 mb-2 flex items-center"><DollarSign size={18} className="mr-2"/> Travel Budget Utilization</h3>
+                <div className="w-full bg-slate-700 rounded-full h-3">
+                    <div className="bg-green-500 h-3 rounded-full" style={{ width: `${travelBudgetProgress}%` }}></div>
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5 text-right">${travelBudgetUsed.toLocaleString()} / ${director.yearlyTravelBudget.toLocaleString()}</p>
+            </div>
+        </div>
+    </div>
+);
+
+const GoalsTab = ({ directorGoals, onSetGoal }: { directorGoals: Goal[], onSetGoal: () => void}) => (
+    <div>
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-cyan-400 text-lg flex items-center"><Target size={20} className="mr-2"/> Quarterly Goals</h3>
+            <button onClick={onSetGoal} className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center transition-colors"><Edit size={14} className="mr-2"/> Set New Goal</button>
+        </div>
+        <div className="space-y-3">
+        {directorGoals.length === 0 ? (
+            <p className='text-sm text-slate-500 text-center p-8'>No goals set for this quarter.</p>
+        ) : (
+            directorGoals.map(goal => {
+                const kpiConfig = KPI_CONFIG[goal.kpi];
+                return (
+                    <div key={goal.id} className="bg-slate-900/70 p-4 rounded-lg">
+                        <div className="flex flex-wrap justify-between items-center">
+                            <p className="text-slate-300 font-medium">Target for <span className="font-bold text-white">{kpiConfig.label}</span></p>
+                            <div className="text-right">
+                                <p className={`font-bold text-xl ${kpiConfig.higherIsBetter ? 'text-green-400' : 'text-red-400'}`}>{kpiConfig.format === 'currency' ? '$' : ''}{goal.targetValue.toLocaleString()}{kpiConfig.format === 'percent' ? '%' : ''}</p>
+                                <p className="text-xs text-slate-400">by {goal.endDate}</p>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })
+        )}
+        </div>
+    </div>
+);
+
+const DeploymentsTab = ({ directorDeployments, director }: { directorDeployments: Deployment[], director: DirectorProfile }) => (
+    <div>
+        <h3 className="font-semibold text-cyan-400 mb-4 text-lg flex items-center"><Briefcase size={20} className="mr-2"/> Deployments</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+             <div className="h-64 lg:h-auto w-full rounded-lg overflow-hidden border border-slate-700 min-h-[250px]">
+                <DeploymentMap deployments={directorDeployments} />
+            </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                {directorDeployments.length === 0 ? (
+                     <p className='text-sm text-slate-500 text-center p-8'>No active deployments.</p>
+                ) : (
+                    directorDeployments.map(dep => (
+                        <div key={dep.id} className="bg-slate-900/70 p-3 rounded-lg text-sm">
+                             <p className="font-bold text-slate-200">{dep.type}</p>
+                             <p className="text-slate-400 text-xs">{dep.startDate} to {dep.endDate}</p>
+                             <p className="text-slate-300 mt-2">Stores: {dep.stores.join(', ')}</p>
+                             <p className="text-slate-400 mt-1 italic">- {dep.description}</p>
+                             <p className="text-right text-xs font-mono text-cyan-400 mt-2">Est. Budget: ${dep.estimatedBudget.toLocaleString()}</p>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+const PerformanceTab = () => (
+    <div>
+        <h3 className="font-semibold text-cyan-400 mb-4 text-lg"><BarChart size={20} className="mr-2 inline-block"/> Performance Metrics</h3>
+        <div className="text-center p-8 text-slate-500">
+            <p>Performance charts and data will be displayed here.</p>
+            <p className="text-sm">(This feature is under construction)</p>
+        </div>
+    </div>
+)

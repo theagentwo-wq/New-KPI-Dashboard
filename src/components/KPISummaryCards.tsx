@@ -22,6 +22,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
     const animatedValue = useAnimatedNumber(value);
 
     const formatter = (val: number) => {
+        if (!config) return val.toString();
         switch (config.format) {
             case 'currency':
                 return val.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -36,12 +37,10 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
     
     return (
         <motion.div
-            {...({
-                variants: cardVariants,
-                layout: true,
-                whileHover: { y: -4, scale: 1.02 },
-                whileTap: { scale: 0.98 }
-            } as any)}
+            variants={cardVariants}
+            layout
+            whileHover={{ y: -4, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={onSelect}
             className={`group relative p-4 rounded-xl cursor-pointer overflow-hidden border transition-colors duration-300 ${
                 isSelected 
@@ -53,11 +52,9 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
             {isSelected && (
                 <motion.div 
                     className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-blue-500/10 pointer-events-none"
-                    {...({
-                        initial: { opacity: 0 },
-                        animate: { opacity: 1 },
-                        exit: { opacity: 0 }
-                    } as any)}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                 />
             )}
             
@@ -74,7 +71,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
                     </div>
                     {isSelected && (
                         <motion.div 
-                            {...({ layoutId: "active-indicator" } as any)}
+                            layoutId={"active-indicator"}
                             className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
                         />
                     )}
@@ -130,11 +127,9 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
     return (
         <motion.div 
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-            {...({
-                variants: containerVariants,
-                initial: "hidden",
-                animate: "visible"
-            } as any)}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
         >
             {kpisToShow.map((kpi) => {
                 const value = data[kpi];

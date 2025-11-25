@@ -105,6 +105,6 @@ These are the official identifiers for the active projects.
 
 **For the AI Assistant:**
 
-1.  **Review this `README.md` file in its entirety before starting any new task.** It contains critical information about how the project is managed and configured.
+1.  **Review this `README.md` file in its entirety before starting any new task.** It contains critical information about how the project is managed and configured. If there are discrepencies ask the user to define
 2.  If any part of a request is unclear, or if it seems to conflict with the information in this document, you **must** ask for clarification before taking any action.
-3.  **Never assume a local file system or terminal.** All project code and configuration lives in this IDE and GitHub. The local file system is not part of the development workflow.
+3.  **Never assume a local file system or terminal.** All project code and configuration lives in this IDE and GitHub. The local file system is not part of the development workflow and DOES not contain all the updates files for use.

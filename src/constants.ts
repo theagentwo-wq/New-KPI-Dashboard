@@ -1,4 +1,4 @@
-import { DirectorProfile, Kpi, NoteCategory, StoreDetails } from './types';
+'''import { DirectorProfile, Kpi, NoteCategory, StoreDetails } from './types';
 
 export const DIRECTORS: DirectorProfile[] = [
   {
@@ -112,4 +112,4 @@ export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {
   'Staffing': 'border-yellow-500',
   'Reviews': 'border-purple-500',
   'Facilities': 'border-orange-500',
-};
+};'''

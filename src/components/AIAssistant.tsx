@@ -1,166 +1,105 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { getInsights, getTrendAnalysis } from '../services/geminiService';
-import { View, Period, PerformanceData, HistoricalData } from '../types';
-import { marked } from 'marked';
-import { Icon } from './Icon';
+import { useState, useEffect } from 'react';
+import { Sparkles, MessageSquare, Briefcase, TrendingUp, BarChart } from 'lucide-react';
+import { Period, View } from '../types';
+import { getInsights } from '../services/geminiService';
 
 interface AIAssistantProps {
   data: any;
-  historicalData: HistoricalData[];
+  historicalData: any[];
   view: View;
   period: Period;
   userLocation: { latitude: number; longitude: number } | null;
 }
 
-interface Message {
-  sender: 'user' | 'ai';
-  text: string;
-  html?: string;
-}
+const insightCategories = [
+  { key: 'summary', label: 'Summary', icon: MessageSquare },
+  { key: 'trends', label: 'Trends', icon: TrendingUp },
+  { key: 'opportunities', label: 'Opportunities', icon: Briefcase },
+  { key: 'forecast', label: 'Forecast', icon: BarChart },
+];
 
-export const AIAssistant: React.FC<AIAssistantProps> = ({ data, historicalData, view, period, userLocation }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+export const AIAssistant: React.FC<AIAssistantProps> = ({ data, view, period, userLocation }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const defaultPrompts = [
-    "Analyze Trends",
-    "Which 3 stores had the biggest positive variance vs prior period in SOP?",
-    "Which of my stores are near a convention center?",
-    "What are recent google reviews saying about my Omaha location?",
-  ];
+  const [insights, setInsights] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('summary');
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
-  const processAIResponse = async (text: string): Promise<Message> => {
-    // FIX: Add error handling for markdown parsing
-    try {
-      const html = await marked.parse(text);
-      return { sender: 'ai', text, html };
-    } catch (e) {
-      console.error("Markdown parsing error:", e);
-      // Fallback to plain text if parsing fails
-      return { sender: 'ai', text }; 
+    const hasData = data && Object.keys(data).length > 0;
+
+    if (!hasData) {
+      setInsights(null);
+      return;
     }
-  }
 
-  // FIX: Refactored to use functional state updates for robustness.
-  const handleSend = async (query?: string) => {
-    const userQuery = query || input;
-    if (!userQuery.trim() || isLoading) return;
-
-    const userMessage: Message = { sender: 'user', text: userQuery };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const aiResponseText = await getInsights(data, view, period.label, userQuery, userLocation);
-      const aiResponse = await processAIResponse(aiResponseText);
-      setMessages(prev => [...prev, aiResponse]);
-    } catch (error) {
-      console.error("AI Insight Error:", error);
-      const errorResponse = await processAIResponse("I'm sorry, but I was unable to process that request.");
-      setMessages(prev => [...prev, errorResponse]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // FIX: Refactored to use functional state updates for robustness.
-  const handleTrendAnalysis = async () => {
-    if (isLoading) return;
-
-    const userMessage: Message = { sender: 'user', text: "Analyze trends for my key KPIs." };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-    
-    try {
-        const aiResponseText = await getTrendAnalysis(historicalData, view);
-        const aiResponse = await processAIResponse(aiResponseText);
-        setMessages(prev => [...prev, aiResponse]);
-    } catch (error) {
-        console.error("AI Trend Analysis Error:", error);
-        const errorResponse = await processAIResponse('Sorry, I encountered an error during trend analysis.');
-        setMessages(prev => [...prev, errorResponse]);
-    } finally {
+    const fetchInsights = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const prompt = `Analyze the performance for ${view} during the period: ${period.label}. Provide a concise "summary", identify key positive and negative "trends", suggest actionable "opportunities" for improvement, and generate a brief "forecast".`;
+        
+        const result = await getInsights(
+          data,
+          view,
+          period.label,
+          prompt,
+          userLocation
+        );
+        setInsights(result);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch insights.');
+      } finally {
         setIsLoading(false);
-    }
-  };
+      }
+    };
 
-  const handleDefaultPrompt = (prompt: string) => {
-    if (prompt === "Analyze Trends") {
-        handleTrendAnalysis();
-    } else {
-        handleSend(prompt);
+    fetchInsights();
+  }, [view, period, data, userLocation]);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="p-4 text-center text-slate-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
+          <p className="mt-4">Generating AI insights...</p>
+        </div>
+      );
     }
+    if (error) {
+      return <div className="p-6 text-center text-red-400">Error: {error}</div>;
+    }
+    if (!insights) {
+      return <div className="p-6 text-center text-slate-500">No data available to generate insights for the selected period.</div>;
+    }
+    const contentHtml = insights[activeCategory] 
+      ? insights[activecategory].replace(/\n/g, '<br />')
+      : `<p>No ${activeCategory} insights available.</p>`;
+
+    return <div className="p-4 prose prose-sm prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: contentHtml }} />;
   };
 
   return (
-    <div className="flex flex-col h-[500px] bg-slate-800 rounded-lg border border-slate-700 shadow-lg">
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <h3 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center gap-2">
-          <Icon name="sparkles" className="w-5 h-5 text-cyan-400"/>
-          AI Assistant
-        </h3>
-      </div>
-      
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {messages.length === 0 && !isLoading && (
-            <div className="text-center text-slate-400">
-                <p className="mb-4">Or ask me a question about the data below.</p>
-            </div>
-        )}
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow ${msg.sender === 'user' ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-200'}`}>
-              {msg.html ? (
-                <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: msg.html }}></div>
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-slate-700 text-slate-200 flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.2s]"></div>
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse [animation-delay:0.4s]"></div>
-            </div>
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-       <div className="px-4 pb-2">
-          <div className="grid grid-cols-2 gap-2 mb-2">
-              {defaultPrompts.map(prompt => (
-                  <button key={prompt} onClick={() => handleDefaultPrompt(prompt)} disabled={isLoading} className="text-xs text-left p-2 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                      {prompt}
-                  </button>
-              ))}
-          </div>
-      </div>
-      <div className="p-4 border-t border-slate-700">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about the data..."
-            className="flex-1 bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50"
-            disabled={isLoading}
-          />
-          <button onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
-            Send
-          </button>
+    <div className="bg-slate-800 rounded-lg overflow-hidden h-full flex flex-col">
+      <div className="p-3 border-b border-slate-700 flex items-center justify-between">
+        <div className="flex items-center">
+          <Sparkles className="text-cyan-400 mr-2" size={20}/>
+          <h3 className="font-bold text-white">AI Assistant</h3>
         </div>
+      </div>
+      <div className="border-b border-slate-700 flex justify-around">
+        {insightCategories.map(({ key, label, icon: Icon }) => (
+          <button 
+            key={key} 
+            onClick={() => setActiveCategory(key)}
+            className={`flex-1 p-2 text-xs font-semibold flex items-center justify-center transition-colors ${activeCategory === key ? 'bg-slate-700 text-cyan-400' : 'text-slate-400 hover:bg-slate-700/50'}`}>
+            <Icon size={14} className="mr-1.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {renderContent()}
       </div>
     </div>
   );
