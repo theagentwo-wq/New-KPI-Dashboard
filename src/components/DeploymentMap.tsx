@@ -71,15 +71,20 @@ const createDeploymentIcon = (initials?: string): string => {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
+// FIX: Changed component to correctly wait for the google object to be defined.
+// The `google` object is available on `window`, but only after the script is loaded.
+// This change ensures that we only try to access `window.google.maps` *after* the
+// `isLoaded` flag from the `useGoogleMaps` hook is true.
 export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments, director }) => {
   const { isLoaded, error } = useGoogleMaps();
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const [map, setMap] = useState<any | null>(null); // Use `any` to avoid type conflicts with the declared namespace
+  const [markers, setMarkers] = useState<any[]>([]); // Use `any` for markers
 
   useEffect(() => {
-    if (isLoaded && mapRef.current && !map) {
-      const bounds = new google.maps.LatLngBounds();
+    // Only proceed if the script is loaded, the map ref is available, and the map hasn't been created yet.
+    if (isLoaded && mapRef.current && !map && window.google) {
+      const bounds = new window.google.maps.LatLngBounds();
       director.stores.forEach(storeId => {
         const details = STORE_DETAILS[storeId];
         if (details) {
@@ -91,7 +96,7 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
         center: bounds.getCenter(),
         zoom: 6,
         disableDefaultUI: true,
-        styles: [ 
+        styles: [
             { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
             { elementType: 'labels.text.stroke', stylers: [{ color: '#1e293b' }] },
             { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
@@ -112,9 +117,11 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
   }, [isLoaded, director.stores, map]);
 
   useEffect(() => {
-    if (map) {
+    // Only proceed if the map object exists and the google object is on the window
+    if (map && window.google) {
+      // Clear existing markers
       markers.forEach(marker => marker.setMap(null));
-      const newMarkers: google.maps.Marker[] = [];
+      const newMarkers: any[] = [];
 
       if (activeDeployments.length > 0) {
         activeDeployments.forEach(deployment => {
@@ -125,13 +132,13 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
           const name = isDirector ? director.name : deployment.deployedPerson;
           const initials = isDirector ? undefined : getInitials(name);
           
-          const marker = new google.maps.Marker({
+          const marker = new window.google.maps.Marker({
             position: { lat: storeDetails.lat, lng: storeDetails.lon },
             map,
             icon: {
                 url: createDeploymentIcon(initials),
-                scaledSize: new google.maps.Size(40, 40),
-                anchor: new google.maps.Point(20, 40),
+                scaledSize: new window.google.maps.Size(40, 40),
+                anchor: new window.google.maps.Point(20, 40),
             },
             label: {
                 text: name,
@@ -147,13 +154,13 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
       } else {
         const homeStoreDetails = STORE_DETAILS[director.homeLocation];
         if (homeStoreDetails) {
-            const marker = new google.maps.Marker({
+            const marker = new window.google.maps.Marker({
                 position: { lat: homeStoreDetails.lat, lng: homeStoreDetails.lon },
                 map,
                 icon: {
                     url: createHomeIcon(),
-                    scaledSize: new google.maps.Size(40, 40),
-                    anchor: new google.maps.Point(20, 40),
+                    scaledSize: new window.google.maps.Size(40, 40),
+                    anchor: new window.google.maps.Point(20, 40),
                 },
                 label: {
                     text: director.name,
@@ -169,10 +176,13 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ activeDeployments,
       }
       setMarkers(newMarkers);
     }
+     // Cleanup function to remove markers when the component unmounts or dependencies change
      return () => { markers.forEach(marker => marker.setMap(null)); };
   }, [map, activeDeployments, director]);
 
   if (error) return <div className="text-center text-red-400 text-xs p-4">Error loading map: {error.message}</div>;
+  
+  // The loading indicator will show until the script is loaded AND the map is initialized.
   if (!isLoaded) return <div className="text-center text-slate-400 text-xs p-4">Loading Map...</div>;
 
   return (
