@@ -12,7 +12,8 @@ export const getPeriodOptions = (): Period[] => {
   periods.push({ 
     label: `Q${currentQuarter} ${currentYear}`,
     startDate: new Date(currentYear, (currentQuarter-1) * 3, 1),
-    endDate: new Date(currentYear, currentQuarter * 3, 0)
+    endDate: new Date(currentYear, currentQuarter * 3, 0),
+    type: 'quarterly'
   });
 
   // Previous Quarter
@@ -25,14 +26,16 @@ export const getPeriodOptions = (): Period[] => {
   periods.push({ 
     label: `Q${prevQuarter} ${prevQuarterYear}`,
     startDate: new Date(prevQuarterYear, (prevQuarter-1) * 3, 1),
-    endDate: new Date(prevQuarterYear, prevQuarter * 3, 0)
+    endDate: new Date(prevQuarterYear, prevQuarter * 3, 0),
+    type: 'quarterly'
   });
 
   // Year-to-Date
   periods.push({
     label: `YTD ${currentYear}`,
     startDate: new Date(currentYear, 0, 1),
-    endDate: today
+    endDate: today,
+    type: 'yearly'
   });
 
   // Last 90 Days
@@ -41,8 +44,54 @@ export const getPeriodOptions = (): Period[] => {
   periods.push({
     label: 'Last 90 Days',
     startDate: last90,
-    endDate: today
+    endDate: today,
+    type: 'daily'
   });
 
   return periods;
+};
+
+export const getDefaultPeriod = (): Period => {
+    return getPeriodOptions()[0];
+}
+
+export const getInitialPeriod = (): Period => {
+    return getPeriodOptions()[0];
+}
+
+export const getPreviousPeriod = (currentPeriod: Period): Period => {
+    const allPeriods = getPeriodOptions();
+    const currentIndex = allPeriods.findIndex(p => p.label === currentPeriod.label);
+    return allPeriods[currentIndex + 1] || allPeriods[allPeriods.length - 1];
+}
+
+export const getYoYPeriod = (currentPeriod: Period): Period => {
+    const previousYear = currentPeriod.startDate.getFullYear() - 1;
+    const previousYearStartDate = new Date(currentPeriod.startDate);
+    previousYearStartDate.setFullYear(previousYear);
+    const previousYearEndDate = new Date(currentPeriod.endDate);
+    previousYearEndDate.setFullYear(previousYear);
+
+    return {
+        ...currentPeriod,
+        label: `${currentPeriod.label} (YoY)`,
+        startDate: previousYearStartDate,
+        endDate: previousYearEndDate,
+    };
+}
+
+export const ALL_PERIODS = getPeriodOptions();
+
+export const getMonthlyPeriodForDate = (date: Date): Period => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  return {
+    label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
+    startDate,
+    endDate,
+    type: 'monthly',
+  };
 };

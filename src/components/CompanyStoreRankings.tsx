@@ -2,7 +2,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { Kpi, View, Period, WeatherInfo } from '../types';
 import { KPI_CONFIG } from '../constants';
-import { ChevronsLeft, ChevronsRight, RotateCcw, Settings2, BarChart, TrendingDown, TrendingUp, Info, Zap } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, RotateCcw, BarChart, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 import { WeatherIcon } from './WeatherIcon';
 
 interface CompanyStoreRankingsProps {
@@ -78,7 +78,7 @@ const RankingRow = React.memo(({
             </td>
             <td className="p-3 text-center">
                 <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     {weather && <WeatherIcon weather={weather} size={20} />}
+                     {weather && <WeatherIcon condition={weather.condition} size={20} />}
                 </div>
             </td>
             <td className="p-3 text-right">

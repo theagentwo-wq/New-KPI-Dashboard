@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, writeBatch, doc } from 'firebase/firestore';
 import { STORES } from '../src/constants'; // Corrected Path
 import { Kpi } from '../src/types'; // Corrected Path
 import { firebaseConfig } from '../src/services/firebaseService'; // Corrected Path
@@ -15,9 +15,9 @@ const seedBudgets = async () => {
   const batch = writeBatch(db);
   const year = new Date().getFullYear();
 
-  STORES.forEach(store => {
+  STORES.forEach((store: string) => {
     for (let month = 0; month < 12; month++) {
-      const budgetDocRef = collection(db, `stores/${store.id}/budgets`);
+      const budgetDocRef = doc(db, `stores/${store}/budgets`, `${year}-${month + 1}`);
       
       // Simple mock budget data
       const budgetData = {

@@ -73,7 +73,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, view, period, us
       return <div className="p-6 text-center text-slate-500">No data available to generate insights for the selected period.</div>;
     }
     const contentHtml = insights[activeCategory] 
-      ? insights[activecategory].replace(/\n/g, '<br />')
+      ? insights[activeCategory].replace(/\n/g, '<br />')
       : `<p>No ${activeCategory} insights available.</p>`;
 
     return <div className="p-4 prose prose-sm prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: contentHtml }} />;

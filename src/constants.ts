@@ -1,4 +1,4 @@
-import { DirectorProfile, Kpi, NoteCategory, StoreDetails } from './types';
+import { DirectorProfile, Kpi, NoteCategory, StoreDetails, View } from './types';
 
 export const DIRECTORS: DirectorProfile[] = [
   {
@@ -48,6 +48,7 @@ export const DIRECTORS: DirectorProfile[] = [
 ];
 
 export const ALL_STORES: string[] = DIRECTORS.flatMap(d => d.stores);
+export const STORES = ALL_STORES;
 
 export const STRIKE_TEAM_ICON_URL = 'https://i.postimg.cc/13Y2Yf6V/strike-team-icon.png';
 
@@ -81,19 +82,25 @@ export const STORE_DETAILS: Record<string, StoreDetails> = {
     'Virginia Beach, VA': { address: '4501 Main St, Virginia Beach, VA 23462', lat: 36.8385, lon: -76.1260 },
 };
 
-export const KPI_CONFIG: { [key in Kpi]: { format: 'currency' | 'percent' | 'number', higherIsBetter: boolean, baseline?: number } } = {
-  [Kpi.Sales]: { format: 'currency', higherIsBetter: true },
-  [Kpi.SOP]: { format: 'percent', higherIsBetter: true },
-  [Kpi.PrimeCost]: { format: 'percent', higherIsBetter: false },
-  [Kpi.AvgReviews]: { format: 'number', higherIsBetter: true },
-  [Kpi.FoodCost]: { format: 'percent', higherIsBetter: false },
-  [Kpi.VariableLabor]: { format: 'percent', higherIsBetter: false },
-  [Kpi.CulinaryAuditScore]: { format: 'percent', higherIsBetter: true, baseline: 0.90 },
+export const KPI_CONFIG: { [key in Kpi]: { label: string, format: 'currency' | 'percent' | 'number', higherIsBetter: boolean, baseline?: number } } = {
+  [Kpi.Sales]: { label: 'Sales', format: 'currency', higherIsBetter: true },
+  [Kpi.Guests]: { label: 'Guests', format: 'number', higherIsBetter: true },
+  [Kpi.Labor]: { label: 'Labor', format: 'percent', higherIsBetter: false },
+  [Kpi.SOP]: { label: 'SOP', format: 'percent', higherIsBetter: true },
+  [Kpi.AvgTicket]: { label: 'Avg Ticket', format: 'currency', higherIsBetter: true },
+  [Kpi.PrimeCost]: { label: 'Prime Cost', format: 'percent', higherIsBetter: false },
+  [Kpi.AvgReviews]: { label: 'Avg Reviews', format: 'number', higherIsBetter: true },
+  [Kpi.FoodCost]: { label: 'Food Cost', format: 'percent', higherIsBetter: false },
+  [Kpi.VariableLabor]: { label: 'Variable Labor', format: 'percent', higherIsBetter: false },
+  [Kpi.CulinaryAuditScore]: { label: 'Culinary Audit Score', format: 'percent', higherIsBetter: true, baseline: 0.90 },
 };
 
 export const KPI_ICON_MAP: { [key in Kpi]: string } = {
   [Kpi.Sales]: 'sales',
+  [Kpi.Guests]: 'guests',
+  [Kpi.Labor]: 'labor',
   [Kpi.SOP]: 'sop',
+  [Kpi.AvgTicket]: 'ticket',
   [Kpi.PrimeCost]: 'prime',
   [Kpi.AvgReviews]: 'reviews',
   [Kpi.FoodCost]: 'food',
@@ -104,12 +111,17 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
 
 export const ALL_KPIS = Object.values(Kpi);
 
-export const NOTE_CATEGORIES: NoteCategory[] = ['General', 'Marketing', 'Staffing', 'Reviews', 'Facilities'];
+export const NOTE_CATEGORIES: NoteCategory[] = [NoteCategory.General, NoteCategory.Marketing, NoteCategory.Staffing, NoteCategory.Reviews, NoteCategory.Facilities, NoteCategory.Operations, NoteCategory.HR, NoteCategory.GuestFeedback];
 
 export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {
-  'General': 'border-slate-500',
-  'Marketing': 'border-blue-500',
-  'Staffing': 'border-yellow-500',
-  'Reviews': 'border-purple-500',
-  'Facilities': 'border-orange-500',
+  [NoteCategory.General]: 'border-slate-500',
+  [NoteCategory.Marketing]: 'border-blue-500',
+  [NoteCategory.Staffing]: 'border-yellow-500',
+  [NoteCategory.Reviews]: 'border-purple-500',
+  [NoteCategory.Facilities]: 'border-orange-500',
+  [NoteCategory.Operations]: 'border-red-500',
+  [NoteCategory.HR]: 'border-green-500',
+  [NoteCategory.GuestFeedback]: 'border-indigo-500',
 };
+
+export const VIEWS = Object.values(View);

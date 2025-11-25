@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Kpi, PerformanceData } from '../types';
 import { KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 import { Icon } from './Icon';
-import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 import { AnimatedNumberDisplay } from './AnimatedNumberDisplay';
 
 interface KPISummaryCardsProps {
@@ -19,7 +18,6 @@ const cardVariants: any = {
 
 const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: () => void }> = ({ kpi, value, isSelected, onSelect }) => {
     const config = KPI_CONFIG[kpi];
-    const animatedValue = useAnimatedNumber(value);
 
     const formatter = (val: number) => {
         if (!config) return val.toString();
@@ -79,7 +77,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
                 
                 <div className="flex items-end justify-between">
                     <p className={`text-2xl font-bold tracking-tight ${isSelected ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
-                        <AnimatedNumberDisplay value={animatedValue} formatter={formatter} />
+                        <AnimatedNumberDisplay value={value} formatter={formatter} />
                     </p>
                 </div>
             </div>

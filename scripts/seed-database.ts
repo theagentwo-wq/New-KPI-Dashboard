@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, writeBatch, doc } from 'firebase/firestore';
 import { STORES, DIRECTORS } from '../src/constants'; // Corrected Path
 import { Kpi } from '../src/types'; // Corrected Path
 import { firebaseConfig } from '../src/services/firebaseService'; // Corrected Path
@@ -16,23 +16,20 @@ const seedDatabase = async () => {
 
   // 1. Seed Stores
   console.log(`Seeding ${STORES.length} stores...`);
-  const storesCollection = collection(db, 'stores');
-  STORES.forEach(store => {
+  STORES.forEach((storeName: string) => {
+    const storeRef = doc(db, 'stores', storeName);
     const storeDoc = {
-      name: store.name,
-      director: store.director,
-      region: store.region,
-      latitude: store.latitude,
-      longitude: store.longitude,
+      name: storeName,
+      director: DIRECTORS.find(d => d.stores.includes(storeName))?.id,
     };
-    batch.set(storesCollection.doc(store.id), storeDoc);
+    batch.set(storeRef, storeDoc);
   });
 
   // 2. Seed Directors
   console.log(`Seeding ${DIRECTORS.length} directors...`);
-  const directorsCollection = collection(db, 'directors');
   DIRECTORS.forEach(director => {
-    batch.set(directorsCollection.doc(director.id), director);
+    const directorRef = doc(db, 'directors', director.id);
+    batch.set(directorRef, director);
   });
 
   // Commit the first batch of core data
@@ -43,8 +40,8 @@ const seedDatabase = async () => {
   const perfBatch = writeBatch(db);
   const today = new Date();
 
-  STORES.forEach(store => {
-    const performanceDocRef = collection(db, `stores/${store.id}/performance`);
+  STORES.forEach((storeName: string) => {
+    const performanceDocRef = doc(db, `stores/${storeName}/performance`, today.toISOString().slice(0, 10));
     const performanceData = {
         [Kpi.Sales]: 50000 + Math.random() * 20000, // $50k - $70k
         [Kpi.Guests]: 2000 + Math.random() * 500,
@@ -55,7 +52,7 @@ const seedDatabase = async () => {
         [Kpi.AvgReviews]: 4.3 + Math.random() * 0.4,
     };
 
-    perfBatch.set(performanceDocRef.doc(today.toISOString().slice(0, 10)), performanceData);
+    perfBatch.set(performanceDocRef, performanceData);
   });
 
   try {

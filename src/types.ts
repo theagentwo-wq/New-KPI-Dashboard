@@ -173,12 +173,9 @@ export interface DataItem {
 }
 
 export interface StoreDetails {
-    id: string;
-    name: string;
-    director: string;
-    region: string;
-    latitude: number;
-    longitude: number;
+    address: string;
+    lat: number;
+    lon: number;
 }
 
 export interface FinancialLineItem {
@@ -186,6 +183,8 @@ export interface FinancialLineItem {
     actual: number;
     budget: number;
     variance: number;
+    category: string;
+    indent?: boolean;
 }
 
 export interface SavedView {
@@ -202,4 +201,12 @@ export interface FileUploadResult {
   mimeType: string;
   fileName: string;
   fileUrl: string;
+}
+
+export type ComparisonMode = 'period' | 'yoy';
+
+export interface DataMappingTemplate {
+  id: string;
+  name: string;
+  mapping: { [key: string]: string };
 }
