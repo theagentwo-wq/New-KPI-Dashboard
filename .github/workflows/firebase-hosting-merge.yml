@@ -12,10 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug Identity
+        run: |
+          echo "Attempting to decode service account email..."
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}" > service_account.json
+          if jq -r .client_email service_account.json; then
+            echo "Successfully extracted email."
+          else
+            echo "Failed to parse service account JSON. Check the secret's format."
+          fi
+
       - run: npm ci && npm run build
       - run: npm ci --prefix functions
       - run: npm run build --prefix functions
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}
@@ -23,5 +36,3 @@ jobs:
           projectId: kpi-dashboardgit-9913298-66e65
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
-      - name: Debug Identity
-        run: echo "Authenticated with service account: $(echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}' | jq -r .client_email)"
