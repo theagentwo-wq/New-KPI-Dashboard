@@ -12,7 +12,7 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 - **Database**: Firestore & Firebase Storage
 - **AI**: Google Gemini via Vertex AI
 - **Maps**: Google Maps Platform
-- **Deployment**: Automated via GitHub Actions
+- **Deployment**: Automated via GitHub Actions with Workload Identity Federation
 
 ---
 
@@ -25,7 +25,7 @@ The development and deployment process is as follows:
 1.  **Code Editing**: All code is edited directly within this dedicated cloud IDE.
 2.  **Version Control**: Changes are committed and pushed to the project's GitHub repository.
 3.  **Secrets Management**: All API keys and configuration secrets are stored securely in the GitHub repository's **Secrets** section. They are injected into the application only during the deployment process.
-4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application. This includes both the frontend (Firebase Hosting) and the backend (Cloud Functions).
+4.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action that builds, tests, and deploys the application.
 5.  **Branching Strategy**: All work should happen directly on the `main` branch.
 
 ---
@@ -55,48 +55,28 @@ This project's security rules for Firestore and Firebase Storage are configured 
 
 ---
 
-## Deployment and Secrets Configuration
+## Deployment via Workload Identity Federation
 
-Deployment is handled automatically by a GitHub Action workflow. For the deployment to succeed, you must provide it with the necessary API keys and configuration by storing them as secrets in your GitHub repository. in Addition Keys are also kept in the google cloud Secret Manager.
+Deployment is handled automatically by a GitHub Action workflow. This project uses **Workload Identity Federation** to securely authenticate with Google Cloud without needing to manage service account keys.
 
-### 1. Create a Service Account for Deployment
+### 1. First-Time Setup
 
-The deployment process uses a Google Cloud service account for secure authentication.
+The following steps have already been performed, but are documented here for reference. This configuration establishes a trust relationship between your GitHub repository and your Google Cloud project.
 
-1.  Go to the **[IAM & Admin > Service Accounts Page](https://console.cloud.google.com/iam-admin/serviceaccounts)**.
-2.  Click **"+ CREATE SERVICE ACCOUNT"**.
-3.  Give it a name (e.g., `github-actions-deployer`) and an optional description.
-4.  Click **"CREATE AND CONTINUE"**.
-5.  In the "Grant this service account access to project" step, add the following three roles:
-    *   **Firebase Admin** (for deploying to Firebase)
-    *   **API Keys Admin** (for managing API keys)
-    *   **Vertex AI User** (for AI features)
-6.  Click **"CONTINUE"**, then click **"DONE"**.
-7.  Find the service account you just created in the list. Click the three-dot menu on the right and select **"Manage keys"**.
-8.  Click **"ADD KEY"** > **"Create new key"**.
-9.  Choose **JSON** as the key type and click **"CREATE"**. A JSON file will be downloaded to your computer. **This is the only time you can download this file.** Keep it secure.
+1.  **Create a Service Account:** A dedicated service account named `github-actions-deployer` was created.
+2.  **Grant Permissions:** The `github-actions-deployer` service account was granted the necessary roles (`Firebase Admin`, `API Keys Admin`, `Vertex AI User`, `Secret Manager Admin`, `Editor`, `Service Account User`, `iam.workloadIdentityUser`).
+3.  **Create a Workload Identity Pool:** A pool named `github-actions-pool` was created to manage identities from external providers.
+4.  **Create a Workload Identity Provider:** A provider named `github-actions-provider` was created within the pool. It is configured to trust your GitHub repository (`theagentwo-wq/New-KPI-Dashboard`).
+5.  **Link Service Account:** The service account was linked to the GitHub provider, allowing workflows from your repository to impersonate the service account.
 
-### 2. Create a Google Maps API Key
+### 2. Required GitHub Secrets
 
-1.  Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
-2.  Click **"+ CREATE CREDENTIALS"** and select **"API key"**.
-3.  **Copy the new API key immediately.** This will be used in the next step.
-
-### 3. Get Your Firebase Configuration
-
-1.  In the **Firebase Console**, go to **Project Settings > General**.
-2.  Scroll to the **"Your apps"** card and select your web app.
-3.  Find the **"SDK setup and configuration"** section and select **"Config"**.
-4.  Copy the `firebaseConfig` object. It must be formatted as a **single, continuous line of JSON text.**
-    *   **✅ Correct Format:** `{"apiKey":"...","authDomain":"...","projectId":"..."}`
-
-### 4. Add Keys to GitHub Secrets
+You must still provide the application with its necessary client-side API keys.
 
 1.  In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
-2.  Click **"New repository secret"** and create the following three secrets:
-    *   **`FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD`**: Open the JSON service account key you downloaded and paste its entire contents here.
-    *   **`VITE_MAPS_KEY`**: Paste the Google Maps API key you copied.
-    *   **`FIREBASE_CLIENT_CONFIG`**: Paste the single-line JSON configuration from Firebase.
+2.  Click **"New repository secret"** and create the following two secrets:
+    *   **`VITE_MAPS_KEY`**: The Google Maps API key.
+    *   **`FIREBASE_CLIENT_CONFIG`**: The single-line JSON configuration object for your Firebase web app.
 
 With these secrets in place, every push to your repository's `main` branch will automatically deploy a new version of your application with the correct keys.
 
