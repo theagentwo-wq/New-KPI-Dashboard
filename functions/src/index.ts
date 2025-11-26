@@ -1,6 +1,5 @@
 import { https } from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 import { GEMINI_API_KEY } from './config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
