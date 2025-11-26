@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
-import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FileUploadResult, FirebaseStatus, PerformanceData, ActiveJob } from './types';
+import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FirebaseStatus, PerformanceData, ActiveJob } from './types';
 import { DIRECTORS } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
 import { 
