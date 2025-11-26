@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Deployment, DirectorProfile, StoreDetails } from '../types';
-import { STORE_DETAILS, DIRECTORS } from '../constants';
+import React, { useState, useEffect, useRef } from 'react';
+import { Deployment, DirectorProfile } from '../types';
+import { STORE_DETAILS } from '../constants';
 
 interface GoogleWindow extends Window {
   google: any;

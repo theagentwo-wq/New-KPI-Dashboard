@@ -128,7 +128,7 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
     }, { merge: true });
 };
 
-export const getPerformanceData = async (startDate: Date, endDate: Date): Promise<StorePerformanceData[]> => {
+export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
     // This function would query based on date range. For now, it returns all data.
     const snapshot = await actualsCollection.get();
     return snapshot.docs.map(doc => ({
@@ -166,7 +166,7 @@ export const getGoalsForDirector = async (directorId: string, period: Period): P
 
 export const getBudgets = async (year: number): Promise<Budget[]> => {
     const snapshot = await budgetsCollection.where('year', '==', year).get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as Budget));
 };
 
 
@@ -216,7 +216,7 @@ export const uploadFile = async (file: File): Promise<FileUploadResult> => {
 
 export const uploadTextAsFile = async (text: string, fileName: string): Promise<FileUploadResult> => {
     console.log("Uploading text as file:", fileName);
-    const blob = new Blob([text], { type: 'text/plain' });
+    new Blob([text], { type: 'text/plain' });
     const uploadId = new Date().getTime().toString();
     // Stub implementation
      return {

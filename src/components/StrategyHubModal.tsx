@@ -153,9 +153,10 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       const uploadResult = await uploadFile(stagedFile);
       uploadInfo = { ...uploadResult };
       
-      const { jobId } = await startStrategicAnalysisJob(uploadInfo, selectedMode, activePeriod, activeView);
-      
-      setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name, mode: selectedMode });
+      if (uploadInfo) {
+        const { jobId } = await startStrategicAnalysisJob(uploadInfo, selectedMode, activePeriod, activeView);
+        setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name, mode: selectedMode });
+      }
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";

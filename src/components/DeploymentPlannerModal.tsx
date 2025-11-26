@@ -163,7 +163,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                             <div className="relative">
                                <DatePicker
                                     selected={startDate}
-                                    onChange={(date: Date | undefined) => setStartDate(date)}
+                                    onChange={(date: Date | null) => setStartDate(date || undefined)}
                                     selectsStart
                                     startDate={startDate}
                                     endDate={endDate}
@@ -180,7 +180,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                              <div className="relative">
                                 <DatePicker
                                     selected={endDate}
-                                    onChange={(date: Date | undefined) => setEndDate(date)}
+                                    onChange={(date: Date | null) => setEndDate(date || undefined)}
                                     selectsEnd
                                     startDate={startDate}
                                     endDate={endDate}

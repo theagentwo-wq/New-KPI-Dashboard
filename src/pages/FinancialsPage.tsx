@@ -69,7 +69,7 @@ export const FinancialsPage: React.FC = () => {
             setIsLoading(true);
             
             // Fetch actuals for the period
-            const data = await getPerformanceData(currentPeriod.startDate, currentPeriod.endDate);
+            const data = await getPerformanceData();
             
             // Filter by store/view
             let relevantData = data;

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { DirectorProfile, Deployment, Store } from '../types';
-import { DirectorSummary } from './DirectorSummary';
+import { DirectorProfile, Deployment } from '../types';
+import DirectorSummary from './DirectorSummary';
 import { DeploymentTimeline } from './DeploymentTimeline';
 import { DeploymentBudget } from './DeploymentBudget';
 import { DeploymentMap } from './DeploymentMap';
@@ -12,10 +12,9 @@ interface DirectorProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   director: DirectorProfile | null;
-  stores: Store[];
 }
 
-export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director, stores }) => {
+export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOpen, onClose, director }) => {
   const [activeTab, setActiveTab] = useState('map');
   const [isPlannerOpen, setPlannerOpen] = useState(false);
   const [deployments, setDeployments] = useState<Deployment[]>([]);

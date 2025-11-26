@@ -65,7 +65,7 @@ export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topSt
     </div>
 );
 
-export const AIPerformanceSnapshot: React.FC<DirectorProfileModalProps> = (props) => (
+export const AIPerformanceSnapshot: React.FC<DirectorProfileModalProps> = () => (
     <div className="bg-slate-900/50 p-4 rounded-lg w-full h-full flex flex-col justify-center items-center">
         <h3 className="font-semibold text-slate-300 text-base mb-3">AI Performance Snapshot</h3>
         <p className="text-slate-400 text-center mb-4 max-w-sm">
