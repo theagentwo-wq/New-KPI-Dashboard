@@ -1,3 +1,4 @@
+
 export enum Kpi {
   Sales = 'Sales',
   Guests = 'Guests',
@@ -137,7 +138,7 @@ export interface Budget {
 
 export interface Goal {
   id: string;
-  directorId: View;
+  directorId: string;
   quarter: number;
   year: number;
   kpi: Kpi;
@@ -203,9 +204,9 @@ export interface FinancialLineItem {
   name: string;
   actual: number;
   budget: number;
-  variance: number;
+  variance?: number;
   category: string;
-  indent?: boolean;
+  indent?: number;
 }
 
 export interface SavedView {

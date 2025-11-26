@@ -2,7 +2,7 @@ import { DirectorProfile, Kpi, NoteCategory, StoreDetails, View } from './types'
 
 export const DIRECTORS: DirectorProfile[] = [
   {
-    id: 'Danny', name: 'Danny', lastName: 'Serafini',
+    id: 'Danny', firstName: 'Danny', lastName: 'Serafini',
     email: 'd.serafini@example.com',
     phone: '555-0101',
     title: 'Area Director', 
@@ -13,7 +13,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Heather', name: 'Heather', lastName: 'Roberts',
+    id: 'Heather', firstName: 'Heather', lastName: 'Roberts',
     email: 'h.roberts@example.com',
     phone: '555-0102',
     title: 'Area Director', 
@@ -24,7 +24,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Ryan', name: 'Ryan', lastName: 'Bowen',
+    id: 'Ryan', firstName: 'Ryan', lastName: 'Bowen',
     email: 'r.bowen@example.com',
     phone: '555-0103',
     title: 'Area Director', 
@@ -35,7 +35,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Robert', name: 'Robert', lastName: 'Simms',
+    id: 'Robert', firstName: 'Robert', lastName: 'Simms',
     email: 'robert.simms@example.com',
     phone: '555-0104',
     title: 'Area Director', 
@@ -82,17 +82,17 @@ export const STORE_DETAILS: Record<string, StoreDetails> = {
     'Virginia Beach, VA': { address: '4501 Main St, Virginia Beach, VA 23462', lat: 36.8385, lon: -76.1260 },
 };
 
-export const KPI_CONFIG: { [key in Kpi]: { label: string, format: 'currency' | 'percent' | 'number', higherIsBetter: boolean, baseline?: number } } = {
-  [Kpi.Sales]: { label: 'Sales', format: 'currency', higherIsBetter: true },
-  [Kpi.Guests]: { label: 'Guests', format: 'number', higherIsBetter: true },
-  [Kpi.Labor]: { label: 'Labor', format: 'percent', higherIsBetter: false },
-  [Kpi.SOP]: { label: 'SOP', format: 'percent', higherIsBetter: true },
-  [Kpi.AvgTicket]: { label: 'Avg Ticket', format: 'currency', higherIsBetter: true },
-  [Kpi.PrimeCost]: { label: 'Prime Cost', format: 'percent', higherIsBetter: false },
-  [Kpi.AvgReviews]: { label: 'Avg Reviews', format: 'number', higherIsBetter: true },
-  [Kpi.FoodCost]: { label: 'Food Cost', format: 'percent', higherIsBetter: false },
-  [Kpi.VariableLabor]: { label: 'Variable Labor', format: 'percent', higherIsBetter: false },
-  [Kpi.CulinaryAuditScore]: { label: 'Culinary Audit Score', format: 'percent', higherIsBetter: true, baseline: 0.90 },
+export const KPI_CONFIG: { [key in Kpi]: { label: string, format: 'currency' | 'percent' | 'number', higherIsBetter: boolean, baseline?: number, aggregation: 'sum' | 'avg' } } = {
+  [Kpi.Sales]: { label: 'Sales', format: 'currency', higherIsBetter: true, aggregation: 'sum' },
+  [Kpi.Guests]: { label: 'Guests', format: 'number', higherIsBetter: true, aggregation: 'sum' },
+  [Kpi.Labor]: { label: 'Labor', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.SOP]: { label: 'SOP', format: 'percent', higherIsBetter: true, aggregation: 'avg' },
+  [Kpi.AvgTicket]: { label: 'Avg Ticket', format: 'currency', higherIsBetter: true, aggregation: 'avg' },
+  [Kpi.PrimeCost]: { label: 'Prime Cost', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.AvgReviews]: { label: 'Avg Reviews', format: 'number', higherIsBetter: true, aggregation: 'avg' },
+  [Kpi.FoodCost]: { label: 'Food Cost', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.VariableLabor]: { label: 'Variable Labor', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.CulinaryAuditScore]: { label: 'Culinary Audit Score', format: 'percent', higherIsBetter: true, baseline: 0.90, aggregation: 'avg' },
 };
 
 export const KPI_ICON_MAP: { [key in Kpi]: string } = {

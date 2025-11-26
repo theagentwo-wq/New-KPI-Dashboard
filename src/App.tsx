@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
@@ -128,7 +128,7 @@ const App = () => {
       setGoals(prev => [...prev, newGoal]);
   };
   
-  const handleConfirmImport = (job: FileUploadResult) => {
+  const handleConfirmImport = (job: ActiveJob) => {
     console.log('Confirmed import:', job);
     setImportModalOpen(false);
   }
