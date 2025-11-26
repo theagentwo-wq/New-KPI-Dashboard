@@ -31,10 +31,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     // The following `define` block is the critical fix.
-    // It makes the FIREBASE_CLIENT_CONFIG variable available to the build process.
+    // It makes the environment variables available to the build process.
     define: {
-      'import.meta.env.FIREBASE_CLIENT_CONFIG': JSON.stringify(env.FIREBASE_CLIENT_CONFIG),
-      'import.meta.env.MAPS_KEY': JSON.stringify(env.MAPS_KEY),
+      'import.meta.env.VITE_FIREBASE_CLIENT_CONFIG': JSON.stringify(env.VITE_FIREBASE_CLIENT_CONFIG),
+      'import.meta.env.VITE_MAPS_KEY': JSON.stringify(env.VITE_MAPS_KEY),
     },
   }
 })

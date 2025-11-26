@@ -15,13 +15,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install root dependencies
         run: npm install
-      - name: Install functions dependencies
-        run: cd functions && npm install
+      - name: Install server dependencies
+        run: cd server && npm install
       - name: Build and Type-Check
+        env:
+          VITE_MAPS_KEY: ${{ secrets.VITE_MAPS_KEY }}
+          VITE_FIREBASE_CLIENT_CONFIG: ${{ secrets.FIREBASE_CLIENT_CONFIG }}
         run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KPI_DASHBOARDGIT_9913298 }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD }}"
           channelId: live
-          projectId: kpi-dashboardgit-9913298
+          projectId: kpi-dashboardgit-9913298-66e65

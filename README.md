@@ -36,12 +36,12 @@ To run the application in the local development environment, you must create a f
 The `.env.local` file must contain the following variables:
 
 ```
-GEMINI_API_KEY=your_gemini_api_key_here
-MAPS_API_KEY=your_maps_api_key_here
-FIREBASE_CLIENT_CONFIG='your_firebase_config_json_here'
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_MAPS_KEY=your_maps_api_key_here
+VITE_FIREBASE_CLIENT_CONFIG='your_firebase_config_json_here'
 ```
 
-**Note:** The `FIREBASE_CLIENT_CONFIG` must be a valid JSON object on a single line, enclosed in single quotes. The project includes a validation script that checks for these variables when you run `npm run dev`.
+**Note:** The `VITE_FIREBASE_CLIENT_CONFIG` must be a valid JSON object on a single line, enclosed in single quotes. All environment variables use the `VITE_` prefix to ensure they are available during the build process.
 
 ---
 
@@ -140,3 +140,39 @@ The following steps were taken to stabilize the development environment:
 4.  **Resolved Code Warnings:** Removed an unused `FileUploadResult` import from `src/App.tsx`.
 
 **Current Status:** As of this writing, all underlying file and configuration issues have been resolved. However, the IDE's TypeScript server is still caching the old, phantom errors. A full restart of the IDE application is required to clear this cache.
+
+---
+
+## Antigravity Environment Setup (November 2025)
+
+This project was migrated from Firebase Studio Editor to the Antigravity development environment. The following changes were made to ensure compatibility:
+
+### Configuration Updates
+
+1. **`.firebaserc`**: Updated project ID from `operations-kpi-dashboard` to `kpi-dashboardgit-9913298-66e65`
+2. **GitHub Workflow** (`.github/workflows/firebase-hosting-merge.yml`):
+   - Changed `functions` directory reference to `server` directory
+   - Added environment variable injection during build step (`VITE_MAPS_KEY`, `VITE_FIREBASE_CLIENT_CONFIG`)
+   - Updated Firebase service account secret name to `FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD`
+   - Updated project ID to `kpi-dashboardgit-9913298-66e65`
+3. **`vite.config.ts`**: Updated environment variable names to use `VITE_` prefix for proper build-time injection
+4. **`src/hooks/useGoogleMaps.ts`**: Updated to use `import.meta.env.VITE_MAPS_KEY` instead of hardcoded API key
+
+### Environment Variables
+
+All environment variables now use the `VITE_` prefix for consistency:
+- `VITE_MAPS_KEY` - Google Maps API key
+- `VITE_FIREBASE_CLIENT_CONFIG` - Firebase client configuration JSON
+- `VITE_GEMINI_API_KEY` - Gemini API key (for local development)
+
+### Functions Directory
+
+The project uses `/server` as the Cloud Functions source directory (as specified in `firebase.json`). The `/functions` directory exists but is not used in deployment.
+
+### Development Workflow
+
+1. **Local Development**: Edit code in Antigravity, test with `npm run dev`
+2. **Commit & Push**: Push changes to `main` branch on GitHub
+3. **Automatic Deployment**: GitHub Actions builds and deploys to Firebase Hosting
+4. **Environment Variables**: Managed via GitHub Secrets for production, `.env.local` for local development
+

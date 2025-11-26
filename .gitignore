@@ -1,5 +1,6 @@
 /dist
 /node_modules
+/server/node_modules
 
 # IDE config files
 .idea
