@@ -74,7 +74,7 @@ export const getStrategicExecutiveAnalysis = (
     });
 };
 
-export const startTask = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
+export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
       model: 'gemini-1.5-pro-latest',
