@@ -158,6 +158,8 @@ export interface DirectorProfile {
   email: string;
   phone: string;
   homeLocation: string;
+  homeLat: number;
+  homeLon: number;
   yearlyTravelBudget: number;
   bio: string;
 }
@@ -282,4 +284,9 @@ export interface ActiveJob {
     progress: { current: number; total: number };
     errors: string[];
     extractedData: ExtractedData[];
+}
+
+export interface Store {
+    id: string;
+    name: string;
 }

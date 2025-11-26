@@ -1,136 +1,227 @@
 
-import React, { useState, useEffect } from 'react';
-import { DirectorProfile, Deployment, DeploymentType } from '../types';
-import { X, MapPin, Calendar, DollarSign, Briefcase, Info } from 'lucide-react';
-import { MultiSelect } from 'react-multi-select-component';
+import React, { useState, useEffect, Fragment } from 'react';
+import DatePicker from 'react-datepicker';
+import { Listbox, Transition } from '@headlessui/react';
+import { DirectorProfile, Deployment } from '../types';
+import { X, Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
+import "react-datepicker/dist/react-datepicker.css";
 
 interface DeploymentPlannerModalProps {
   isOpen: boolean;
   director: DirectorProfile | null;
   onClose: () => void;
-  onSave: (deployment: Omit<Deployment, 'id' | 'createdAt' | 'deployedPerson' | 'destination' | 'purpose'>) => void;
+  onSave: (deployment: Partial<Deployment>, deploymentId?: string) => void;
+  deploymentToEdit: Deployment | null;
 }
 
-const deploymentTypes = Object.values(DeploymentType);
+const DEPLOYMENT_PERSON_OPTIONS = [
+    { id: 'director', name: 'Director' },
+    { id: 'strikeTeam', name: 'Strike Team Member' },
+];
 
-export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ isOpen, director, onClose, onSave }) => {
-    const [type, setType] = useState<DeploymentType>(DeploymentType.Training);
-    const [selectedStores, setSelectedStores] = useState<{ label: string; value: string; }[]>([]);
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [description, setDescription] = useState('');
-    const [estimatedBudget, setEstimatedBudget] = useState(0);
-    
+export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ isOpen, director, onClose, onSave, deploymentToEdit }) => {
+    const [deploymentPersonType, setDeploymentPersonType] = useState(DEPLOYMENT_PERSON_OPTIONS[0]);
+    const [strikeTeamMember, setStrikeTeamMember] = useState('');
+    const [destination, setDestination] = useState('');
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+    const [purpose, setPurpose] = useState('');
+    const [estimatedBudget, setEstimatedBudget] = useState('');
+
     useEffect(() => {
-        if (director) {
-            // Reset form when director changes or modal opens
-            setType(DeploymentType.Training);
-            setSelectedStores([]);
-            setStartDate('');
-            setEndDate('');
-            setDescription('');
-            setEstimatedBudget(0);
+        if (isOpen) {
+            if (deploymentToEdit) {
+                const isDirectorDeployed = deploymentToEdit.deployedPerson === director?.name;
+                setDeploymentPersonType(isDirectorDeployed ? DEPLOYMENT_PERSON_OPTIONS[0] : DEPLOYMENT_PERSON_OPTIONS[1]);
+                setStrikeTeamMember(isDirectorDeployed ? '' : deploymentToEdit.deployedPerson);
+                setDestination(deploymentToEdit.destination);
+                setStartDate(new Date(deploymentToEdit.startDate));
+                setEndDate(new Date(deploymentToEdit.endDate));
+                setPurpose(deploymentToEdit.purpose);
+                setEstimatedBudget(String(deploymentToEdit.estimatedBudget));
+            } else if (director) {
+                // Reset to default for new deployment
+                setDeploymentPersonType(DEPLOYMENT_PERSON_OPTIONS[0]);
+                setStrikeTeamMember('');
+                setDestination(director.stores[0] || '');
+                setStartDate(undefined);
+                setEndDate(undefined);
+                setPurpose('');
+                setEstimatedBudget('');
+            }
         }
-    }, [director, isOpen]);
+    }, [deploymentToEdit, director, isOpen]);
 
     if (!isOpen || !director) return null;
-    
-    const storeOptions = director.stores.map(s => ({ label: s, value: s }));
+
+    const storeOptions = director.stores;
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
-        const newDeployment: Omit<Deployment, 'id' | 'createdAt' | 'deployedPerson' | 'destination' | 'purpose'> = {
+        const deployedPerson = deploymentPersonType.id === 'director' ? director.name : strikeTeamMember;
+
+        if (deploymentPersonType.id === 'strikeTeam' && !strikeTeamMember) {
+            alert('Please enter the name of the Strike Team Member.');
+            return;
+        }
+        if (!startDate || !endDate) {
+            alert('Please select a start and end date.');
+            return;
+        }
+
+        const deploymentData: Partial<Deployment> = {
             directorId: director.id,
-            type,
-            stores: selectedStores.map(s => s.value),
-            startDate,
-            endDate,
-            description,
-            estimatedBudget,
-            status: 'Planned'
+            deployedPerson,
+            destination,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            purpose,
+            estimatedBudget: Number(estimatedBudget),
+            stores: [destination], 
+            description: purpose,
         };
-        onSave(newDeployment);
+
+        onSave(deploymentData, deploymentToEdit?.id);
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4 animate-fade-in">
-            <form onSubmit={handleSave} className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl border border-slate-700 max-h-[90vh] flex flex-col">
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-800 z-10">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">New Deployment Plan</h2>
-                        <p className="text-sm text-slate-400">For {director.name} {director.lastName}</p>
-                    </div>
-                    <button type="button" onClick={onClose} className="text-slate-400 hover:text-white"><X size={24}/></button>
+            <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700 max-h-[90vh] flex flex-col">
+                <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-white">New Deployment for {director.firstName}'s Region</h2>
+                    <button type="button" onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
                 </div>
-                
-                <div className="p-6 space-y-5 overflow-y-auto">
-                    <div className="flex items-center gap-4">
-                        <Briefcase className="text-cyan-400" size={20}/>
-                        <div className="flex-1">
-                             <label htmlFor="type" className="block text-sm font-medium text-slate-300 mb-1">Deployment Type</label>
-                             <select id="type" value={type} onChange={e => setType(e.target.value as DeploymentType)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white">
-                                {deploymentTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
+
+                <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto">
+                    {/* Deployed Person Dropdown */}
+                    <div>
+                        <Listbox value={deploymentPersonType} onChange={setDeploymentPersonType}>
+                            <div className="relative">
+                                <Listbox.Label className="block text-sm font-medium text-slate-300 mb-1">Who is being deployed?</Listbox.Label>
+                                <Listbox.Button className="relative w-full cursor-default rounded-lg bg-slate-700 py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
+                                    <span className="block truncate text-white">{deploymentPersonType.id === 'director' ? director.name : 'Strike Team Member'}</span>
+                                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                    </span>
+                                </Listbox.Button>
+                                <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                        <Listbox.Option key="director" value={{id: 'director'}} className={({ active }) =>`relative cursor-default select-none py-2 pl-10 pr-4 ${ active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>
+                                            {({ selected }) => (
+                                                <><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{director.name}</span>{selected ? <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-cyan-400"><Check className="h-5 w-5" aria-hidden="true" /></span> : null}</>
+                                            )}
+                                        </Listbox.Option>
+                                        <Listbox.Option key="strikeTeam" value={{id: 'strikeTeam'}} className={({ active }) =>`relative cursor-default select-none py-2 pl-10 pr-4 ${ active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>
+                                            {({ selected }) => (
+                                                <><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                                    Strike Team Member</span>{selected ? <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-cyan-400"><Check className="h-5 w-5" aria-hidden="true" /></span> : null}</>
+                                            )}
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </Transition>
+                            </div>
+                        </Listbox>
                     </div>
 
-                    <div className="flex items-start gap-4">
-                        <MapPin className="text-cyan-400 mt-2" size={20}/>
-                        <div className="flex-1">
-                             <label className="block text-sm font-medium text-slate-300 mb-1">Affected Stores</label>
-                             <MultiSelect
-                                options={storeOptions}
-                                value={selectedStores}
-                                onChange={setSelectedStores}
-                                labelledBy="Select Stores"
-                                className="text-white"
-                             />
+                    {deploymentPersonType.id === 'strikeTeam' && (
+                        <div>
+                            <label htmlFor="strikeTeamMember" className="block text-sm font-medium text-slate-300 mb-1">Strike Team Member Name</label>
+                            <input id="strikeTeamMember" type="text" required value={strikeTeamMember} onChange={e => setStrikeTeamMember(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="Enter name" />
                         </div>
+                    )}
+
+                    {/* Destination Dropdown */}
+                    <div>
+                         <Listbox value={destination} onChange={setDestination}>
+                            <div className="relative">
+                                <Listbox.Label className="block text-sm font-medium text-slate-300 mb-1">Destination</Listbox.Label>
+                                <Listbox.Button className="relative w-full cursor-default rounded-lg bg-slate-700 py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
+                                    <span className="block truncate text-white">{destination}</span>
+                                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                    </span>
+                                </Listbox.Button>
+                                <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                        {storeOptions.map((store, storeIdx) => (
+                                            <Listbox.Option key={storeIdx} className={({ active }) => `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`} value={store}>
+                                                {({ selected }) => (
+                                                    <><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{store}</span>{selected ? <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-cyan-400"><Check className="h-5 w-5" aria-hidden="true" /></span> : null}</>
+                                                )}
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </Transition>
+                            </div>
+                        </Listbox>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                       <div className="flex items-center gap-4">
-                            <Calendar className="text-cyan-400" size={20}/>
-                            <div className="flex-1">
-                                <label htmlFor="startDate" className="block text-sm font-medium text-slate-300 mb-1">Start Date</label>
-                                <input id="startDate" type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2"/>
+                    {/* Date Pickers */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="startDate" className="block text-sm font-medium text-slate-300 mb-1">Start Date</label>
+                            <div className="relative">
+                               <DatePicker
+                                    selected={startDate}
+                                    onChange={(date: Date | undefined) => setStartDate(date)}
+                                    selectsStart
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white"
+                                    calendarClassName="bg-slate-700 text-white"
+                                    wrapperClassName="w-full"
+                                    popperClassName="z-30"
+                                    customInput={<CustomDateInput />}
+                                />
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                             <Calendar className="text-cyan-400" size={20}/>
-                             <div className="flex-1">
-                                <label htmlFor="endDate" className="block text-sm font-medium text-slate-300 mb-1">End Date</label>
-                                <input id="endDate" type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2"/>
-                             </div>
+                        <div>
+                            <label htmlFor="endDate" className="block text-sm font-medium text-slate-300 mb-1">End Date</label>
+                             <div className="relative">
+                                <DatePicker
+                                    selected={endDate}
+                                    onChange={(date: Date | undefined) => setEndDate(date)}
+                                    selectsEnd
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    minDate={startDate}
+                                    className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white"
+                                    calendarClassName="bg-slate-700 text-white"
+                                    wrapperClassName="w-full"
+                                    popperClassName="z-30"
+                                    customInput={<CustomDateInput />}
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <DollarSign className="text-cyan-400" size={20}/>
-                        <div className="flex-1">
-                            <label htmlFor="budget" className="block text-sm font-medium text-slate-300 mb-1">Estimated Budget</label>
-                            <input id="budget" type="number" value={estimatedBudget} onChange={e => setEstimatedBudget(Number(e.target.value))} className="w-full bg-slate-700 border-slate-600 rounded-md p-2" placeholder="e.g., 5000"/>
-                        </div>
+                    {/* Other fields */}
+                    <div>
+                        <label htmlFor="purpose" className="block text-sm font-medium text-slate-300 mb-1">Purpose</label>
+                        <textarea id="purpose" required value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" rows={3} placeholder="e.g., Manager shift cover"></textarea>
+                    </div>
+                    <div>
+                        <label htmlFor="budget" className="block text-sm font-medium text-slate-300 mb-1">Estimated Budget</label>
+                        <input id="budget" type="number" required value={estimatedBudget} onChange={e => setEstimatedBudget(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="e.g., 1500" />
                     </div>
 
-                    <div className="flex items-start gap-4">
-                        <Info className="text-cyan-400 mt-2" size={20}/>
-                        <div className="flex-1">
-                            <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-1">Mission & Description</label>
-                            <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2" rows={4} placeholder="Describe the goals and expected outcomes of this deployment..."></textarea>
-                        </div>
+                    <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10 -m-6 mt-4">
+                        <button type="button" onClick={onClose} className="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                            {deploymentToEdit ? 'Update' : 'Save'} Deployment Plan
+                        </button>
                     </div>
-                </div>
-
-                <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
-                    <button type="button" onClick={onClose} className="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                        Save Deployment Plan
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     );
 };
+
+const CustomDateInput = React.forwardRef(({ value, onClick }: any, ref: any) => (
+    <button type="button" className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white text-left flex justify-between items-center" onClick={onClick} ref={ref}>
+        {value || <span className="text-slate-400">Select date</span>}
+        <CalendarIcon className="h-5 w-5 text-slate-400" />
+    </button>
+));

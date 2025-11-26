@@ -1,8 +1,9 @@
-import { DirectorProfile, Kpi, NoteCategory, StoreDetails, View } from './types';
+
+import { DirectorProfile, Kpi, NoteCategory, StoreDetails, KpiConfig } from './types';
 
 export const DIRECTORS: DirectorProfile[] = [
   {
-    id: 'Danny', name: 'Danny Serafini', firstName: 'Danny', lastName: 'Serafini',
+    id: 'Danny', name: 'Danny', firstName: 'Danny', lastName: 'Serafini',
     email: 'd.serafini@example.com',
     phone: '555-0101',
     title: 'Area Director', 
@@ -11,9 +12,11 @@ export const DIRECTORS: DirectorProfile[] = [
     bio: 'Danny has been a pivotal part of our growth, focusing on operational excellence and team development in his diverse region.',
     homeLocation: 'Denver, CO',
     yearlyTravelBudget: 30000,
+    homeLat: 39.7392,
+    homeLon: -104.9903,
   },
   {
-    id: 'Heather', name: 'Heather Roberts', firstName: 'Heather', lastName: 'Roberts',
+    id: 'Heather', name: 'Heather', firstName: 'Heather', lastName: 'Roberts',
     email: 'h.roberts@example.com',
     phone: '555-0102',
     title: 'Area Director', 
@@ -22,9 +25,11 @@ export const DIRECTORS: DirectorProfile[] = [
     bio: 'With a background in culinary arts and management, Heather brings a unique blend of creativity and discipline to the Southeast region.',
     homeLocation: 'Knoxville, TN',
     yearlyTravelBudget: 30000,
+    homeLat: 35.9606,
+    homeLon: -83.9207,
   },
   {
-    id: 'Ryan', name: 'Ryan Bowen', firstName: 'Ryan', lastName: 'Bowen',
+    id: 'Ryan', name: 'Ryan', firstName: 'Ryan', lastName: 'Bowen',
     email: 'r.bowen@example.com',
     phone: '555-0103',
     title: 'Area Director', 
@@ -33,9 +38,11 @@ export const DIRECTORS: DirectorProfile[] = [
     bio: 'Ryan is a data-driven leader who excels at optimizing prime costs and enhancing guest satisfaction across his Midwest stores.',
     homeLocation: 'Columbus, OH',
     yearlyTravelBudget: 30000,
+    homeLat: 39.9612,
+    homeLon: -82.9988,
   },
   {
-    id: 'Robert', name: 'Robert Simms', firstName: 'Robert', lastName: 'Simms',
+    id: 'Robert', name: 'Robert', firstName: 'Robert', lastName: 'Simms',
     email: 'robert.simms@example.com',
     phone: '555-0104',
     title: 'Area Director', 
@@ -44,11 +51,12 @@ export const DIRECTORS: DirectorProfile[] = [
     bio: 'Robert champions a culture of hospitality and is known for his ability to build high-performing teams that deliver consistent results in the Carolinas and Virginia.',
     homeLocation: 'Greenville, SC',
     yearlyTravelBudget: 30000,
+    homeLat: 34.8526,
+    homeLon: -82.3940,
   }
 ];
 
 export const ALL_STORES: string[] = DIRECTORS.flatMap(d => d.stores);
-export const STORES = ALL_STORES;
 
 export const STRIKE_TEAM_ICON_URL = 'https://i.postimg.cc/13Y2Yf6V/strike-team-icon.png';
 
@@ -82,11 +90,11 @@ export const STORE_DETAILS: Record<string, StoreDetails> = {
     'Virginia Beach, VA': { address: '4501 Main St, Virginia Beach, VA 23462', lat: 36.8385, lon: -76.1260 },
 };
 
-export const KPI_CONFIG: { [key in Kpi]: { label: string, format: 'currency' | 'percent' | 'number', higherIsBetter: boolean, baseline?: number, aggregation: 'sum' | 'avg' } } = {
+export const KPI_CONFIG: { [key in Kpi]: KpiConfig } = {
   [Kpi.Sales]: { label: 'Sales', format: 'currency', higherIsBetter: true, aggregation: 'sum' },
   [Kpi.Guests]: { label: 'Guests', format: 'number', higherIsBetter: true, aggregation: 'sum' },
-  [Kpi.Labor]: { label: 'Labor', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
-  [Kpi.SOP]: { label: 'SOP', format: 'percent', higherIsBetter: true, aggregation: 'avg' },
+  [Kpi.Labor]: { label: 'Labor %', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.SOP]: { label: 'SOP %', format: 'percent', higherIsBetter: true, aggregation: 'avg' },
   [Kpi.AvgTicket]: { label: 'Avg Ticket', format: 'currency', higherIsBetter: true, aggregation: 'avg' },
   [Kpi.PrimeCost]: { label: 'Prime Cost', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
   [Kpi.AvgReviews]: { label: 'Avg Reviews', format: 'number', higherIsBetter: true, aggregation: 'avg' },
@@ -111,17 +119,15 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
 
 export const ALL_KPIS = Object.values(Kpi);
 
-export const NOTE_CATEGORIES: NoteCategory[] = [NoteCategory.General, NoteCategory.Marketing, NoteCategory.Staffing, NoteCategory.Reviews, NoteCategory.Facilities, NoteCategory.Operations, NoteCategory.HR, NoteCategory.GuestFeedback];
+export const NOTE_CATEGORIES: NoteCategory[] = Object.values(NoteCategory);
 
 export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {
   [NoteCategory.General]: 'border-slate-500',
-  [NoteCategory.Marketing]: 'border-blue-500',
+  [NoteCategory.Operations]: 'border-blue-500',
+  [NoteCategory.Marketing]: 'border-pink-500',
+  [NoteCategory.HR]: 'border-indigo-500',
+  [NoteCategory.GuestFeedback]: 'border-purple-500',
   [NoteCategory.Staffing]: 'border-yellow-500',
-  [NoteCategory.Reviews]: 'border-purple-500',
   [NoteCategory.Facilities]: 'border-orange-500',
-  [NoteCategory.Operations]: 'border-red-500',
-  [NoteCategory.HR]: 'border-green-500',
-  [NoteCategory.GuestFeedback]: 'border-indigo-500',
+  [NoteCategory.Reviews]: 'border-green-500',
 };
-
-export const VIEWS = Object.values(View);

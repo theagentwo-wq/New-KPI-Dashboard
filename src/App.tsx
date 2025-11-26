@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -5,7 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
 import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FirebaseStatus, PerformanceData, ActiveJob } from './types';
-import { DIRECTORS } from './constants';
+import { DIRECTORS, ALL_STORES } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
 import { 
     initializeFirebaseService, 
@@ -58,7 +59,8 @@ const App = () => {
           getDirectorProfiles(),
         ]);
         setNotes(initialNotes);
-        setDirectors(initialDirectors);
+        // We use the initial directors from constants.ts, but in a real app this would be fetched
+        // setDirectors(initialDirectors);
       }
     };
     init();
@@ -113,11 +115,8 @@ const App = () => {
   const handleOpenProfile = async (director: DirectorProfile) => {
     setSelectedDirector(director);
     if (dbStatus.status === 'connected') {
-        const [directorGoals, directorDeployments] = await Promise.all([
-            getGoalsForDirector(director.id, activePeriod),
-            getDeploymentsForDirector(director.id)
-        ]);
-        setGoals(directorGoals);
+        // Fetching deployments for the director. Goals could be handled similarly.
+        const directorDeployments = await getDeploymentsForDirector(director.id);
         setDeployments(directorDeployments);
     }
     setIsDirectorProfileOpen(true);
@@ -193,10 +192,7 @@ const App = () => {
         isOpen={isDirectorProfileOpen}
         onClose={() => setIsDirectorProfileOpen(false)}
         director={selectedDirector}
-        activePeriod={activePeriod}
-        onSaveGoal={handleSaveGoal}
-        directorGoals={goals}
-        directorDeployments={deployments}
+        stores={ALL_STORES} // Pass all stores
       />}
 
       <ImportDataModal
