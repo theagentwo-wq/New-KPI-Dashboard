@@ -1,16 +1,15 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2021",
-    "sourceMap": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
     "outDir": "lib",
+    "sourceMap": true,
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "target": "es2017"
   },
   "compileOnSave": true,
   "include": [
-    "index.ts"
+    "src"
   ]
 }
