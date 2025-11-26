@@ -5,7 +5,7 @@ import { uploadFile } from '../services/firebaseService';
 import { startStrategicAnalysisJob, chatWithStrategy } from '../services/geminiService';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
-import { AnalysisMode, FileUploadResult, Period, View } from '../types';
+import { AnalysisMode, Period, View } from '../types';
 
 export interface ActiveAnalysisJob {
   id: string;
@@ -145,18 +145,13 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   const handleAnalyze = async () => {
     if (!stagedFile) return;
 
-    let uploadInfo: FileUploadResult | null = null;
-
     try {
       setActiveJob({ id: 'temp-id', status: 'pending', fileName: stagedFile.name, mode: selectedMode });
 
-      const uploadResult = await uploadFile(stagedFile);
-      uploadInfo = { ...uploadResult };
+      const uploadResult = await uploadFile(stagedFile, () => {});
       
-      if (uploadInfo) {
-        const { jobId } = await startStrategicAnalysisJob(uploadInfo, selectedMode, activePeriod, activeView);
-        setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name, mode: selectedMode });
-      }
+      const { jobId } = await startStrategicAnalysisJob(uploadResult, selectedMode, activePeriod, activeView);
+      setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'pending' } : { id: jobId, status: 'pending', fileName: stagedFile.name, mode: selectedMode });
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";

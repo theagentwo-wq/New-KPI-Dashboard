@@ -97,11 +97,10 @@ export const startImportJob = async (file: FileUploadResult, importType: 'docume
       taskType: 'batch',
     });
 
-    const jobId = result.id;
-    if (!jobId) {
-      throw new Error('Failed to get job ID from AI service.');
+    if (!result || !result.id) {
+        throw new Error('Failed to get job ID from AI service.');
     }
-    return { jobId };
+    return { jobId: result.id };
   } catch (error) {
     console.error('Error starting Gemini import job:', error);
     throw new Error('Failed to start the AI analysis job.');

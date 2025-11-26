@@ -47,10 +47,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [isAnomalyModalOpen, setAnomalyModalOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
-    const [comparisonData, _setComparisonData] = useState<StorePerformanceData[]>([]);
 
-    useMemo(() => {
-        if (comparisonMode === 'vs. Budget') return activePeriod;
+    const comparisonPeriod = useMemo(() => {
+        if (comparisonMode === 'vs. Budget') return activePeriod; // No period shift for budget
         return comparisonMode === 'vs. Last Year' ? getYoYPeriod(activePeriod) : getPreviousPeriod(activePeriod);
     }, [comparisonMode, activePeriod]);
     
@@ -62,6 +61,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const currentPeriodIndex = useMemo(() => {
         return periodsForType.findIndex((p: Period) => p.label === activePeriod.label);
     }, [periodsForType, activePeriod]);
+    
+    const dataForActivePeriod = useMemo(() => {
+        return loadedData.filter(d => {
+            const dataDate = new Date(d.year, d.month -1, d.day);
+            return dataDate >= activePeriod.startDate && dataDate <= activePeriod.endDate;
+        });
+    }, [loadedData, activePeriod]);
+
+    const dataForComparisonPeriod = useMemo(() => {
+        if (!comparisonPeriod) return [];
+        return loadedData.filter(d => {
+            const dataDate = new Date(d.year, d.month - 1, d.day);
+            return dataDate >= comparisonPeriod.startDate && dataDate <= comparisonPeriod.endDate;
+        });
+    }, [loadedData, comparisonPeriod]);
+
 
     const handlePreviousPeriod = () => {
         if (currentPeriodIndex > 0) {
@@ -181,8 +196,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [directorStores, selectedKpi]);
 
     const processedDataForTable = useMemo(() => {
-        return processDataForTable(loadedData, comparisonData, budgets, comparisonMode, activePeriod);
-    }, [loadedData, comparisonData, budgets, comparisonMode, activePeriod, processDataForTable]);
+        return processDataForTable(dataForActivePeriod, dataForComparisonPeriod, budgets, comparisonMode, activePeriod);
+    }, [dataForActivePeriod, dataForComparisonPeriod, budgets, comparisonMode, activePeriod, processDataForTable]);
     
     const summaryDataForCards = useMemo(() => {
         const dataToSummarize = Object.values(processedDataForTable).map(d => d.actual as PerformanceData);

@@ -1,12 +1,22 @@
-# Firebase
-.firebase
-firebase-debug.log
-hosting.*.cache
+/dist
+/node_modules
+
+# IDE config files
+.idea
+.vscode
+
+# Environment variables
+.env*
+!/.env.example
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Build output
-dist
+/build
+/coverage
 
-# Dependencies
-node_modules
-.env.local
-.env.local.bak
+# Functions config
+functions/src/config.ts

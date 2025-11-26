@@ -46,7 +46,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
       setIsFetching(true);
       setError(null);
       try {
-        const existingData = await getAggregatedPerformanceDataForPeriod(selectedStore, selectedPeriod);
+        const existingData = await getAggregatedPerformanceDataForPeriod(selectedPeriod, selectedStore);
         
         const formattedValues: Partial<{ [key in Kpi]: string }> = {};
         if (existingData) {

@@ -48,6 +48,9 @@ export type PerformanceData = {
 
 export interface StorePerformanceData {
   storeId: string;
+  year: number;
+  month: number;
+  day: number;
   data: PerformanceData;
   pnl?: FinancialLineItem[];
   weekStartDate?: string;
@@ -235,9 +238,9 @@ export interface DataMappingTemplate {
 }
 
 export type FirebaseStatus = 
-  | { status: 'initializing'; error?: null; }
-  | { status: 'connected'; error?: null; }
-  | { status: 'error'; error: string; };
+  | { status: 'initializing'; error?: null; message?: string; }
+  | { status: 'connected'; error?: null; message?: string; }
+  | { status: 'error'; error: string; message?: string; };
 
 export interface User {
     id: string;

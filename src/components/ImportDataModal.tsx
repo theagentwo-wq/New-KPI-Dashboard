@@ -154,7 +154,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         const job = jobs[0];
         const uploadResult: FileUploadResult = await (async () => {
             if (job.type === 'file') {
-                return await uploadFile(job.content as File);
+                return await uploadFile(job.content as File, () => {});
             } else {
                 return await uploadTextAsFile(job.content as string, job.name);
             }
