@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DirectorProfile, Deployment, DeploymentType } from '../types';
-import { X, User, MapPin, Calendar, DollarSign, Briefcase, Info } from 'lucide-react';
+import { X, MapPin, Calendar, DollarSign, Briefcase, Info } from 'lucide-react';
 import { MultiSelect } from 'react-multi-select-component';
 
 interface DeploymentPlannerModalProps {

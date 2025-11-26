@@ -11,8 +11,8 @@ import { getStrategicExecutiveAnalysis } from '../services/geminiService';
 interface PerformanceMatrixProps {
     periodLabel: string;
     currentView: View;
-    allStoresData: { [storeId: string]: DataItem };
-    directorAggregates: { [directorName: string]: DataItem };
+    allStoresData: { [storeId: string]: { actual: DataItem } };
+    directorAggregates: { [directorName: string]: { aggregated: DataItem } };
 }
 
 const formatValue = (value: number, kpi: Kpi) => {
@@ -47,7 +47,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     const companyTotal = useMemo(() => {
         if (!directorAggregates) return 0;
         const values = Object.values(directorAggregates).map(d => {
-            const actual = 'aggregated' in d ? d.aggregated : d.actual;
+            const actual = d.aggregated;
             return actual[activeKpi] || 0;
         });
         
@@ -61,7 +61,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     // 2. Sort Directors for active KPI
     const sortedDirectors = useMemo(() => {
         return Object.entries(directorAggregates).map(([name, item]) => {
-            const actual = 'aggregated' in item ? item.aggregated : item.actual;
+            const actual = item.aggregated;
             return { name, value: actual[activeKpi] || 0 };
         }).sort((a, b) => KPI_CONFIG[activeKpi].higherIsBetter ? b.value - a.value : a.value - b.value);
     }, [directorAggregates, activeKpi]);
@@ -69,7 +69,7 @@ export const PerformanceMatrix: React.FC<PerformanceMatrixProps> = ({ periodLabe
     // 3. Identify "Anchors" (Bottom 3 Stores) for active KPI
     const anchors = useMemo(() => {
         return Object.entries(allStoresData).map(([name, item]) => {
-            const actual = 'actual' in item ? item.actual : item.aggregated;
+            const actual = item.actual;
             return { name, value: actual[activeKpi] || 0 };
         })
         .sort((a, b) => KPI_CONFIG[activeKpi].higherIsBetter ? a.value - b.value : b.value - a.value) // Sort ascending (worst first) for HigherIsBetter

@@ -2,7 +2,7 @@ import { DirectorProfile, Kpi, NoteCategory, StoreDetails, View } from './types'
 
 export const DIRECTORS: DirectorProfile[] = [
   {
-    id: 'Danny', firstName: 'Danny', lastName: 'Serafini',
+    id: 'Danny', name: 'Danny Serafini', firstName: 'Danny', lastName: 'Serafini',
     email: 'd.serafini@example.com',
     phone: '555-0101',
     title: 'Area Director', 
@@ -13,7 +13,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Heather', firstName: 'Heather', lastName: 'Roberts',
+    id: 'Heather', name: 'Heather Roberts', firstName: 'Heather', lastName: 'Roberts',
     email: 'h.roberts@example.com',
     phone: '555-0102',
     title: 'Area Director', 
@@ -24,7 +24,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Ryan', firstName: 'Ryan', lastName: 'Bowen',
+    id: 'Ryan', name: 'Ryan Bowen', firstName: 'Ryan', lastName: 'Bowen',
     email: 'r.bowen@example.com',
     phone: '555-0103',
     title: 'Area Director', 
@@ -35,7 +35,7 @@ export const DIRECTORS: DirectorProfile[] = [
     yearlyTravelBudget: 30000,
   },
   {
-    id: 'Robert', firstName: 'Robert', lastName: 'Simms',
+    id: 'Robert', name: 'Robert Simms', firstName: 'Robert', lastName: 'Simms',
     email: 'robert.simms@example.com',
     phone: '555-0104',
     title: 'Area Director', 

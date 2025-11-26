@@ -192,6 +192,7 @@ export interface DataItem {
   actual: any;
   comparison?: any;
   variance: any;
+  [key: string]: any;
 }
 
 export interface StoreDetails {

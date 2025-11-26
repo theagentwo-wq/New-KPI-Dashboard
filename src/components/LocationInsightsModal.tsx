@@ -4,8 +4,7 @@ import { Modal } from './Modal';
 import { callGeminiAPI, getPlaceDetails } from '../lib/ai-client';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
 import { marked } from 'marked';
-// FIX: Removed unused 'DailyForecast' import.
-import { PerformanceData, Kpi } from '../types';
+import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
@@ -29,7 +28,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="p-2 bg-slate-900 border border-slate-700 rounded-md shadow-lg">
         <p className="label font-bold text-slate-200">{`${label}`}</p>
         <p className="intro text-cyan-400">{`Predicted Sales: $${data.predictedSales.toLocaleString()}`}</p>
-        {data.weatherDescription && <p className="text-slate-400">{data.weatherDescription}</p>}
+        {data.weatherDescription && 
+          <div className="flex items-center gap-2 mt-1">
+            <WeatherIcon condition={data.weatherCondition} className="w-5 h-5" />
+            <span className='text-slate-400'>{data.weatherDescription}</span>
+          </div>
+        }
       </div>
     );
   }
@@ -116,7 +120,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
     }, [isOpen, location]);
 
-    // FIX: Refactored to accept placeDetails as a parameter to avoid race conditions.
     const handleAnalysis = useCallback(async (type: AnalysisTab, currentPlaceDetails: PlaceDetails | null, audience?: Audience) => {
         if (!location) return;
         setIsLoadingAnalysis(prev => ({ ...prev, [type]: true }));
@@ -146,7 +149,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     const forecastData = await get7DayForecastForLocation(location);
                     if (forecastData) {
                          const aiForecast = await callGeminiAPI('getSalesForecast', { locationName: location, weatherForecast: forecastData, historicalData: 'N/A' });
-                         result = { chartData: aiForecast, sevenDay: forecastData };
+                         result = { ...aiForecast, sevenDay: forecastData };
                     } else {
                         throw new Error("7-day weather forecast is currently unavailable.");
                     }
@@ -156,7 +159,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                     result = await callGeminiAPI('getMarketingIdeas', { locationName: location, userLocation }); 
                     break;
             }
-            if (typeof result === 'string') result = await marked.parse(result);
+            if (type !== 'forecast' && typeof result === 'string') result = await marked.parse(result);
 
         } catch (error) {
             console.error(`Error fetching analysis for ${type}:`, error);
@@ -174,9 +177,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (type === 'brief') setLoadingAudience(null);
     }, [location, performanceData, userLocation]);
     
-    // FIX: Added handleAnalysis to the dependency array.
     useEffect(() => {
-        if (placeDetails) {
+        if (isOpen && placeDetails) {
             if (placeDetails.reviews && placeDetails.reviews.length > 0) {
                 if (!analysisContent.reviews) { 
                     handleAnalysis('reviews', placeDetails);
@@ -185,7 +187,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 setAnalysisContent(prev => ({ ...prev, reviews: '<p class="text-slate-400 text-center">No reviews available to summarize for this location.</p>' }));
             }
         }
-    }, [placeDetails, analysisContent.reviews, handleAnalysis]);
+    }, [isOpen, placeDetails, analysisContent.reviews, handleAnalysis]);
 
     const analysisTabConfig = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },
@@ -247,11 +249,40 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         }
 
         if (activeAnalysisTab === 'forecast') {
-             if (content?.chartData) {
-                return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content.chartData }} />;
-             }
-             if (content) {
-                return <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: content }} />;
+             if (content?.summary && content?.chartData) {
+                return (
+                    <div className="space-y-6">
+                        <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: marked.parse(content.summary) }} />
+                        <div>
+                             <h4 className="font-semibold text-slate-300 mb-2">Sales Forecast by Day</h4>
+                            <div style={{ height: 250 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={content.chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `$${(val / 1000)}k`} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Line type="monotone" dataKey="predictedSales" stroke="#22d3ee" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                        {content.sevenDay && (
+                        <div>
+                            <h4 className="font-semibold text-slate-300 mb-2">7-Day Weather Outlook</h4>
+                            <div className="grid grid-cols-7 gap-2 text-center"> 
+                            {content.sevenDay.map((day: DailyForecast, i: number) => (
+                                <div key={i} className="bg-slate-900/50 p-2 rounded-lg flex flex-col items-center">
+                                <p className="font-bold text-sm text-slate-300">{day.day}</p>
+                                <WeatherIcon condition={day.condition} className="w-8 h-8 my-1" />
+                                <p className="font-semibold text-cyan-400">{day.temp}°F</p>
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                );
              }
         }
         

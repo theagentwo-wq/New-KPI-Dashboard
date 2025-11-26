@@ -43,8 +43,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ data, view, period, us
           data,
           view,
           period.label,
-          prompt,
-          userLocation
+          prompt
         );
         setInsights(result);
       } catch (err: any) {

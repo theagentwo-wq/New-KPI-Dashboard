@@ -1,16 +1,14 @@
 
-import { Kpi, Period, View, PerformanceData } from '../types';
+import { Kpi, PerformanceData } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { KPI_CONFIG } from '../constants';
 
 interface PerformanceChartProps {
     activeKpi: Kpi;
-    period: Period;
-    view: View;
-    data: PerformanceData[]; // This should be an array of data points for the chart
+    data: { date: string, data: PerformanceData }[]; // This should be an array of data points for the chart
 }
 
-export const PerformanceChart: React.FC<PerformanceChartProps> = ({ activeKpi, period, view, data }) => {
+export const PerformanceChart: React.FC<PerformanceChartProps> = ({ activeKpi, data }) => {
     const kpiConfig = KPI_CONFIG[activeKpi];
 
     if (!kpiConfig) {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus, KPISummaryCardsProps, AnomalyDetailModalProps } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
@@ -49,7 +49,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
     const [comparisonData, _setComparisonData] = useState<StorePerformanceData[]>([]);
 
-    const comparisonPeriod = useMemo(() => {
+    useMemo(() => {
         if (comparisonMode === 'vs. Budget') return activePeriod;
         return comparisonMode === 'vs. Last Year' ? getYoYPeriod(activePeriod) : getPreviousPeriod(activePeriod);
     }, [comparisonMode, activePeriod]);
@@ -203,26 +203,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         return aggregated;
     }, [processedDataForTable]);
 
-    const directorAggregates = useMemo(() => { 
-        const directorData: { [key: string]: DataItem} = {};
+    const directorAggregates = useMemo(() => {
+        const directorData: { [key: string]: { aggregated: DataItem } } = {};
         DIRECTORS.forEach(d => {
             const directorStoreIds = d.stores;
             const directorStoreData = directorStoreIds.reduce((acc, storeId) => {
                 if(processedDataForTable[storeId]) acc[storeId] = processedDataForTable[storeId];
                 return acc;
             }, {} as typeof processedDataForTable);
-
+    
             const aggregated: { actual: PerformanceData, comparison: PerformanceData, variance: PerformanceData } = {
                 actual: {}, comparison: {}, variance: {}
             };
-
+    
             (Object.keys(Kpi) as Kpi[]).forEach(kpi => {
                  const kpiConfig = KPI_CONFIG[kpi];
                  const actualValues = Object.values(directorStoreData).map(s => s.actual?.[kpi]).filter(v => v !== undefined) as number[];
                  const comparisonValues = Object.values(directorStoreData).map(s => s.comparison?.[kpi]).filter(v => v !== undefined) as number[];
                 
                 if (actualValues.length === 0) return;
-
+    
                 if (kpiConfig.aggregation === 'sum') {
                     aggregated.actual[kpi] = actualValues.reduce((a, b) => a + b, 0);
                     aggregated.comparison[kpi] = comparisonValues.reduce((a, b) => a + b, 0);
@@ -234,7 +234,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     aggregated.variance[kpi] = aggregated.actual[kpi]! - aggregated.comparison[kpi]!;
                 }
             });
-            directorData[d.id] = { id: d.id, name: d.firstName, value: 0, actual: aggregated.actual, comparison: aggregated.comparison, variance: aggregated.variance };
+            directorData[d.id] = { aggregated: { id: d.id, name: d.firstName, value: 0, actual: aggregated.actual, comparison: aggregated.comparison, variance: aggregated.variance }};
         });
         return directorData;
     }, [processedDataForTable]);
@@ -258,16 +258,25 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     
     const historicalDataForAI = useMemo(() => { return []; }, []);
 
+    const kpiSummaryCardsProps: KPISummaryCardsProps = {
+        data: summaryDataForCards,
+        selectedKpi: selectedKpi,
+        onKpiSelect: setSelectedKpi,
+        period: activePeriod,
+        view: activeView
+    };
+
+    const anomalyDetailModalProps: AnomalyDetailModalProps = {
+        isOpen: isAnomalyModalOpen,
+        onClose: () => { setAnomalyModalOpen(false); setSelectedAnomaly(undefined); },
+        anomaly: selectedAnomaly,
+        data: processedDataForTable
+    };
+
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
-                <KPISummaryCards 
-                    data={summaryDataForCards}
-                    selectedKpi={selectedKpi}
-                    onKpiSelect={setSelectedKpi}
-                    period={activePeriod}
-                    view={activeView}
-                />
+                <KPISummaryCards {...kpiSummaryCardsProps} />
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
                 <div className="xl:col-span-3 space-y-6">
@@ -318,12 +327,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
              <Modal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} title="AI Anomaly Detections">
                 <AIAlerts anomalies={anomalies} onSelectAnomaly={handleAnomalySelect} />
             </Modal>
-            <AnomalyDetailModal 
-                isOpen={isAnomalyModalOpen}
-                onClose={() => { setAnomalyModalOpen(false); setSelectedAnomaly(undefined); }}
-                anomaly={selectedAnomaly}
-                data={processedDataForTable}
-            />
+            <AnomalyDetailModal {...anomalyDetailModalProps} />
             <ExecutiveSummaryModal 
                 isOpen={isExecutiveSummaryOpen}
                 onClose={() => setIsExecutiveSummaryOpen(false)}

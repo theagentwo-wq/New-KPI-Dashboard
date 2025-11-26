@@ -4,10 +4,9 @@ import {
     DirectorProfile, 
     Deployment, 
     Goal, 
-    Period,
-    Kpi
+    Period
 } from '../types';
-import { X, Briefcase, Target, User, MapPin, Edit, TrendingUp, BarChart, DollarSign } from 'lucide-react';
+import { X, Briefcase, Target, User, MapPin, Edit, BarChart, DollarSign } from 'lucide-react';
 import { DeploymentMap } from './DeploymentMap';
 import { GoalSetter } from './GoalSetter';
 import { KPI_CONFIG } from '../constants';
@@ -51,7 +50,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
           case 'goals':
               return <GoalsTab directorGoals={directorGoals} onSetGoal={() => setShowGoalSetter(true)} />;
           case 'deployments':
-              return <DeploymentsTab directorDeployments={directorDeployments} director={director} />;
+              return <DeploymentsTab directorDeployments={directorDeployments} />;
           case 'performance':
               return <PerformanceTab />;
           default:
@@ -92,7 +91,6 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
                 onClose={() => setShowGoalSetter(false)} 
                 onSave={handleSaveGoal}
                 activePeriod={activePeriod}
-                isOpen={showGoalSetter}
             />
         }
 
@@ -152,7 +150,7 @@ const GoalsTab = ({ directorGoals, onSetGoal }: { directorGoals: Goal[], onSetGo
                         <div className="flex flex-wrap justify-between items-center">
                             <p className="text-slate-300 font-medium">Target for <span className="font-bold text-white">{kpiConfig.label}</span></p>
                             <div className="text-right">
-                                <p className={`font-bold text-xl ${kpiConfig.higherIsBetter ? 'text-green-400' : 'text-red-400'}`}>{kpiConfig.format === 'currency' ? '$' : ''}{goal.targetValue.toLocaleString()}{kpiConfig.format === 'percent' ? '%' : ''}</p>
+                                <p className={`font-bold text-xl ${kpiConfig.higherIsBetter ? 'text-green-400' : 'text-red-400'}`}>{kpiConfig.format === 'currency' ? '$' : ''}{(goal.targetValue ?? goal.target).toLocaleString()}{kpiConfig.format === 'percent' ? '%' : ''}</p>
                                 <p className="text-xs text-slate-400">by {goal.endDate}</p>
                             </div>
                         </div>
@@ -164,7 +162,7 @@ const GoalsTab = ({ directorGoals, onSetGoal }: { directorGoals: Goal[], onSetGo
     </div>
 );
 
-const DeploymentsTab = ({ directorDeployments, director }: { directorDeployments: Deployment[], director: DirectorProfile }) => (
+const DeploymentsTab = ({ directorDeployments }: { directorDeployments: Deployment[] }) => (
     <div>
         <h3 className="font-semibold text-cyan-400 mb-4 text-lg flex items-center"><Briefcase size={20} className="mr-2"/> Deployments</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -198,4 +196,4 @@ const PerformanceTab = () => (
             <p className="text-sm">(This feature is under construction)</p>
         </div>
     </div>
-)
+);

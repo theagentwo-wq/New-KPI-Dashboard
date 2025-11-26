@@ -18,7 +18,6 @@ export const ExecutiveSummaryModal: React.FC<ExecutiveSummaryModalProps> = ({ is
   const [summaryHtml, setSummaryHtml] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // FIX: Wrapped in useCallback, added robust error handling, and ensured data exists.
   const handleGenerateSummary = useCallback(async () => {
     if (!data) {
       setSummaryHtml('');
@@ -27,7 +26,7 @@ export const ExecutiveSummaryModal: React.FC<ExecutiveSummaryModalProps> = ({ is
     setIsLoading(true);
     setSummaryHtml('');
     try {
-      const result = await getExecutiveSummary(data, view, period.label);
+      const result = await getExecutiveSummary(data, view, period);
       const html = await marked.parse(result);
       setSummaryHtml(html);
     } catch (error) {
@@ -39,9 +38,8 @@ export const ExecutiveSummaryModal: React.FC<ExecutiveSummaryModalProps> = ({ is
     } finally {
       setIsLoading(false);
     }
-  }, [data, view, period.label]);
+  }, [data, view, period]);
   
-  // FIX: Updated useEffect dependencies to correctly handle regeneration.
   useEffect(() => {
     if (isOpen) {
       handleGenerateSummary();

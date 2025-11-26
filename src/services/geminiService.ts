@@ -1,8 +1,8 @@
 import { callGeminiAPI } from '../lib/ai-client';
 import { Period, View, PerformanceData, Note, Anomaly, AnalysisMode, FileUploadResult, Audience, Weather, Kpi, ForecastDataPoint, DailyForecast, DataItem } from '../types';
 
-export const getInsights = (data: Record<string, DataItem>, view: View, period: Period, userLocation: { latitude: number, longitude: number } | null): Promise<any> => {
-  return callGeminiAPI('getInsights', { data, view, period, userLocation });
+export const getInsights = (data: Record<string, DataItem>, view: View, period: string, prompt: string): Promise<any> => {
+  return callGeminiAPI('getInsights', { data, view, period, prompt });
 };
 
 export const getExecutiveSummary = (data: { [key: string]: DataItem }, view: View, period: Period): Promise<string> => {
@@ -43,6 +43,10 @@ export const getAnomalyInsights = (anomaly: Anomaly, data: Record<string, DataIt
 
 export const getVarianceAnalysis = (location: string, kpi: Kpi, variance: number, allKpis: PerformanceData): Promise<string> => {
     return callGeminiAPI('getVarianceAnalysis', { location, kpi, variance, allKpis });
+};
+
+export const runWhatIfScenario = (data: any, prompt: string): Promise<{ analysis: string, args?: any } | null> => {
+  return callGeminiAPI('runWhatIfScenario', { data, prompt });
 };
 
 export const startStrategicAnalysisJob = (payload: FileUploadResult, mode: AnalysisMode, period: Period, view: View): Promise<{ jobId: string }> => {

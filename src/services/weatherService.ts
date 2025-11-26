@@ -63,6 +63,7 @@ export const getWeatherForLocation = async (location: string): Promise<WeatherIn
     return {
         condition: mapNwsIconToCondition(currentPeriod.icon),
         temperature: currentPeriod.temperature,
+        description: currentPeriod.shortForecast,
         shortForecast: currentPeriod.shortForecast,
         detailedForecast: currentPeriod.detailedForecast
     };
@@ -85,24 +86,25 @@ export const get7DayForecastForLocation = async (location: string): Promise<Dail
         return null;
     }
 
-    // NWS often returns pairs of day/night forecasts. We want one item per day.
-    // We filter for daytime forecasts, but if there are none (e.g., only nightly), we take what we can get.
     const daytimePeriods = forecastData.properties.periods.filter((p: any) => p.isDaytime);
     const relevantPeriods = daytimePeriods.length > 0 ? daytimePeriods : forecastData.properties.periods;
 
-    // Take the first 7 unique days
     const dailyForecasts: DailyForecast[] = [];
     const seenDays = new Set<string>();
 
     for (const period of relevantPeriods) {
         if (dailyForecasts.length >= 7) break;
-        const dateStr = new Date(period.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+        const date = new Date(period.startTime);
+        const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
         if (!seenDays.has(dateStr)) {
             dailyForecasts.push({
                 date: dateStr,
+                day: date.toLocaleDateString('en-US', { weekday: 'short'}),
+                temp: period.temperature,
+                icon: period.icon,
                 condition: mapNwsIconToCondition(period.icon),
                 temperature: period.temperature,
-                shortForecast: period.shortForecast
+                description: period.shortForecast
             });
             seenDays.add(dateStr);
         }

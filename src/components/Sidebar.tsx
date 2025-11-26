@@ -111,9 +111,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
             <div className="space-y-1">
                  <DirectorLink 
                     label="Total Company"
-                    isActive={currentView === 'Total Company'}
+                    isActive={currentView === View.TotalCompany}
                     isCollapsed={isCollapsed}
-                    onClick={() => setCurrentView('Total Company')}
+                    onClick={() => setCurrentView(View.TotalCompany)}
                     onInfoClick={() => {}}
                 />
                 {directors.map(dir => (
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
                         label={dir.name}
                         isActive={currentView === dir.id}
                         isCollapsed={isCollapsed}
-                        onClick={() => setCurrentView(dir.id)}
+                        onClick={() => setCurrentView(dir.id as View)}
                         onInfoClick={(e) => {
                             e.stopPropagation();
                             onOpenProfile(dir);

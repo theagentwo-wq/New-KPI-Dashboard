@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Note, NoteCategory, View, Period, PeriodType } from '../types';
+import { Note, NoteCategory, View, Period } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';

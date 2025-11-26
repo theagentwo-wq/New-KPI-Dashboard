@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ALL_STORES, ALL_KPIS, KPI_CONFIG } from '../constants';
-import { Kpi, PerformanceData, Period } from '../types';
+import { Kpi, PerformanceData, Period, PeriodType } from '../types';
 import { ALL_PERIODS } from '../utils/dateUtils';
 import { getAggregatedPerformanceDataForPeriod } from '../services/firebaseService';
 
@@ -19,7 +19,8 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
   const [error, setError] = useState<string | null>(null);
 
   const availablePeriods = useMemo(() => {
-    return ALL_PERIODS.filter((p: Period) => p.type === periodType);
+    const typeMapping: { [key: string]: PeriodType } = { 'Week': 'weekly', 'Month': 'monthly', 'Quarter': 'quarterly', 'Year': 'yearly' };
+    return ALL_PERIODS.filter((p: Period) => p.type === typeMapping[periodType]);
   }, [periodType]);
 
   useEffect(() => {

@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react';
 const SCRIPT_ID = 'google-maps-script';
 
 // --- TypeScript Interfaces ---
-interface UseGoogleMapsOptions {
-  apiKey: string;
-}
 
 interface UseGoogleMapsResult {
   isLoaded: boolean;

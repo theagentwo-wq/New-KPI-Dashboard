@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Period, FinancialLineItem } from '../types';
+import { View, Period, FinancialLineItem, PeriodType } from '../types';
 import { ALL_STORES, DIRECTORS } from '../constants';
 import { getInitialPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from '../components/Icon';
@@ -47,7 +47,10 @@ export const FinancialsPage: React.FC = () => {
     const [expandedCategories, setExpandedCategories] = useState<string[]>(['Sales', 'COGS', 'Labor', 'Operating Expenses']);
 
     // Helper to get previous/next periods
-    const periodsForType = useMemo(() => ALL_PERIODS.filter(p => p.type === periodType), [periodType]);
+    const periodsForType = useMemo(() => {
+      const typeMapping: { [key: string]: PeriodType } = { 'Week': 'weekly', 'Month': 'monthly', 'Quarter': 'quarterly', 'Year': 'yearly' };
+      return ALL_PERIODS.filter(p => p.type === typeMapping[periodType]);
+    }, [periodType]);
     const currentPeriodIndex = useMemo(() => periodsForType.findIndex(p => p.label === currentPeriod.label), [periodsForType, currentPeriod]);
     
     const handlePrevPeriod = () => { if (currentPeriodIndex > 0) setCurrentPeriod(periodsForType[currentPeriodIndex - 1]); };
