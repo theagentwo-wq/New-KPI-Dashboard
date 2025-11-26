@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { uploadFile } from '../services/firebaseService';
-import { startStrategicAnalysisJob, deleteImportFile, chatWithStrategy } from '../services/geminiService';
+import { startStrategicAnalysisJob, chatWithStrategy } from '../services/geminiService';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
 import { AnalysisMode, FileUploadResult, Period, View } from '../types';
@@ -38,7 +38,7 @@ const processingMessages = [
     'Compiling actionable recommendations...',
 ];
 
-const MODE_CONFIG: { [key in AnalysisMode]: { icon: string; color: string; desc: string } } = {
+const ANALYSIS_MODE_CONFIG: { [key in AnalysisMode]: { icon: string; color: string; desc: string } } = {
     [AnalysisMode.General]: { icon: 'brain', color: 'text-cyan-400', desc: 'Balanced overview of all key metrics.' },
     [AnalysisMode.Financial]: { icon: 'budget', color: 'text-green-400', desc: 'Deep dive on margins, P&L, and ROI.' },
     [AnalysisMode.Operational]: { icon: 'dashboard', color: 'text-blue-400', desc: 'Focus on labor, efficiency, and execution.' },
@@ -106,7 +106,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
           };
           processResult();
       }
-  }, [jobStatus, activeJob?.result]);
+  }, [jobStatus, activeJob?.result, chatMessages.length]);
 
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -151,7 +151,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       setActiveJob({ id: 'temp-id', status: 'pending', fileName: stagedFile.name, mode: selectedMode });
 
       const uploadResult = await uploadFile(stagedFile);
-      uploadInfo = { ...uploadResult, mimeType: stagedFile.type, fileName: stagedFile.name };
+      uploadInfo = { ...uploadResult };
       
       const { jobId } = await startStrategicAnalysisJob(uploadInfo, selectedMode, activePeriod, activeView);
       
@@ -160,7 +160,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An unexpected error occurred.";
       setActiveJob({ id: 'error-id', status: 'error', error: `Analysis submission failed: ${errorMsg}`, fileName: stagedFile.name });
-      if (uploadInfo?.filePath) await deleteImportFile(uploadInfo.filePath);
     }
   };
   
@@ -185,7 +184,6 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
   };
 
   const handleCancel = () => {
-    // Here you would call a function to cancel the job on the backend
     setActiveJob(prev => prev ? { ...prev, status: 'cancelled' } : null);
   }
 
@@ -274,7 +272,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
           <p className="text-slate-300 mt-4 font-medium text-lg">{getLoadingMessage()}</p>
           {activeJob?.mode && (
               <p className="text-cyan-400 text-sm mt-2 flex items-center gap-2">
-                  <Icon name={MODE_CONFIG[activeJob.mode].icon} className="w-4 h-4" />
+                  <Icon name={ANALYSIS_MODE_CONFIG[activeJob.mode].icon} className="w-4 h-4" />
                   Using {activeJob.mode} Lens
               </p>
           )}
@@ -285,7 +283,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     return (
       <div className="flex flex-col h-full">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-              {(Object.keys(MODE_CONFIG) as AnalysisMode[]).map(mode => (
+              {(Object.values(AnalysisMode)).map(mode => (
                   <button
                     key={mode}
                     onClick={() => setSelectedMode(mode)}
@@ -295,9 +293,9 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
                         : 'bg-slate-800 border-slate-700 hover:border-slate-600'
                     }`}
                   >
-                      <Icon name={MODE_CONFIG[mode].icon} className={`w-6 h-6 mb-2 ${MODE_CONFIG[mode].color}`} />
+                      <Icon name={ANALYSIS_MODE_CONFIG[mode].icon} className={`w-6 h-6 mb-2 ${ANALYSIS_MODE_CONFIG[mode].color}`} />
                       <p className="font-bold text-slate-200 text-sm">{mode}</p>
-                      <p className="text-[10px] text-slate-400 leading-tight mt-1">{MODE_CONFIG[mode].desc}</p>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-1">{ANALYSIS_MODE_CONFIG[mode].desc}</p>
                   </button>
               ))}
           </div>
@@ -311,7 +309,7 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
             className="flex-1 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors hover:bg-slate-800/50 min-h-[200px]"
           >
             <input id="strategy-file-upload" type="file" className="hidden" onChange={(e) => handleFileSelect(e.target.files)} />
-            <Icon name="download" className="w-16 h-16 mx-auto text-slate-500 mb-4" />
+            <Icon name="upload" className="w-16 h-16 mx-auto text-slate-500 mb-4" />
             {stagedFile ? (
               <div className="text-center">
                 <p className="text-slate-200 font-bold text-xl">File Ready</p>

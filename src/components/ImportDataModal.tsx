@@ -1,37 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { startImportJob, deleteImportFile } from '../services/geminiService';
+import { startImportJob } from '../services/geminiService';
 import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
 import { resizeImage } from '../utils/imageUtils';
-import { FileUploadResult } from '../types';
-
-type ImportStep = 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';
-
-interface ExtractedData {
-    dataType: 'Actuals' | 'Budget';
-    data: any[];
-    sourceName: string;
-    isDynamicSheet?: boolean;
-}
-
-interface ActiveJob {
-    id: string;
-    step: ImportStep;
-    statusLog: string[];
-    progress: { current: number; total: number };
-    errors: string[];
-    extractedData: ExtractedData[];
-}
+import { FileUploadResult, ActiveJob } from '../types';
 
 interface ImportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeJob: ActiveJob | null;
   setActiveJob: React.Dispatch<React.SetStateAction<ActiveJob | null>>;
-  onConfirmImport: (job: FileUploadResult) => void;
+  onConfirmImport: (job: ActiveJob) => void;
 }
 
 const processingMessages = [
@@ -168,26 +150,21 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     if (jobs.length === 0) return;
     
-    let fileUploadResult: FileUploadResult | null = null;
     try {
         const job = jobs[0];
-        const { jobId, ...uploadResult } = await (async () => {
+        const uploadResult: FileUploadResult = await (async () => {
             if (job.type === 'file') {
-                const res = await uploadFile(job.content as File);
-                fileUploadResult = { ...res, mimeType: (job.content as File).type, fileName: job.name, uploadId: res.uploadId, fileUrl: res.fileUrl, filePath: res.filePath};
-                return { ...await startImportJob(fileUploadResult, 'document'), ...fileUploadResult };
+                return await uploadFile(job.content as File);
             } else {
-                const res = await uploadTextAsFile(job.content as string, job.name);
-                fileUploadResult = { ...res, mimeType: 'text/plain', fileName: job.name, uploadId: res.uploadId, fileUrl: res.fileUrl, filePath: res.filePath };
-                return { ...await startImportJob(fileUploadResult, 'text'), ...fileUploadResult };
+                return await uploadTextAsFile(job.content as string, job.name);
             }
         })();
 
+        const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text');
         setActiveJob({ id: jobId, step: 'pending', statusLog: [`[1/1] Submitting job for '${job.name}'...`], progress: { current: 0, total: 1 }, errors: [], extractedData: [] });
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to submit job.';
         setActiveJob(prev => ({ ...prev!, step: 'error', errors: [...(prev?.errors || []), errorMsg] }));
-        if (fileUploadResult?.filePath) await deleteImportFile(fileUploadResult.filePath);
     }
   };
 
@@ -199,17 +176,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
   
   const handleConfirm = () => { 
-    if (activeJob) {
-        // This is a placeholder for what would be a more complex mapping and validation before confirming.
-        const confirmedJob = {
-            uploadId: activeJob.id,
-            fileName: activeJob.extractedData[0]?.sourceName || 'imported-data',
-            filePath: '', // This would need to be tracked from the initial upload
-            fileUrl: '',
-            mimeType: ''
-        }
-        onConfirmImport(confirmedJob);
-    }
+    if (activeJob) onConfirmImport(activeJob);
   }; 
   
   const handleFullClose = () => {
@@ -231,7 +198,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             <p className="text-slate-300 text-sm">Upload spreadsheets (Actuals or Budgets), images, or paste text. The AI will act as a financial analyst to classify, read, and import the data automatically.</p>
             <div ref={dropzoneRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onClick={() => document.getElementById('file-upload')?.click()} className="border-2 border-dashed border-slate-600 rounded-lg p-10 text-center cursor-pointer transition-colors hover:bg-slate-800/50">
               <input id="file-upload" type="file" accept={acceptedFileTypes} className="hidden" onChange={(e) => handleFileDrop(e.target.files!)} multiple />
-              <Icon name="download" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
+              <Icon name="upload" className="w-12 h-12 mx-auto text-slate-500 mb-3" />
               {stagedWorkbook ? (
                  <div className="text-slate-200 text-sm text-left">
                     <p className="font-bold text-lg text-center mb-2">{stagedWorkbook.file.name}</p><p className="text-xs text-slate-400 mb-2">Select sheets to analyze:</p>

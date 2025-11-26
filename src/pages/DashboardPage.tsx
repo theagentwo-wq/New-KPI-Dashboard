@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { AIAssistant } from '../components/AIAssistant';
@@ -8,16 +8,16 @@ import { LocationInsightsModal } from '../components/LocationInsightsModal';
 import { CompanyStoreRankings } from '../components/CompanyStoreRankings';
 import { AIAlerts } from '../components/AIAlerts';
 import { AnomalyDetailModal } from '../components/AnomalyDetailModal';
-import { ReviewAnalysisModal } from './components/ReviewAnalysisModal';
-import { PerformanceMatrix } from './components/PerformanceMatrix';
-import { FirebaseStatus } from '../types';
+import { ReviewAnalysisModal } from '../components/ReviewAnalysisModal';
+import { PerformanceMatrix } from '../components/PerformanceMatrix';
 import { Modal } from '../components/Modal';
-import { ExecutiveSummaryModal } from './components/ExecutiveSummaryModal';
-import { KPISummaryCards } from './components/KPISummaryCards';
+import { ExecutiveSummaryModal } from '../components/ExecutiveSummaryModal';
+import { KPISummaryCards } from '../components/KPISummaryCards';
 
 interface DashboardPageProps {
     activePeriod: Period;
     activeView: View;
+    setActivePeriod: (period: Period) => void;
     notes: Note[];
     onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
     onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
@@ -29,18 +29,16 @@ interface DashboardPageProps {
     isExecutiveSummaryOpen: boolean;
     setIsExecutiveSummaryOpen: (isOpen: boolean) => void;
     dbStatus: FirebaseStatus;
-    setActivePeriod: (period: Period) => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ 
-    activePeriod, activeView, notes, onAddNote, onUpdateNote, onDeleteNote, loadedData, 
+    activePeriod, activeView, setActivePeriod, notes, onAddNote, onUpdateNote, onDeleteNote, loadedData, 
     budgets, isAlertsModalOpen, setIsAlertsModalOpen,
-    isExecutiveSummaryOpen, setIsExecutiveSummaryOpen, dbStatus,
-    setActivePeriod
+    isExecutiveSummaryOpen, setIsExecutiveSummaryOpen, dbStatus
 }) => {
     const [periodType, setPeriodType] = useState<PeriodOption>('Week');
     const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('vs. Prior Period');
-    const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+    const [userLocation, _setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
     const [selectedKpi, setSelectedKpi] = useState<Kpi>(Kpi.Sales);
 
@@ -49,7 +47,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [isAnomalyModalOpen, setAnomalyModalOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
     const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | undefined>(undefined);
-    const [comparisonData, setComparisonData] = useState<StorePerformanceData[]>([]);
+    const [comparisonData, _setComparisonData] = useState<StorePerformanceData[]>([]);
 
     const comparisonPeriod = useMemo(() => {
         if (comparisonMode === 'vs. Budget') return activePeriod;
@@ -130,7 +128,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 (Object.keys(sums) as Kpi[]).forEach(kpi => {
                     const config = KPI_CONFIG[kpi];
                     const count = counts[kpi] || 1;
-                    result[storeId][kpi] = config.format === 'currency' ? sums[kpi] : (sums[kpi] || 0) / count;
+                    result[storeId][kpi] = config.aggregation === 'sum' ? sums[kpi] : (sums[kpi] || 0) / count;
                 });
             });
             return result;
@@ -196,7 +194,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             const values = dataToSummarize.map(d => d[kpi]).filter(v => v !== undefined) as number[];
             if (values.length === 0) return;
             
-            if (kpiConfig.format === 'currency' || kpiConfig.aggregation === 'sum') {
+            if (kpiConfig.aggregation === 'sum') {
                 aggregated[kpi] = values.reduce((sum, v) => sum + v, 0);
             } else {
                 aggregated[kpi] = values.reduce((sum, v) => sum + v, 0) / values.length;
@@ -225,7 +223,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 
                 if (actualValues.length === 0) return;
 
-                if (kpiConfig.aggregation === 'sum' || kpiConfig.format === 'currency') {
+                if (kpiConfig.aggregation === 'sum') {
                     aggregated.actual[kpi] = actualValues.reduce((a, b) => a + b, 0);
                     aggregated.comparison[kpi] = comparisonValues.reduce((a, b) => a + b, 0);
                 } else {
@@ -236,7 +234,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     aggregated.variance[kpi] = aggregated.actual[kpi]! - aggregated.comparison[kpi]!;
                 }
             });
-            directorData[d.id] = { id: d.id, name: d.name, value: 0, actual: aggregated.actual, comparison: aggregated.comparison, variance: aggregated.variance };
+            directorData[d.id] = { id: d.id, name: d.firstName, value: 0, actual: aggregated.actual, comparison: aggregated.comparison, variance: aggregated.variance };
         });
         return directorData;
     }, [processedDataForTable]);
@@ -267,6 +265,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     data={summaryDataForCards}
                     selectedKpi={selectedKpi}
                     onKpiSelect={setSelectedKpi}
+                    period={activePeriod}
+                    view={activeView}
                 />
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
@@ -276,9 +276,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          selectedKpi={selectedKpi}
                          currentView={activeView}
                          periodType={periodType}
-                         setPeriodType={handleSetPeriodType as (type: PeriodOption) => void}
+                         setPeriodType={handleSetPeriodType as (type: string) => void}
                          comparisonMode={comparisonMode}
-                         setComparisonMode={setComparisonMode as (mode: ComparisonMode) => void}
+                         setComparisonMode={setComparisonMode as (mode: string) => void}
                          onLocationSelect={handleLocationSelect}
                          onReviewClick={handleReviewClick}
                          onPrevPeriod={handlePreviousPeriod}
@@ -321,6 +321,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 isOpen={isAnomalyModalOpen}
                 onClose={() => { setAnomalyModalOpen(false); setSelectedAnomaly(undefined); }}
                 anomaly={selectedAnomaly}
+                data={processedDataForTable}
             />
             <ExecutiveSummaryModal 
                 isOpen={isExecutiveSummaryOpen}

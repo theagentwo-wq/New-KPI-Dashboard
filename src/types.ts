@@ -37,17 +37,19 @@ export interface Period {
   endDate: Date;
   label: string;
   type: PeriodType;
+  year: number;
+  quarter: number;
 }
 
-export interface PerformanceData {
-  [key: string]: number | undefined;
-}
+export type PerformanceData = {
+    [key in Kpi]?: number;
+};
 
 export interface StorePerformanceData {
   storeId: string;
   data: PerformanceData;
   pnl?: FinancialLineItem[];
-  weekStartDate?: string; // Added for firebaseService compatibility
+  weekStartDate?: string;
 }
 
 export interface HistoricalData {
@@ -66,7 +68,6 @@ export type Audience = 'FOH' | 'BOH' | 'Managers';
 export interface Note {
   id: string;
   monthlyPeriodLabel: string;
-  timestamp: number;
   category: NoteCategory;
   content: string;
   scope: {
@@ -74,7 +75,7 @@ export interface Note {
     storeId?: string;
   };
   imageUrl?: string;
-  createdAt: number;
+  createdAt: string;
 }
 
 export interface Anomaly {
@@ -92,7 +93,13 @@ export interface Anomaly {
   analysis?: string;
 }
 
-export type AnalysisMode = 'Financial' | 'Operational' | 'Marketing' | 'HR' | 'General';
+export enum AnalysisMode {
+    General = 'General',
+    Financial = 'Financial',
+    Operational = 'Operational',
+    Marketing = 'Marketing',
+    HR = 'HR',
+}
 
 export interface DailyForecast {
   day: string;
@@ -100,7 +107,8 @@ export interface DailyForecast {
   icon: string;
   description: string;
   date: string;
-  condition: WeatherCondition; // Added for weatherService compatibility
+  condition: WeatherCondition;
+  temperature: number;
 }
 
 export interface ForecastDataPoint {
@@ -134,13 +142,13 @@ export interface Goal {
   year: number;
   kpi: Kpi;
   target: number; 
-  targetValue?: number; // Added for compatibility
-  endDate?: string; // Added for compatibility
+  targetValue?: number;
+  endDate?: string;
 }
 
 export interface DirectorProfile {
   id: string;
-  name: string;       // Changed from firstName
+  firstName: string;
   lastName: string;
   title: string;
   photo: string;
@@ -167,20 +175,22 @@ export interface Deployment {
   endDate: string;
   stores: string[];
   description: string;
-  createdAt: number;
+  createdAt: string;
   deployedPerson: string;
   destination: string;
   purpose: string;
   estimatedBudget: number;
-  status?: string; // Added for compatibility
+  status?: string;
 }
 
 export interface DataItem {
   id: string;
   value: number;
   name: string;
-  actual?: PerformanceData | number;      // Added for compatibility
-  aggregated?: PerformanceData | number; // Added for compatibility
+  actual?: PerformanceData | number;
+  aggregated?: PerformanceData | number;
+  comparison?: PerformanceData | number;
+  variance?: PerformanceData | number;
 }
 
 export interface StoreDetails {
@@ -193,7 +203,7 @@ export interface FinancialLineItem {
   name: string;
   actual: number;
   budget: number;
-  variance: number; // Added missing property
+  variance: number;
   category: string;
   indent?: boolean;
 }
@@ -220,13 +230,38 @@ export interface DataMappingTemplate {
   mapping: { [key: string]: string };
 }
 
-export interface FirebaseStatus {
-  status: 'initializing' | 'connected' | 'error';
-  error?: string;
-}
+export type FirebaseStatus = 
+  | { status: 'initializing'; error?: null; }
+  | { status: 'connected'; error?: null; }
+  | { status: 'error'; error: string; };
 
 export interface User {
-    // Define user properties if needed, left empty as it's unused for now
     id: string;
     name: string;
+}
+
+export interface KpiConfig {
+    label: string;
+    format: 'currency' | 'number' | 'percent';
+    higherIsBetter: boolean;
+    baseline?: number;
+    aggregation: 'sum' | 'avg';
+}
+
+type ImportStep = 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';
+
+interface ExtractedData {
+    dataType: 'Actuals' | 'Budget';
+    data: any[];
+    sourceName: string;
+    isDynamicSheet?: boolean;
+}
+
+export interface ActiveJob {
+    id: string;
+    step: ImportStep;
+    statusLog: string[];
+    progress: { current: number; total: number };
+    errors: string[];
+    extractedData: ExtractedData[];
 }

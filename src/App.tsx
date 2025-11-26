@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
-import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FileUploadResult } from './types';
+import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, Goal, Deployment, FileUploadResult, FirebaseStatus, PerformanceData, ActiveJob } from './types';
 import { DIRECTORS } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
 import { 
@@ -24,7 +24,6 @@ import {
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { ImportDataModal } from './components/ImportDataModal';
 import { StrategyHubModal } from './components/StrategyHubModal';
-import { FirebaseStatus } from './types';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -46,7 +45,7 @@ const App = () => {
   const [isDirectorProfileOpen, setIsDirectorProfileOpen] = useState(false);
   const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | null>(null);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
-  const [activeJob, setActiveJob] = useState<FileUploadResult | null>(null);
+  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
   const [isStrategyHubOpen, setStrategyHubOpen] = useState(false);
 
   useEffect(() => {
@@ -130,7 +129,8 @@ const App = () => {
   };
   
   const handleConfirmImport = (job: FileUploadResult) => {
-      setActiveJob(job);
+    console.log('Confirmed import:', job);
+    setImportModalOpen(false);
   }
 
   const renderPage = () => {
@@ -139,6 +139,7 @@ const App = () => {
         return <DashboardPage 
                     activeView={activeView}
                     activePeriod={activePeriod}
+                    setActivePeriod={setActivePeriod}
                     notes={notes}
                     onAddNote={handleAddNote}
                     onUpdateNote={handleUpdateNote}
