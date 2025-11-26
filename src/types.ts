@@ -149,6 +149,7 @@ export interface Goal {
 
 export interface DirectorProfile {
   id: string;
+  name: string;
   firstName: string;
   lastName: string;
   title: string;
@@ -188,10 +189,9 @@ export interface DataItem {
   id: string;
   value: number;
   name: string;
-  actual?: PerformanceData | number;
-  aggregated?: PerformanceData | number;
-  comparison?: PerformanceData | number;
-  variance?: PerformanceData | number;
+  actual: any;
+  comparison?: any;
+  variance: any;
 }
 
 export interface StoreDetails {
@@ -247,6 +247,22 @@ export interface KpiConfig {
     higherIsBetter: boolean;
     baseline?: number;
     aggregation: 'sum' | 'avg';
+}
+
+export interface KPISummaryCardsProps {
+    data: PerformanceData;
+    selectedKpi: Kpi;
+    onKpiSelect: (kpi: Kpi) => void;
+    period: Period;
+    view: View;
+}
+
+
+export interface AnomalyDetailModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    anomaly: Anomaly | undefined;
+    data: { [storeId: string]: DataItem };
 }
 
 type ImportStep = 'upload' | 'guided-paste' | 'pending' | 'processing' | 'verify' | 'finished' | 'error';

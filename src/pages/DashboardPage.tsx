@@ -275,6 +275,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          data={processedDataForTable}
                          selectedKpi={selectedKpi}
                          currentView={activeView}
+                         period={activePeriod}
                          periodType={periodType}
                          setPeriodType={handleSetPeriodType as (type: string) => void}
                          comparisonMode={comparisonMode}
