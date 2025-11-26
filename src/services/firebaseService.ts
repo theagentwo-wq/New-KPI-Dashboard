@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { Note, NoteCategory, View, DirectorProfile, Kpi, PerformanceData, StorePerformanceData, Budget, Goal, Period, Deployment, FileUploadResult, FinancialLineItem } from '../types';
 import { DIRECTORS as fallbackDirectors, ALL_STORES, KPI_CONFIG } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
@@ -13,13 +14,13 @@ export type FirebaseStatus =
 let parsedConfig: any;
 
 try {
-  const configString = import.meta.env.FIREBASE_CLIENT_CONFIG;
+  const configString = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
   if (!configString) {
-    throw new Error("FIREBASE_CLIENT_CONFIG is not defined in .env.local");
+    throw new Error("VITE_FIREBASE_CLIENT_CONFIG is not defined in .env.local");
   }
   parsedConfig = JSON.parse(configString);
 } catch (e: any) {
-  console.error("Failed to parse FIREBASE_CLIENT_CONFIG from .env.local:", e.message);
+  console.error("Failed to parse VITE_FIREBASE_CLIENT_CONFIG from .env.local:", e.message);
   parsedConfig = null;
 }
 
@@ -43,7 +44,7 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     if (!firebaseConfig) {
         return {
             status: 'error',
-            error: `Firebase configuration is missing or invalid. Please check the FIREBASE_CLIENT_CONFIG value in your .env.local file.`
+            error: `Firebase configuration is missing or invalid. Please check the VITE_FIREBASE_CLIENT_CONFIG value in your .env.local file.`
         };
     }
 
@@ -412,4 +413,40 @@ export const updateBudget = async (storeId: string, year: number, month: number,
             createdAt: doc.data().createdAt.toDate().toISOString()
          } as Deployment));
     };
-    
+ export const getAggregatedPerformanceDataForPeriod = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
+    if (!actualsCollection) throw new Error("Firebase not initialized.");
+
+    const weeklyData = await getPerformanceData(period.startDate, period.endDate);
+    const storeData = weeklyData.filter(d => d.storeId === storeId);
+
+    if (storeData.length === 0) {
+        return null;
+    }
+
+    const aggregated: PerformanceData = {};
+    const counts: { [key in Kpi]?: number } = {};
+
+    storeData.forEach(weekly => {
+        for (const key in weekly.data) {
+            const kpi = key as Kpi;
+            const value = weekly.data[kpi];
+            if (value !== undefined) {
+                if (!aggregated[kpi]) {
+                    aggregated[kpi] = 0;
+                    counts[kpi] = 0;
+                }
+                aggregated[kpi]! += value;
+                counts[kpi]! += 1;
+            }
+        }
+    });
+
+    for (const key in aggregated) {
+        const kpi = key as Kpi;
+        if (KPI_CONFIG[kpi] && KPI_CONFIG[kpi].aggregation === 'avg') {
+            aggregated[kpi]! /= (counts[kpi] || 1);
+        }
+    }
+
+    return aggregated;
+};

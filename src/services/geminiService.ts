@@ -53,6 +53,22 @@ export const chatWithStrategy = (context: string, userQuery: string, mode: Analy
     return callGeminiAPI('chatWithStrategy', { context, userQuery, mode });
 };
 
+export const getStrategicExecutiveAnalysis = (
+    kpi: Kpi,
+    period: string,
+    companyTotal: string,
+    directorPerformance: { name: string, value: string }[],
+    anchorStores: { store: string, value: string }[]
+): Promise<string> => {
+    return callGeminiAPI('getStrategicExecutiveAnalysis', {
+        kpi,
+        period,
+        companyTotal,
+        directorPerformance,
+        anchorStores
+    });
+};
+
 export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
