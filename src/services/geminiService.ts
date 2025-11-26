@@ -6,7 +6,7 @@ export const getInsights = (data: Record<string, DataItem>, view: View, period: 
 };
 
 export const getExecutiveSummary = (data: { [key: string]: DataItem }, view: View, period: Period): Promise<string> => {
-  return callGeminiAPI('getExecutiveSummary', { data, view, period });
+  return callGeminiAPI('gemini', { data, view, period });
 };
 
 export const getReviewSummary = (locationName: string): Promise<any> => {

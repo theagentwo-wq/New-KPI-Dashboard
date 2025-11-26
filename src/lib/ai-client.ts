@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // This file is the single, secure interface for communicating with backend and Google APIs.
 
@@ -7,8 +8,6 @@ interface GoogleWindow extends Window {
 
 declare let window: GoogleWindow;
 
-const API_BASE_URL = "/api"; // Use a relative path to leverage Firebase Hosting rewrites
-
 /**
  * A secure proxy function to call the backend's Gemini API (Cloud Function).
  * @param action The specific AI task to be performed (e.g., "getReviewSummary").
@@ -16,22 +15,18 @@ const API_BASE_URL = "/api"; // Use a relative path to leverage Firebase Hosting
  * @returns The AI-generated content.
  */
 export const callGeminiAPI = async (action: string, payload: any) => {
-  const response = await fetch(`${API_BASE_URL}/gemini`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ action, payload }),
-  });
+  const functions = getFunctions();
+  let callable;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: `API request failed with status ${response.status}` }));
-    // Surface the specific, user-friendly error message from the backend.
-    throw new Error(errorData.error || `API request failed with status ${response.status}`);
+  if (action === 'gemini') {
+      callable = httpsCallable(functions, 'getExecutiveSummary');
+  } else {
+      // This is a fallback for other actions, you might want to handle this differently
+      callable = httpsCallable(functions, action);
   }
-
-  const data = await response.json();
-  return data.content;
+  
+  const result = await callable(payload);
+  return (result.data as any).summary;
 };
 
 /**
