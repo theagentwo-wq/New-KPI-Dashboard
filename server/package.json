@@ -17,7 +17,9 @@
     "firebase-functions": "^5.0.1",
     "google-auth-library": "^9.11.0",
     "googleapis": "^140.0.1",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
+    "@google-cloud/vertexai": "^1.1.0",
+    "@googlemaps/google-maps-services-js": "^3.4.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

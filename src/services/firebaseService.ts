@@ -3,16 +3,16 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/auth';
 import 'firebase/compat/storage';
-import { 
-    Kpi, 
-    View, 
-    Period, 
-    PerformanceData, 
-    StorePerformanceData, 
-    Note, 
-    Goal, 
-    DirectorProfile, 
-    Deployment, 
+import {
+    Kpi,
+    View,
+    Period,
+    PerformanceData,
+    StorePerformanceData,
+    Note,
+    Goal,
+    DirectorProfile,
+    Deployment,
     FileUploadResult,
     FirebaseStatus,
     NoteCategory,
@@ -35,11 +35,28 @@ let budgetsCollection: firebase.firestore.CollectionReference;
 
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     try {
-        const response = await fetch('/__/firebase/init.json');
-        if (!response.ok) {
-            throw new Error(`Firebase config not found at ${response.url}`);
+        let firebaseConfig;
+
+        try {
+            const response = await fetch('/__/firebase/init.json');
+            if (response.ok) {
+                firebaseConfig = await response.json();
+            }
+        } catch (e) {
+            console.log("Local environment detected, skipping auto-init fetch.");
         }
-        const firebaseConfig = await response.json();
+
+        if (!firebaseConfig) {
+            const envConfig = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+            if (envConfig) {
+                // Handle both object (if already parsed) and string formats
+                firebaseConfig = typeof envConfig === 'string' ? JSON.parse(envConfig) : envConfig;
+            }
+        }
+
+        if (!firebaseConfig) {
+            throw new Error("Firebase config not found. Checked /__/firebase/init.json and VITE_FIREBASE_CLIENT_CONFIG.");
+        }
 
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -83,23 +100,23 @@ const seedInitialData = async () => {
 // --- Notes Functions ---
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
-  let imageRefUrl = '';
-  if (imageDataUrl) {
-      const imageRef = storage.ref().child(`notes_images/${new Date().toISOString()}.jpg`);
-      const snapshot = await imageRef.putString(imageDataUrl, 'data_url');
-      imageRefUrl = await snapshot.ref.getDownloadURL();
-  }
+    let imageRefUrl = '';
+    if (imageDataUrl) {
+        const imageRef = storage.ref().child(`notes_images/${new Date().toISOString()}.jpg`);
+        const snapshot = await imageRef.putString(imageDataUrl, 'data_url');
+        imageRefUrl = await snapshot.ref.getDownloadURL();
+    }
 
-  const newNote: Omit<Note, 'id'> = {
-      monthlyPeriodLabel,
-      category,
-      content,
-      scope,
-      createdAt: new Date().toISOString(),
-      imageUrl: imageRefUrl || undefined,
-  };
-  const docRef = await notesCollection.add(newNote);
-  return { id: docRef.id, ...newNote };
+    const newNote: Omit<Note, 'id'> = {
+        monthlyPeriodLabel,
+        category,
+        content,
+        scope,
+        createdAt: new Date().toISOString(),
+        imageUrl: imageRefUrl || undefined,
+    };
+    const docRef = await notesCollection.add(newNote);
+    return { id: docRef.id, ...newNote };
 };
 
 export const getNotes = async (): Promise<Note[]> => {
@@ -127,28 +144,28 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
 };
 
 export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
-  const snapshot = await actualsCollection.get();
-  return snapshot.docs.map(doc => {
-      const docData = doc.data();
-      const docId = doc.id;
+    const snapshot = await actualsCollection.get();
+    return snapshot.docs.map(doc => {
+        const docData = doc.data();
+        const docId = doc.id;
 
-      // ID format is "Store Name, ST_YYYY-MM-DD" or "Store_Name_ST_YYYY-MM-DD"
-      const lastUnderscoreIndex = docId.lastIndexOf('_');
-      const dateStr = docId.substring(lastUnderscoreIndex + 1); // "YYYY-MM-DD"
-      
-      const dateParts = dateStr.split('-').map(Number);
-      const year = dateParts[0];
-      const month = dateParts[1];
-      const day = dateParts[2];
+        // ID format is "Store Name, ST_YYYY-MM-DD" or "Store_Name_ST_YYYY-MM-DD"
+        const lastUnderscoreIndex = docId.lastIndexOf('_');
+        const dateStr = docId.substring(lastUnderscoreIndex + 1); // "YYYY-MM-DD"
 
-      return {
-          storeId: docData.storeId,
-          year: year,
-          month: month,
-          day: day,
-          data: docData.data as PerformanceData
-      } as StorePerformanceData;
-  });
+        const dateParts = dateStr.split('-').map(Number);
+        const year = dateParts[0];
+        const month = dateParts[1];
+        const day = dateParts[2];
+
+        return {
+            storeId: docData.storeId,
+            year: year,
+            month: month,
+            day: day,
+            data: docData.data as PerformanceData
+        } as StorePerformanceData;
+    });
 };
 
 export const getAggregatedPerformanceDataForPeriod = async (period: Period, storeId?: string): Promise<PerformanceData> => {
@@ -188,18 +205,18 @@ export const getDeploymentsForDirector = async (directorId: string): Promise<Dep
 
 // --- Budgets ---
 export const getBudgets = async (year: number): Promise<Budget[]> => {
-  const snapshot = await budgetsCollection.where('year', '==', year).get();
-  return snapshot.docs.map((doc: firebase.firestore.DocumentData) => doc.data() as Budget);
+    const snapshot = await budgetsCollection.where('year', '==', year).get();
+    return snapshot.docs.map((doc: firebase.firestore.DocumentData) => doc.data() as Budget);
 };
 
 export const saveBudgets = async (budgets: Budget[]): Promise<void> => {
-  const batch = db.batch();
-  budgets.forEach(budget => {
-      const docId = `${budget.storeId}_${budget.year}_${budget.month}`;
-      const docRef = budgetsCollection.doc(docId);
-      batch.set(docRef, budget);
-  });
-  await batch.commit();
+    const batch = db.batch();
+    budgets.forEach(budget => {
+        const docId = `${budget.storeId}_${budget.year}_${budget.month}`;
+        const docRef = budgetsCollection.doc(docId);
+        batch.set(docRef, budget);
+    });
+    await batch.commit();
 };
 
 // --- File Uploads ---
@@ -222,12 +239,12 @@ export const uploadFile = async (file: File, onProgress: (progress: number) => v
             },
             async () => {
                 const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-                resolve({ 
-                    filePath: fileRef.fullPath, 
-                    uploadId, 
-                    mimeType: file.type, 
-                    fileName: file.name, 
-                    fileUrl: downloadURL 
+                resolve({
+                    filePath: fileRef.fullPath,
+                    uploadId,
+                    mimeType: file.type,
+                    fileName: file.name,
+                    fileUrl: downloadURL
                 });
             }
         );

@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'https://api-watqbfh3lq-uc.a.run.app',
+          target: env.VITE_API_URL || 'https://api-watqbfh3lq-uc.a.run.app',
           changeOrigin: true,
           secure: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
