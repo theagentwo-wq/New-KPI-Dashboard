@@ -1,6 +1,38 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// This file is the single, secure interface for communicating with backend and Google APIs.
+// This file is the single, secure interface for communicating with the backend API.
+
+/**
+ * A secure proxy function to call the backend API (Cloud Function).
+ * @param action The specific task to be performed (e.g., "getReviewSummary").
+ * @param payload The data required for the task.
+ * @returns The result from the backend.
+ */
+export const callGeminiAPI = async (action: string, payload: any): Promise<any> => {
+  try {
+    const response = await fetch(`/api/${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: payload }),
+    });
+
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API Error: ${response.statusText}`);
+      } catch (e) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error(`Failed to call API action \"${action}\":`, error);
+    throw error;
+  }
+};
 
 interface GoogleWindow extends Window {
   google: any;
@@ -8,26 +40,6 @@ interface GoogleWindow extends Window {
 
 declare let window: GoogleWindow;
 
-/**
- * A secure proxy function to call the backend's Gemini API (Cloud Function).
- * @param action The specific AI task to be performed (e.g., "getReviewSummary").
- * @param payload The data required for the task.
- * @returns The AI-generated content.
- */
-export const callGeminiAPI = async (action: string, payload: any) => {
-  const functions = getFunctions();
-  let callable;
-
-  if (action === 'gemini') {
-      callable = httpsCallable(functions, 'getExecutiveSummary');
-  } else {
-      // This is a fallback for other actions, you might want to handle this differently
-      callable = httpsCallable(functions, action);
-  }
-  
-  const result = await callable(payload);
-  return (result.data as any).summary;
-};
 
 /**
  * Uses the client-side Google Maps SDK to get location details.
@@ -59,7 +71,7 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
         resolve({ ...place, photoUrls });
 
       } else if (status === window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-        reject(new Error(`No location details found for "${searchQuery}". Please check the spelling or provide a more specific name.`));
+        reject(new Error(`No location details found for \"${searchQuery}\". Please check the spelling or provide a more specific name.`));
       } else {
         reject(new Error(`Failed to fetch place details from Google Maps. Status: ${status}`));
       }

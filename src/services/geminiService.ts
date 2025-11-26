@@ -1,3 +1,4 @@
+
 import { callGeminiAPI } from '../lib/ai-client';
 import { Period, View, PerformanceData, Note, Anomaly, AnalysisMode, FileUploadResult, Audience, Weather, Kpi, ForecastDataPoint, DailyForecast, DataItem } from '../types';
 
@@ -6,7 +7,7 @@ export const getInsights = (data: Record<string, DataItem>, view: View, period: 
 };
 
 export const getExecutiveSummary = (data: { [key: string]: DataItem }, view: View, period: Period): Promise<string> => {
-  return callGeminiAPI('gemini', { data, view, period });
+  return callGeminiAPI('getExecutiveSummary', { data, view, period });
 };
 
 export const getReviewSummary = (locationName: string): Promise<any> => {
@@ -50,7 +51,7 @@ export const runWhatIfScenario = (data: any, prompt: string): Promise<{ analysis
 };
 
 export const startStrategicAnalysisJob = (payload: FileUploadResult, mode: AnalysisMode, period: Period, view: View): Promise<{ jobId: string }> => {
-    return callGeminiAPI('startStrategicAnalysis', { ...payload, mode, period, view });
+    return callGeminiAPI('startStrategicAnalysisJob', { ...payload, mode, period, view });
 };
 
 export const chatWithStrategy = (context: string, userQuery: string, mode: AnalysisMode): Promise<string> => {
@@ -73,7 +74,7 @@ export const getStrategicExecutiveAnalysis = (
     });
 };
 
-export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
+export const startTask = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
       model: 'gemini-1.5-pro-latest',

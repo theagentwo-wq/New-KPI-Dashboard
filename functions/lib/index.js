@@ -3,13 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const app_1 = require("firebase-admin/app");
-const firestore_1 = require("firebase-admin/firestore");
 const config_1 = require("./config");
 const generative_ai_1 = require("@google/generative-ai");
 const cors = require("cors");
 const corsHandler = cors({ origin: true });
 (0, app_1.initializeApp)();
-const db = (0, firestore_1.getFirestore)();
 const MODEL_CONFIG = {
     temperature: 0.2,
     topP: 0.8,
