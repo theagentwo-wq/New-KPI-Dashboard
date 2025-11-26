@@ -8,8 +8,8 @@
     ],
     "rewrites": [
       {
-        "source": "/api/gemini",
-        "function": "getExecutiveSummary"
+        "source": "/api/**",
+        "function": "api"
       },
       {
         "source": "**",
