@@ -1,10 +1,10 @@
 
-// V10 - Final casing fix for TypeScript build error
+// V11 - Migrated to Google Generative AI SDK for better reliability
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
-import { VertexAI } from "@google-cloud/vertexai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Client, PlaceInputType } from "@googlemaps/google-maps-services-js";
 
 // Initialize Firebase and Express
@@ -235,13 +235,17 @@ app.post("/gemini", handleGeminiRequest);
 
 const generateAIContent = async (prompt: string, action: string) => {
     try {
-        // Explicitly use the Firebase project ID
-        const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'kpi-dashboardgit-9913298-66e65';
-        console.log(`[Vertex AI] Initializing with project: ${projectId}, location: us-central1, model: gemini-1.5-flash-002`);
-        const vertex_ai = new VertexAI({ project: projectId, location: 'us-central1' });
-        const model = 'gemini-1.5-flash-002';
-        const generativeModel = vertex_ai.getGenerativeModel({
-            model: model,
+        // Use GEMINI_API_KEY environment variable (set via Firebase secrets)
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY environment variable is not set');
+        }
+
+        console.log(`[Gemini AI] Generating content for action: ${action}, model: gemini-2.0-flash-exp`);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-exp",
             generationConfig: {
                 maxOutputTokens: 8192,
                 temperature: 1,
@@ -249,23 +253,20 @@ const generateAIContent = async (prompt: string, action: string) => {
             },
         });
 
-        const result = await generativeModel.generateContent(prompt);
-        
-        if (!result.response.candidates?.[0]?.content.parts[0]?.text) {
-            console.error(`Vertex AI Error - Empty Response for action "${action}":`, JSON.stringify(result.response, null, 2));
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+
+        if (!response.text()) {
+            console.error(`Gemini AI Error - Empty Response for action "${action}":`, JSON.stringify(response, null, 2));
             throw new Error('The AI model returned an empty or invalid response.');
         }
 
-        const responseText = result.response.candidates[0].content.parts[0].text;
-        return responseText;
+        return response.text();
 
     } catch (error: any) {
-        console.error(`Vertex AI Error for action "${action}":`, error);
-        if (error.message && error.message.includes("PERMISSION_DENIED")) {
-             throw new Error("AI API Call Failed: The 'Vertex AI User' role is likely missing for the service account. Please check your project's IAM settings.");
-        }
-        throw new Error(`AI content generation failed for action: ${action}. Please check the server logs.`);
+        console.error(`Gemini AI Error for action "${action}":`, error);
+        throw new Error(`AI content generation failed for action: ${action}. Reason: ${getErrorMessage(error)}`);
     }
 };
 
-export const api = onRequest({ secrets: ["VITE_MAPS_KEY"] }, app);
+export const api = onRequest({ secrets: ["VITE_MAPS_KEY", "GEMINI_API_KEY"] }, app);
