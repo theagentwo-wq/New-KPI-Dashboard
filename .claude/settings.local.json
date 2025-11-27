@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nUpdate DEVELOPMENT.md: Document API 500 fix and local build fix\n\nAdded completed items:\n- API 500 errors fixed (response format mismatch)\n- Local build environment fixed (missing node_modules)\n- Priority 1 status updated to COMPLETE\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(cat:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix Vertex AI API configuration: Use stable model and remove preview API\n\nChanges:\n- Changed from vertex_ai.preview.getGenerativeModel to vertex_ai.getGenerativeModel\n- Updated model from ''gemini-1.5-pro-latest'' to ''gemini-1.5-flash-002''\n- Temporarily removed googleSearchRetrieval tool to isolate API issues\n- This should fix the \"generativelanguage.googleapis.com\" endpoint errors\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix Vertex AI: Explicitly set project ID with fallback\n\nChanges:\n- Added explicit project ID with fallback chain\n- Uses GCLOUD_PROJECT, GCP_PROJECT, or hardcoded project ID\n- This ensures Vertex AI client initializes with correct project\n- Should fix generativelanguage.googleapis.com routing error\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd debug logging to Vertex AI initialization\n\n- Log project ID, location, and model being used\n- Will help diagnose which project/config is being used\n- Temporary logging to troubleshoot API routing issue\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
