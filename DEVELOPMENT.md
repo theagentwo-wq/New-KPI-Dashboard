@@ -165,13 +165,30 @@ A previous LLM deleted or broke significant portions of the UI functionality. Us
 - **Server**: Express app in `server/src/index.ts` with individual routes per action
 - **Gemini Handler**: All AI actions go through `handleGeminiRequest()` function
 
-### Environment Variables
-All use `VITE_` prefix for build-time injection:
+### Environment Variables & Secrets Management
+
+**Frontend Environment Variables** (use `VITE_` prefix for build-time injection):
 - `VITE_MAPS_KEY` - Google Maps API key
 - `VITE_FIREBASE_CLIENT_CONFIG` - Firebase client config JSON
-- `VITE_GEMINI_API_KEY` - Gemini API key (local dev only)
 
-Production values stored as GitHub Secrets and injected during deployment.
+**Backend Secrets** (Google Secret Manager):
+- `GEMINI_API_KEY` - Gemini AI API key (accessed by Cloud Functions via Firebase secrets mechanism)
+  - Configured in `server/src/index.ts` via `onRequest({ secrets: ["GEMINI_API_KEY"] })`
+  - Stored in Google Secret Manager: https://console.cloud.google.com/security/secret-manager?project=kpi-dashboardgit-9913298-66e65
+  - Cloud Functions automatically pull from Secret Manager (no GitHub secret needed)
+
+**GitHub Secrets** (for deployment):
+- `VITE_MAPS_KEY` - Injected during build for frontend
+- `FIREBASE_CLIENT_CONFIG` - Injected during build for frontend Firebase initialization
+- `FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD` - Service account JSON for GitHub Actions to deploy to Firebase
+  - **IMPORTANT**: This is needed for automated deployments via GitHub Actions
+  - Do NOT delete this secret - it's not related to Gemini API
+  - Used by `.github/workflows/firebase-hosting-merge.yml` to authenticate deployments
+
+**Secret Separation**:
+- Frontend secrets → GitHub Secrets (injected at build time)
+- Backend secrets → Google Secret Manager (accessed at runtime by Cloud Functions)
+- Deployment secrets → GitHub Secrets (used by GitHub Actions)
 
 ### Deployment Flow
 1. Code pushed to `main` branch
