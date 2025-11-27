@@ -23,10 +23,109 @@ This file tracks ongoing development work, known issues, and progress on the KPI
 ### 🚧 In Progress
 None currently
 
-### 📋 Planned / TODO
-1. **Test API Endpoints** - Verify all AI and Maps endpoints work after deployment
-2. **Connect Firestore Financial Data** - Wire up the existing Firestore data to populate dashboard KPIs
-3. **Fix UI/UX Issues** - Restore functionality that was deleted by previous LLM work
+### 📋 Top Priorities
+
+#### Priority 1: API Connectivity ✅ MOSTLY COMPLETE
+**Status**: Routes fixed, deployment in progress, testing needed
+
+**What was done**:
+- ✅ Fixed all API routing issues (404 errors resolved)
+- ✅ Created individual routes for each Gemini AI action
+- ✅ Added missing action handlers in server
+- ✅ Deployed to production via GitHub Actions
+
+**What's needed**:
+- Test API endpoints after deployment completes
+- Verify Gemini AI responses work correctly
+- Verify Google Maps Places API works correctly
+- Check for any permission/authentication issues with Vertex AI
+
+**Files involved**:
+- `server/src/index.ts` - All API routing and handlers
+- `src/lib/ai-client.ts` - Frontend API client
+- `src/services/geminiService.ts` - Service layer for AI calls
+
+---
+
+#### Priority 2: Financial Data Population 🚧 READY TO START
+**Status**: Data exists in Firestore, needs to be connected to UI
+
+**Problem**:
+Dashboard shows placeholder/mock data instead of real financial KPIs from Firestore. The data exists in the database but isn't being fetched or displayed.
+
+**What needs to happen**:
+1. **Explore Firestore structure** - Understand how financial data is organized
+   - What collections exist?
+   - What's the data schema?
+   - How is it organized (by location, period, etc.)?
+
+2. **Create data fetching layer**
+   - Build services to fetch financial data from Firestore
+   - Handle real-time updates (if needed)
+   - Cache/optimize queries for performance
+
+3. **Wire up to UI components**
+   - Connect dashboard components to real data
+   - Update charts and KPI displays
+   - Ensure period/view filtering works correctly
+
+4. **Test data flow**
+   - Verify all KPIs populate correctly
+   - Test filtering by period (week, month, quarter, year)
+   - Test filtering by view (company, region, location)
+
+**Files to investigate**:
+- Firestore collections (via Firebase Console or queries)
+- `src/components/Dashboard.tsx` - Main dashboard component
+- `src/components/FinancialStatements.tsx` - Financial data display
+- `src/services/*` - Likely need to create new data services
+- `src/types.ts` - Data type definitions
+
+**Technical approach**:
+- Use Firebase SDK to query Firestore
+- Implement proper TypeScript types for data
+- Consider using React hooks for data fetching (useEffect, custom hooks)
+- Handle loading states and errors gracefully
+
+---
+
+#### Priority 3: UI/UX Functionality Restoration 🔴 REQUIRES USER INPUT
+**Status**: Needs assessment, user has screenshots and descriptions
+
+**Problem**:
+A previous LLM deleted or broke significant portions of the UI functionality. User has screenshots showing how things should work.
+
+**What needs to happen**:
+1. **Get screenshots and descriptions from user**
+   - What functionality is missing?
+   - What should each feature do?
+   - How should it look and behave?
+
+2. **Assess what's broken/missing**
+   - Compare current state to desired state
+   - Identify deleted components
+   - Identify broken interactions
+
+3. **Prioritize restoration work**
+   - Critical functionality first
+   - Nice-to-have features later
+
+4. **Rebuild missing features**
+   - Restore deleted components
+   - Fix broken interactions
+   - Match design to screenshots
+
+**Next steps**:
+- User to provide screenshots and feature descriptions
+- Create detailed list of missing/broken features
+- Break down into smaller tasks
+
+---
+
+### 📋 Other TODO Items
+- **Test API Endpoints** - After Priority 1 deployment completes
+- **Performance optimization** - After data is connected
+- **Error handling improvements** - Ongoing as issues are discovered
 
 ## Known Issues
 

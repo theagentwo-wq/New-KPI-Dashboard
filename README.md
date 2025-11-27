@@ -18,14 +18,20 @@ This is a world-class, interactive, and visually polished Operations KPI Dashboa
 
 ## Project Workflow
 
-This project uses a hybrid workflow that combines local development and testing with automated deployment via GitHub.
+This project uses automated deployment via GitHub Actions with all development tracked in version control.
 
-1.  **Local Development**: All code is edited and tested within this cloud IDE, which functions as a local development environment.
-    *   To run the app for testing, use the `npm run dev` command in the terminal.
-    *   This requires local environment variables to be set (see "Local Development Setup" below).
-2.  **Version Control**: Changes are committed and pushed to the project's GitHub repository. All work should happen on the `main` branch.
-3.  **Automated Deployment**: Pushing code to the `main` branch of the GitHub repository automatically triggers a GitHub Action. This action builds the application and deploys it to the live Firebase Hosting environment.
-4.  **Deployment Secrets**: For the automated deployment to succeed, API keys and configuration must be stored as **Secrets** in the GitHub repository. The deployment workflow injects these secrets into the live application.
+1.  **Local Development**: Edit code in your IDE and test locally using `npm run dev`
+    *   Requires `.env.local` file with environment variables (see "Local Development Setup" below)
+    *   The `/server` directory contains Cloud Functions source code
+2.  **Version Control**: All work happens on the `main` branch
+    *   All changes are committed automatically with Claude Code attribution
+    *   Push to `main` triggers automatic deployment
+3.  **Automated Deployment**: GitHub Actions workflow handles build and deployment
+    *   Builds frontend React app with Vite
+    *   Builds server functions from `/server` directory
+    *   Deploys to Firebase Hosting and Cloud Functions
+    *   Injects production secrets from GitHub Secrets during build
+4.  **Development Tracking**: See `DEVELOPMENT.md` for ongoing work, known issues, and session notes
 
 ---
 
@@ -116,63 +122,27 @@ These are the official identifiers for the active projects.
 
 ---
 
-## Assistant Instructions
+## Architecture Notes
 
-**For the AI Assistant:**
+### API Structure
+- **Frontend**: Calls `/api/{action}` via `src/lib/ai-client.ts`
+- **Firebase Hosting**: Routes `/api/**` to Cloud Function named `api`
+- **Server**: Express app in `server/src/index.ts` with individual routes per action
+- **Gemini Handler**: All AI actions go through `handleGeminiRequest()` function
 
-1.  **Review this `README.md` file in its entirety before starting any new task.** It contains critical information about how the project is managed and configured. If there are discrepencies ask the user to define
-2.  If any part of a request is unclear, or if it seems to conflict with the information in this document, you **must** ask for clarification before taking any action.
-3.  **Never assume a local file system or terminal.** All project code and configuration lives in this IDE and GitHub. The local file system is not part of the development workflow and DOES not contain all the updates files for use.
-4.  **Clarification on Environment:** To be perfectly clear, I am an AI assistant operating in a sandboxed cloud IDE. I am not on your local computer. The only files I can access are the ones inside this project, provided by the IDE's environment.
-
-## Development Environment Troubleshooting Log
-
-This project recently underwent significant troubleshooting to resolve persistent build and compilation errors. The primary issue stemmed from phantom errors related to a deleted script (`scripts/seed-database.ts`) that were being cached by the TypeScript server.
-
-The following steps were taken to stabilize the development environment:
-
-1.  **Deleted Obsolete Scripts:** The unused `scripts/seed-database.ts` file was removed.
-2.  **Corrected TypeScript Configuration:**
-    *   Modified `tsconfig.json` to have a more specific `"include"` array (`["src", "netlify/**/*.ts"]`) to prevent it from scanning the entire project.
-    *   Modified `tsconfig.node.json` to remove `scripts/**/*.ts` from its `"include"` array, which was the primary source of the phantom errors.
-    *   Removed a restrictive `types` array from `tsconfig.json` to allow automatic detection of React types.
-3.  **Cleaned Project Dependencies:** The `node_modules` directory and `package-lock.json` file were deleted, followed by a fresh `npm install` to ensure a clean, non-corrupted state.
-4.  **Resolved Code Warnings:** Removed an unused `FileUploadResult` import from `src/App.tsx`.
-
-**Current Status:** As of this writing, all underlying file and configuration issues have been resolved. However, the IDE's TypeScript server is still caching the old, phantom errors. A full restart of the IDE application is required to clear this cache.
+### Functions Directory
+The project uses `/server` as the Cloud Functions source directory (as specified in `firebase.json`). The `/functions` directory exists but is not used in deployment.
 
 ---
 
-## Antigravity Environment Setup (November 2025)
+## Development Notes
 
-This project was migrated from Firebase Studio Editor to the Antigravity development environment. The following changes were made to ensure compatibility:
+For ongoing development work, known issues, and session notes, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
-### Configuration Updates
-
-1. **`.firebaserc`**: Updated project ID from `operations-kpi-dashboard` to `kpi-dashboardgit-9913298-66e65`
-2. **GitHub Workflow** (`.github/workflows/firebase-hosting-merge.yml`):
-   - Changed `functions` directory reference to `server` directory
-   - Added environment variable injection during build step (`VITE_MAPS_KEY`, `VITE_FIREBASE_CLIENT_CONFIG`)
-   - Updated Firebase service account secret name to `FIREBASE_SERVICE_ACCOUNT_OPERATIONS_KPI_DASHBOARD`
-   - Updated project ID to `kpi-dashboardgit-9913298-66e65`
-3. **`vite.config.ts`**: Updated environment variable names to use `VITE_` prefix for proper build-time injection
-4. **`src/hooks/useGoogleMaps.ts`**: Updated to use `import.meta.env.VITE_MAPS_KEY` instead of hardcoded API key
-
-### Environment Variables
-
-All environment variables now use the `VITE_` prefix for consistency:
-- `VITE_MAPS_KEY` - Google Maps API key
-- `VITE_FIREBASE_CLIENT_CONFIG` - Firebase client configuration JSON
-- `VITE_GEMINI_API_KEY` - Gemini API key (for local development)
-
-### Functions Directory
-
-The project uses `/server` as the Cloud Functions source directory (as specified in `firebase.json`). The `/functions` directory exists but is not used in deployment.
-
-### Development Workflow
-
-1. **Local Development**: Edit code in Antigravity, test with `npm run dev`
-2. **Commit & Push**: Push changes to `main` branch on GitHub
-3. **Automatic Deployment**: GitHub Actions builds and deploys to Firebase Hosting
-4. **Environment Variables**: Managed via GitHub Secrets for production, `.env.local` for local development
+This includes:
+- Current work in progress
+- Known issues and their status
+- Architecture decisions
+- Quick reference commands
+- Context for continuing work across sessions
 
