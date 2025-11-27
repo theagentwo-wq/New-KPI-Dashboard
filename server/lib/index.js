@@ -239,15 +239,14 @@ const generateAIContent = async (prompt, action) => {
     var _a, _b, _c;
     try {
         const vertex_ai = new vertexai_1.VertexAI({ project: process.env.GCLOUD_PROJECT, location: 'us-central1' });
-        const model = 'gemini-1.5-pro-latest';
-        const generativeModel = vertex_ai.preview.getGenerativeModel({
+        const model = 'gemini-1.5-flash-002';
+        const generativeModel = vertex_ai.getGenerativeModel({
             model: model,
             generationConfig: {
-                'maxOutputTokens': 8192,
-                'temperature': 1,
-                'topP': 0.95,
+                maxOutputTokens: 8192,
+                temperature: 1,
+                topP: 0.95,
             },
-            tools: [{ 'googleSearchRetrieval': {}, }],
         });
         const result = await generativeModel.generateContent(prompt);
         if (!((_c = (_b = (_a = result.response.candidates) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.content.parts[0]) === null || _c === void 0 ? void 0 : _c.text)) {

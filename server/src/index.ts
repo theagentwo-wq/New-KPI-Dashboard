@@ -236,15 +236,14 @@ app.post("/gemini", handleGeminiRequest);
 const generateAIContent = async (prompt: string, action: string) => {
     try {
         const vertex_ai = new VertexAI({ project: process.env.GCLOUD_PROJECT, location: 'us-central1' });
-        const model = 'gemini-1.5-pro-latest';
-        const generativeModel = vertex_ai.preview.getGenerativeModel({
+        const model = 'gemini-1.5-flash-002';
+        const generativeModel = vertex_ai.getGenerativeModel({
             model: model,
             generationConfig: {
-                'maxOutputTokens': 8192,
-                'temperature': 1,
-                'topP': 0.95,
+                maxOutputTokens: 8192,
+                temperature: 1,
+                topP: 0.95,
             },
-            tools: [{'googleSearchRetrieval': {},}],
         });
 
         const result = await generativeModel.generateContent(prompt);
