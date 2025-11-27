@@ -239,3 +239,17 @@ firebase deploy --only functions         # Deploy functions only
 - **Auto-commit**: Yes, commit all changes automatically
 - **Communication**: Direct and concise
 - **Focus**: Get things working, then refine
+
+## CRITICAL Deployment Workflow
+
+**ALWAYS push to Git after making code changes** - This triggers GitHub Actions to deploy automatically.
+
+When making changes:
+1. Make code changes
+2. Build locally (if needed): `npm run build` and `cd server && npm run build`
+3. **ALWAYS commit and push to Git**: `git add -A && git commit -m "message" && git push origin main`
+4. GitHub Actions will automatically deploy both hosting and functions
+5. Wait 2-3 minutes for deployment to complete
+6. Test the live site
+
+**Never just deploy locally without pushing to Git** - The automated deployment ensures consistency.
