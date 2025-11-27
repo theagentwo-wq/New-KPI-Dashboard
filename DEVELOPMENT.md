@@ -20,22 +20,36 @@ This file tracks ongoing development work, known issues, and progress on the KPI
    - Removed `server/node_modules` from Git tracking (7,681 files)
    - Already properly ignored in `.gitignore`
 
+4. **Fixed API 500 Errors** (2025-11-26)
+   - Issue: Frontend receiving 500 Internal Server Error from all API calls
+   - Root cause: Response format mismatch - server returned `{ content }` but frontend expected `{ data }`
+   - Solution: Changed server response format in `handleGeminiRequest()` and `getReviewSummary` early return
+   - Files: `server/src/index.ts`
+
+5. **Fixed Local Build Environment** (2025-11-26)
+   - Issue: `tsc` command not found when running `npm run build` locally
+   - Root cause: Root `node_modules` directory was missing
+   - Solution: Ran `npm install` to install all dependencies including TypeScript
+   - Local builds now work successfully
+
 ### 🚧 In Progress
 None currently
 
 ### 📋 Top Priorities
 
-#### Priority 1: API Connectivity ✅ MOSTLY COMPLETE
-**Status**: Routes fixed, deployment in progress, testing needed
+#### Priority 1: API Connectivity ✅ COMPLETE
+**Status**: All routing and response format issues resolved, deployed to production
 
 **What was done**:
 - ✅ Fixed all API routing issues (404 errors resolved)
 - ✅ Created individual routes for each Gemini AI action
 - ✅ Added missing action handlers in server
+- ✅ Fixed response format mismatch (500 errors resolved)
 - ✅ Deployed to production via GitHub Actions
+- ✅ Local build environment configured correctly
 
 **What's needed**:
-- Test API endpoints after deployment completes
+- Test API endpoints in production environment
 - Verify Gemini AI responses work correctly
 - Verify Google Maps Places API works correctly
 - Check for any permission/authentication issues with Vertex AI
