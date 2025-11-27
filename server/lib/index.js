@@ -142,7 +142,7 @@ const handleGeminiRequest = async (req, res) => {
                 const { locationName, reviews } = payload;
                 const reviewTexts = (reviews || []).map((r) => r.text).filter((text) => text === null || text === void 0 ? void 0 : text.trim()).join("\n---\n");
                 if (!reviewTexts) {
-                    res.json({ content: "There are no written reviews available to analyze for this location." });
+                    res.json({ data: "There are no written reviews available to analyze for this location." });
                     return;
                 }
                 prompt = `As a restaurant operations analyst, summarize customer reviews for "${locationName}". Use Google Search to find recent reviews to supplement the provided data. Identify themes, positive feedback, and urgent improvement areas. Use clear headings. Reviews:\n${reviewTexts}`;
@@ -226,7 +226,7 @@ const handleGeminiRequest = async (req, res) => {
                 return;
         }
         const content = await generateAIContent(prompt, action);
-        res.json({ content });
+        res.json({ data: content });
     }
     catch (error) {
         console.error(`Error in /gemini for action '${action}':`, error);
