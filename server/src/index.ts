@@ -22,6 +22,26 @@ const getErrorMessage = (error: any): string => {
     return "An unknown error occurred.";
 };
 
+// --- Gemini Action Router ---
+// Routes all Gemini AI actions to the main gemini handler
+const geminiActions = [
+    'getInsights', 'getExecutiveSummary', 'getReviewSummary', 'getLocationMarketAnalysis',
+    'generateHuddleBrief', 'getSalesForecast', 'getMarketingIdeas', 'getNoteTrends',
+    'getAnomalyDetections', 'getAnomalyInsights', 'getVarianceAnalysis', 'runWhatIfScenario',
+    'startStrategicAnalysisJob', 'chatWithStrategy', 'getStrategicExecutiveAnalysis',
+    'startTask', 'getDirectorPerformanceSnapshot'
+];
+
+geminiActions.forEach(action => {
+    app.post(`/${action}`, async (req, res): Promise<void> => {
+        const payload = req.body.data || req.body.payload || req.body;
+        // Forward to the gemini handler
+        req.body = { action, payload };
+        // Call the gemini endpoint handler directly
+        return handleGeminiRequest(req, res);
+    });
+});
+
 // --- Google Places API Endpoint ---
 app.post("/getPlaceDetails", async (req, res): Promise<void> => {
     const { location } = req.body;
@@ -84,8 +104,8 @@ app.post("/getPlaceDetails", async (req, res): Promise<void> => {
     }
 });
 
-// --- Main Gemini API Endpoint ---
-app.post("/gemini", async (req, res): Promise<void> => {
+// --- Gemini Request Handler ---
+const handleGeminiRequest = async (req: any, res: any): Promise<void> => {
     const { action, payload } = req.body;
     if (!action || !payload) {
         res.status(400).json({ error: "Missing 'action' or 'payload'." });
@@ -153,6 +173,48 @@ app.post("/gemini", async (req, res): Promise<void> => {
                 prompt = `Provide a high-level executive summary for a restaurant company based on the following data. The view is currently focused on '${summaryView}' for the period '${summaryPeriod}'. The data is: ${JSON.stringify(summaryData)}. Your summary should be in markdown format. Start with a headline. Identify the most significant trend, the biggest risk, and the top opportunity. Use Google Search to find any relevant external factors. Keep it concise and impactful.`;
                 break;
 
+            case "getInsights":
+                const { data: insightsData, view: insightsView, period: insightsPeriod, prompt: userPrompt } = payload;
+                prompt = `As a business analyst for a restaurant company, provide insights based on the following request: "${userPrompt}". View: ${insightsView}, Period: ${insightsPeriod}. Data: ${JSON.stringify(insightsData)}. Use Google Search for additional context if needed.`;
+                break;
+
+            case "getNoteTrends":
+                const { notes } = payload;
+                prompt = `Analyze the following operational notes from a restaurant and identify key trends, patterns, and actionable insights. Notes: ${JSON.stringify(notes)}`;
+                break;
+
+            case "getAnomalyDetections":
+                const { allStoresData, periodLabel: anomalyPeriod } = payload;
+                prompt = `As a data analyst, analyze the following restaurant performance data for ${anomalyPeriod} and identify any anomalies or unusual patterns. Return a JSON array of anomaly objects with: location, kpi, value, expectedRange, and severity. Data: ${JSON.stringify(allStoresData)}`;
+                break;
+
+            case "getAnomalyInsights":
+                const { anomaly, data: anomalyData } = payload;
+                prompt = `Provide insights into this performance anomaly at ${anomaly.location}: ${anomaly.kpi} is ${anomaly.value}, expected range ${anomaly.expectedRange}. Context: ${JSON.stringify(anomalyData)}`;
+                break;
+
+            case "getVarianceAnalysis":
+                const { location: varLocation, kpi: varKpi, variance, allKpis } = payload;
+                prompt = `Analyze the ${variance > 0 ? 'positive' : 'negative'} variance of ${Math.abs(variance)}% in ${varKpi} for ${varLocation}. Provide specific, actionable insights. All KPIs: ${JSON.stringify(allKpis)}`;
+                break;
+
+            case "runWhatIfScenario":
+                const { data: scenarioData, prompt: scenarioPrompt } = payload;
+                prompt = `Run a what-if scenario analysis: "${scenarioPrompt}". Use this data: ${JSON.stringify(scenarioData)}. Provide analysis and projected outcomes.`;
+                break;
+
+            case "startStrategicAnalysisJob":
+            case "startTask":
+                // These actions require file/document processing
+                const { filePath, fileName: taskFileName, mode: taskMode, model } = payload;
+                prompt = `Analyze the document "${taskFileName}" (${mode || taskMode} analysis). Provide comprehensive strategic insights.`;
+                break;
+
+            case "getStrategicExecutiveAnalysis":
+                const { kpi: execKpi, period: execPeriod, companyTotal, directorPerformance, anchorStores } = payload;
+                prompt = `Provide a strategic executive analysis for ${execKpi} in ${execPeriod}. Company Total: ${companyTotal}. Director Performance: ${JSON.stringify(directorPerformance)}. Anchor Stores: ${JSON.stringify(anchorStores)}`;
+                break;
+
             default:
                 res.status(501).json({ error: `The action '${action}' is not implemented on the server.` });
                 return;
@@ -165,7 +227,10 @@ app.post("/gemini", async (req, res): Promise<void> => {
         console.error(`Error in /gemini for action '${action}':`, error);
         res.status(500).json({ error: `Failed to process AI request for action: ${action}. Reason: ${getErrorMessage(error)}` });
     }
-});
+};
+
+// --- Main Gemini API Endpoint ---
+app.post("/gemini", handleGeminiRequest);
 
 
 const generateAIContent = async (prompt: string, action: string) => {
