@@ -2,6 +2,32 @@
 
 This file tracks ongoing development work, known issues, and progress on the KPI Dashboard project.
 
+## 🚨 NUCLEAR REBUILD SCHEDULED - START TOMORROW MORNING
+
+**Status**: Rebuild plan approved and ready to execute
+
+**Problem**: Persistent API 404 errors caused by bloated, multi-AI-generated backend code with two conflicting function directories (`functions/` and `server/`)
+
+**Solution**: Complete backend rebuild with clean, modern architecture while preserving ALL frontend UI, business logic, and data
+
+**Plan Document**: See `REBUILD_PLAN.md` for full details
+
+**Quick Summary**:
+- ✅ Keep: ALL React components, constants.ts, types.ts, Firestore data, secrets
+- 🔥 Delete: `functions/` and `server/` directories
+- ✨ Rebuild: New `functions/` with clean architecture
+- ⏱️ Estimated time: ~2 hours
+- 📋 Backup strategy: Create `backup-before-rebuild` branch first
+
+**Pre-Flight Checklist**:
+- [ ] Create backup branch
+- [ ] Document current API endpoints
+- [ ] Verify service account JSON backup
+- [ ] Confirm ~10 min downtime acceptable
+- [ ] Begin Phase 1: Preparation
+
+---
+
 ## Current Status (Last Updated: 2025-11-26)
 
 ### ✅ Completed
