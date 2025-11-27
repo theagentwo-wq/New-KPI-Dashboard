@@ -238,7 +238,9 @@ app.post("/gemini", handleGeminiRequest);
 const generateAIContent = async (prompt, action) => {
     var _a, _b, _c;
     try {
-        const vertex_ai = new vertexai_1.VertexAI({ project: process.env.GCLOUD_PROJECT, location: 'us-central1' });
+        // Explicitly use the Firebase project ID
+        const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'kpi-dashboardgit-9913298-66e65';
+        const vertex_ai = new vertexai_1.VertexAI({ project: projectId, location: 'us-central1' });
         const model = 'gemini-1.5-flash-002';
         const generativeModel = vertex_ai.getGenerativeModel({
             model: model,
