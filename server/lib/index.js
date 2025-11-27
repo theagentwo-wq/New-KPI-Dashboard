@@ -37,17 +37,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// V11 - Migrated to Google Generative AI SDK for better reliability
+// V12 - Removed unused Google Maps backend endpoint (frontend uses Maps JS SDK directly)
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const generative_ai_1 = require("@google/generative-ai");
-const google_maps_services_js_1 = require("@googlemaps/google-maps-services-js");
+// Maps API imports removed - frontend uses Google Maps JavaScript SDK directly
 // Initialize Firebase and Express
 admin.initializeApp();
 const app = (0, express_1.default)();
-const mapsClient = new google_maps_services_js_1.Client({});
 // --- Middleware ---
 app.use((0, cors_1.default)({ origin: true }));
 app.use(express_1.default.json());
@@ -76,37 +75,45 @@ geminiActions.forEach(action => {
     });
 });
 // --- Google Places API Endpoint ---
-app.post("/getPlaceDetails", async (req, res) => {
+// NOTE: This endpoint is currently UNUSED. The frontend uses the Google Maps JavaScript SDK directly (see src/lib/ai-client.ts:50-80)
+// Keeping this code commented out in case backend-based Maps API access is needed in the future.
+/*
+app.post("/getPlaceDetails", async (req, res): Promise<void> => {
     const { location } = req.body;
     if (!location) {
         res.status(400).json({ error: "Missing 'location' in payload." });
         return;
     }
+
     const apiKey = process.env.VITE_MAPS_KEY;
     if (!apiKey) {
         console.error("VITE_MAPS_KEY secret not configured for the function.");
         res.status(500).json({ error: "Server configuration error: API key not found." });
         return;
     }
+
     try {
         // First, find the Place ID from the text query
         const findPlaceResponse = await mapsClient.findPlaceFromText({
             params: {
                 input: location,
-                inputtype: google_maps_services_js_1.PlaceInputType.textQuery, // FIX: Correct casing
+                inputtype: PlaceInputType.textQuery,
                 fields: ['place_id', 'name'],
                 key: apiKey,
             },
         });
+
         if (findPlaceResponse.data.candidates.length === 0) {
             res.status(404).json({ error: `Could not find a location matching "${location}".` });
             return;
         }
+
         const placeId = findPlaceResponse.data.candidates[0].place_id;
         if (!placeId) {
-            res.status(404).json({ error: `Could not get a Place ID for "${location}".` });
-            return;
+             res.status(404).json({ error: `Could not get a Place ID for "${location}".` });
+             return;
         }
+
         // Second, use the Place ID to get detailed information
         const placeDetailsResponse = await mapsClient.placeDetails({
             params: {
@@ -115,19 +122,23 @@ app.post("/getPlaceDetails", async (req, res) => {
                 key: apiKey,
             },
         });
+
         const details = placeDetailsResponse.data.result;
+
         // Third, construct full photo URLs, as the API only returns references
         const photoUrls = (details.photos || []).map(photo => {
             const photoReference = photo.photo_reference;
             return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoReference}&key=${apiKey}`;
         });
-        res.json(Object.assign(Object.assign({}, details), { photoUrls }));
-    }
-    catch (error) {
+
+        res.json({ ...details, photoUrls });
+
+    } catch (error) {
         console.error(`Google Maps API Error for location '${location}':`, error);
         res.status(500).json({ error: `Failed to fetch place details. Reason: ${getErrorMessage(error)}` });
     }
 });
+*/
 // --- Gemini Request Handler ---
 const handleGeminiRequest = async (req, res) => {
     const { action, payload } = req.body;
@@ -265,5 +276,5 @@ const generateAIContent = async (prompt, action) => {
         throw new Error(`AI content generation failed for action: ${action}. Reason: ${getErrorMessage(error)}`);
     }
 };
-exports.api = (0, https_1.onRequest)({ secrets: ["VITE_MAPS_KEY", "GEMINI_API_KEY"] }, app);
+exports.api = (0, https_1.onRequest)({ secrets: ["GEMINI_API_KEY"] }, app);
 //# sourceMappingURL=index.js.map

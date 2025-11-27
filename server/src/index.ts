@@ -1,16 +1,15 @@
 
-// V11 - Migrated to Google Generative AI SDK for better reliability
+// V12 - Removed unused Google Maps backend endpoint (frontend uses Maps JS SDK directly)
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Client, PlaceInputType } from "@googlemaps/google-maps-services-js";
+// Maps API imports removed - frontend uses Google Maps JavaScript SDK directly
 
 // Initialize Firebase and Express
 admin.initializeApp();
 const app = express();
-const mapsClient = new Client({});
 
 // --- Middleware ---
 app.use(cors({ origin: true }));
@@ -43,6 +42,9 @@ geminiActions.forEach(action => {
 });
 
 // --- Google Places API Endpoint ---
+// NOTE: This endpoint is currently UNUSED. The frontend uses the Google Maps JavaScript SDK directly (see src/lib/ai-client.ts:50-80)
+// Keeping this code commented out in case backend-based Maps API access is needed in the future.
+/*
 app.post("/getPlaceDetails", async (req, res): Promise<void> => {
     const { location } = req.body;
     if (!location) {
@@ -62,7 +64,7 @@ app.post("/getPlaceDetails", async (req, res): Promise<void> => {
         const findPlaceResponse = await mapsClient.findPlaceFromText({
             params: {
                 input: location,
-                inputtype: PlaceInputType.textQuery, // FIX: Correct casing
+                inputtype: PlaceInputType.textQuery,
                 fields: ['place_id', 'name'],
                 key: apiKey,
             },
@@ -103,6 +105,7 @@ app.post("/getPlaceDetails", async (req, res): Promise<void> => {
         res.status(500).json({ error: `Failed to fetch place details. Reason: ${getErrorMessage(error)}` });
     }
 });
+*/
 
 // --- Gemini Request Handler ---
 const handleGeminiRequest = async (req: any, res: any): Promise<void> => {
@@ -269,4 +272,4 @@ const generateAIContent = async (prompt: string, action: string) => {
     }
 };
 
-export const api = onRequest({ secrets: ["VITE_MAPS_KEY", "GEMINI_API_KEY"] }, app);
+export const api = onRequest({ secrets: ["GEMINI_API_KEY"] }, app);
