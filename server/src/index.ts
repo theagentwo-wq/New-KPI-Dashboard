@@ -237,6 +237,7 @@ const generateAIContent = async (prompt: string, action: string) => {
     try {
         // Explicitly use the Firebase project ID
         const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'kpi-dashboardgit-9913298-66e65';
+        console.log(`[Vertex AI] Initializing with project: ${projectId}, location: us-central1, model: gemini-1.5-flash-002`);
         const vertex_ai = new VertexAI({ project: projectId, location: 'us-central1' });
         const model = 'gemini-1.5-flash-002';
         const generativeModel = vertex_ai.getGenerativeModel({
