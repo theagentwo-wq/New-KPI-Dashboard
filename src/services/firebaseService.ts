@@ -35,22 +35,30 @@ let budgetsCollection: firebase.firestore.CollectionReference;
 
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     try {
+        console.log("[Firebase Init] Starting initialization...");
         let firebaseConfig;
 
         try {
+            console.log("[Firebase Init] Attempting to fetch /__/firebase/init.json");
             const response = await fetch('/__/firebase/init.json');
             if (response.ok) {
                 firebaseConfig = await response.json();
+                console.log("[Firebase Init] ✅ Config loaded from /__/firebase/init.json");
+            } else {
+                console.log("[Firebase Init] /__/firebase/init.json returned status:", response.status);
             }
         } catch (e) {
-            console.log("Local environment detected, skipping auto-init fetch.");
+            console.log("[Firebase Init] Fetch failed, trying env var...", e);
         }
 
         if (!firebaseConfig) {
+            console.log("[Firebase Init] Checking VITE_FIREBASE_CLIENT_CONFIG...");
             const envConfig = import.meta.env.VITE_FIREBASE_CLIENT_CONFIG;
+            console.log("[Firebase Init] VITE_FIREBASE_CLIENT_CONFIG exists?", !!envConfig);
             if (envConfig) {
                 // Handle both object (if already parsed) and string formats
                 firebaseConfig = typeof envConfig === 'string' ? JSON.parse(envConfig) : envConfig;
+                console.log("[Firebase Init] ✅ Config loaded from VITE_FIREBASE_CLIENT_CONFIG");
             }
         }
 
@@ -58,25 +66,39 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
             throw new Error("Firebase config not found. Checked /__/firebase/init.json and VITE_FIREBASE_CLIENT_CONFIG.");
         }
 
+        console.log("[Firebase Init] Config obtained, initializing app...");
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
+            console.log("[Firebase Init] ✅ App initialized");
+        } else {
+            console.log("[Firebase Init] App already initialized");
         }
 
+        console.log("[Firebase Init] Getting Firestore instance...");
         db = firebase.firestore();
+        console.log("[Firebase Init] Firestore instance:", typeof db, db);
+
+        console.log("[Firebase Init] Getting Storage instance...");
         storage = firebase.storage();
 
+        console.log("[Firebase Init] Creating collection references...");
         // Initialize collections after db is set
         notesCollection = db.collection('notes');
+        console.log("[Firebase Init] notesCollection type:", typeof notesCollection, "has get?", typeof notesCollection.get);
+
         actualsCollection = db.collection('performance_actuals');
         goalsCollection = db.collection('goals');
         deploymentsCollection = db.collection('deployments');
         directorsCollection = db.collection('directors');
         budgetsCollection = db.collection('budgets');
 
+        console.log("[Firebase Init] All collections created. Starting seed...");
         await seedInitialData();
+        console.log("[Firebase Init] ✅ Initialization complete!");
         return { status: 'connected' };
     } catch (error) {
-        console.error("Firebase initialization error:", error);
+        console.error("[Firebase Init] ❌ ERROR:", error);
+        console.error("[Firebase Init] Error stack:", (error as Error).stack);
         return { status: 'error', message: (error as Error).message, error: (error as Error).message };
     }
 };
