@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import DatePicker from 'react-datepicker';
 import { Listbox, Transition } from '@headlessui/react';
-import { DirectorProfile, Deployment } from '../types';
+import { DirectorProfile, Deployment, DeploymentType } from '../types';
 import { X, Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -19,8 +19,15 @@ const DEPLOYMENT_PERSON_OPTIONS = [
     { id: 'strikeTeam', name: 'Strike Team Member' },
 ];
 
+const DEPLOYMENT_TYPE_OPTIONS = [
+    { id: DeploymentType.Training, name: 'Training' },
+    { id: DeploymentType.Mentorship, name: 'Mentorship' },
+    { id: DeploymentType.PerformanceTurnaround, name: 'Performance Turnaround' },
+];
+
 export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ isOpen, director, onClose, onSave, deploymentToEdit }) => {
     const [deploymentPersonType, setDeploymentPersonType] = useState(DEPLOYMENT_PERSON_OPTIONS[0]);
+    const [deploymentType, setDeploymentType] = useState(DEPLOYMENT_TYPE_OPTIONS[0]);
     const [strikeTeamMember, setStrikeTeamMember] = useState('');
     const [destination, setDestination] = useState('');
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -33,6 +40,8 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
             if (deploymentToEdit) {
                 const isDirectorDeployed = deploymentToEdit.deployedPerson === director?.name;
                 setDeploymentPersonType(isDirectorDeployed ? DEPLOYMENT_PERSON_OPTIONS[0] : DEPLOYMENT_PERSON_OPTIONS[1]);
+                const typeOption = DEPLOYMENT_TYPE_OPTIONS.find(opt => opt.id === deploymentToEdit.type) || DEPLOYMENT_TYPE_OPTIONS[0];
+                setDeploymentType(typeOption);
                 setStrikeTeamMember(isDirectorDeployed ? '' : deploymentToEdit.deployedPerson);
                 setDestination(deploymentToEdit.destination);
                 setStartDate(new Date(deploymentToEdit.startDate));
@@ -42,6 +51,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
             } else if (director) {
                 // Reset to default for new deployment
                 setDeploymentPersonType(DEPLOYMENT_PERSON_OPTIONS[0]);
+                setDeploymentType(DEPLOYMENT_TYPE_OPTIONS[0]);
                 setStrikeTeamMember('');
                 setDestination(director.stores[0] || '');
                 setStartDate(undefined);
@@ -71,13 +81,14 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
 
         const deploymentData: Partial<Deployment> = {
             directorId: director.id,
+            type: deploymentType.id,
             deployedPerson,
             destination,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
             purpose,
             estimatedBudget: Number(estimatedBudget),
-            stores: [destination], 
+            stores: [destination],
             description: purpose,
         };
 
@@ -129,6 +140,32 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                             <input id="strikeTeamMember" type="text" required value={strikeTeamMember} onChange={e => setStrikeTeamMember(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="Enter name" />
                         </div>
                     )}
+
+                    {/* Deployment Type Dropdown */}
+                    <div>
+                        <Listbox value={deploymentType} onChange={setDeploymentType}>
+                            <div className="relative">
+                                <Listbox.Label className="block text-sm font-medium text-slate-300 mb-1">Deployment Type</Listbox.Label>
+                                <Listbox.Button className="relative w-full cursor-default rounded-lg bg-slate-700 py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm">
+                                    <span className="block truncate text-white">{deploymentType.name}</span>
+                                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <ChevronsUpDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                    </span>
+                                </Listbox.Button>
+                                <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-10">
+                                        {DEPLOYMENT_TYPE_OPTIONS.map((option) => (
+                                            <Listbox.Option key={option.id} value={option} className={({ active }) =>`relative cursor-default select-none py-2 pl-10 pr-4 ${ active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>
+                                                {({ selected }) => (
+                                                    <><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{option.name}</span>{selected ? <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-cyan-400"><Check className="h-5 w-5" aria-hidden="true" /></span> : null}</>
+                                                )}
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </Transition>
+                            </div>
+                        </Listbox>
+                    </div>
 
                     {/* Destination Dropdown */}
                     <div>

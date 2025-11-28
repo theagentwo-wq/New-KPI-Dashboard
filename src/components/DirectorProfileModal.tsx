@@ -7,6 +7,7 @@ import { DeploymentTimeline } from './DeploymentTimeline';
 import { DeploymentBudget } from './DeploymentBudget';
 import { DeploymentMap } from './DeploymentMap';
 import { DeploymentPlannerModal } from './DeploymentPlannerModal';
+import { getDeploymentsForDirector, createDeployment, updateDeployment, deleteDeployment } from '../services/firebaseService';
 
 interface DirectorProfileModalProps {
   isOpen: boolean;
@@ -21,12 +22,21 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [deploymentToEdit, setDeploymentToEdit] = useState<Deployment | null>(null);
 
   useEffect(() => {
-    if (director) {
-      // Mock deployments data for now
-      setDeployments([]); 
-    } else {
-      setDeployments([]);
-    }
+    const fetchDeployments = async () => {
+      if (director) {
+        try {
+          const deploymentsData = await getDeploymentsForDirector(director.id);
+          setDeployments(deploymentsData);
+        } catch (error) {
+          console.error('Error fetching deployments:', error);
+          setDeployments([]);
+        }
+      } else {
+        setDeployments([]);
+      }
+    };
+
+    fetchDeployments();
   }, [director]);
 
   if (!isOpen || !director) return null;
@@ -42,14 +52,42 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   };
 
   const handleSaveDeployment = async (deploymentData: Partial<Deployment>, deploymentId?: string) => {
-    // This will be properly implemented later
-    console.log('Saving deployment:', deploymentData, deploymentId);
-    handleClosePlanner();
+    try {
+      if (deploymentId) {
+        // Update existing deployment
+        await updateDeployment(deploymentId, deploymentData);
+      } else {
+        // Create new deployment
+        await createDeployment(deploymentData as Omit<Deployment, 'id'>);
+      }
+
+      // Refresh deployments list
+      if (director) {
+        const deploymentsData = await getDeploymentsForDirector(director.id);
+        setDeployments(deploymentsData);
+      }
+
+      handleClosePlanner();
+    } catch (error) {
+      console.error('Error saving deployment:', error);
+      alert('Failed to save deployment. Please try again.');
+    }
   };
 
   const handleDeleteDeployment = async (deploymentId: string) => {
     if(window.confirm('Are you sure you want to delete this deployment?')) {
-        console.log('Deleting deployment:', deploymentId);
+      try {
+        await deleteDeployment(deploymentId);
+
+        // Refresh deployments list
+        if (director) {
+          const deploymentsData = await getDeploymentsForDirector(director.id);
+          setDeployments(deploymentsData);
+        }
+      } catch (error) {
+        console.error('Error deleting deployment:', error);
+        alert('Failed to delete deployment. Please try again.');
+      }
     }
   };
   

@@ -123,7 +123,7 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
     }
 
     return (
-        <motion.div 
+        <motion.div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             variants={containerVariants}
             initial="hidden"
@@ -131,13 +131,14 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
         >
             {kpisToShow.map((kpi) => {
                 const value = data[kpi];
-                if (value === undefined || isNaN(value)) return null;
-                
+                // Show card with 0 if value is missing instead of hiding it
+                const displayValue = (value === undefined || isNaN(value)) ? 0 : value;
+
                 return (
                     <Card
                         key={kpi}
                         kpi={kpi}
-                        value={value}
+                        value={displayValue}
                         isSelected={selectedKpi === kpi}
                         onSelect={() => onKpiSelect(kpi)}
                     />
