@@ -169,9 +169,54 @@ export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
 };
 
 export const getAggregatedPerformanceDataForPeriod = async (period: Period, storeId?: string): Promise<PerformanceData> => {
-    // This is a placeholder implementation. A real implementation would query and aggregate data from Firestore.
-    console.log('Fetching aggregated data for', period, storeId);
-    return {};
+    try {
+        // Convert dates to ISO strings for querying
+        const startDateStr = period.startDate.toISOString();
+        const endDateStr = period.endDate.toISOString();
+
+        // Build query
+        let query = actualsCollection
+            .where('workStartDate', '>=', startDateStr)
+            .where('workStartDate', '<=', endDateStr);
+
+        // If storeId is provided, we need to filter after fetching since we can't have multiple inequality filters
+        const snapshot = await query.get();
+
+        // Filter and aggregate
+        const aggregated: PerformanceData = {};
+        let docCount = 0;
+
+        snapshot.docs.forEach(doc => {
+            const docData = doc.data();
+
+            // Apply storeId filter if specified
+            if (storeId && docData.storeId !== storeId) {
+                return;
+            }
+
+            docCount++;
+            const data = docData.data as PerformanceData;
+
+            // Aggregate each KPI
+            if (data) {
+                Object.keys(data).forEach(kpi => {
+                    const value = data[kpi as Kpi];
+                    if (typeof value === 'number') {
+                        if (!aggregated[kpi as Kpi]) {
+                            aggregated[kpi as Kpi] = 0;
+                        }
+                        aggregated[kpi as Kpi]! += value;
+                    }
+                });
+            }
+        });
+
+        console.log(`Aggregated ${docCount} documents for period ${period.label}${storeId ? ` (store: ${storeId})` : ''}`);
+        return aggregated;
+    } catch (error) {
+        console.error('Error fetching aggregated performance data:', error);
+        return {};
+    }
 }
 
 // --- Director & Goals Functions ---
@@ -198,9 +243,24 @@ export const updateGoal = async (goalId: string, newTarget: number, newStatus: s
 
 // --- Deployments ---
 export const getDeploymentsForDirector = async (directorId: string): Promise<Deployment[]> => {
-    const q = query(deploymentsCollection, where("directorId", "==", directorId));
-    const snapshot = await getDocs(q);
+    const snapshot = await deploymentsCollection.where('directorId', '==', directorId).get();
     return snapshot.docs.map((doc: firebase.firestore.DocumentData) => ({ id: doc.id, ...doc.data() } as Deployment));
+};
+
+export const createDeployment = async (deployment: Omit<Deployment, 'id'>): Promise<Deployment> => {
+    const docRef = await deploymentsCollection.add({
+        ...deployment,
+        createdAt: new Date().toISOString()
+    });
+    return { id: docRef.id, ...deployment };
+};
+
+export const updateDeployment = async (id: string, deployment: Partial<Deployment>): Promise<void> => {
+    await deploymentsCollection.doc(id).update(deployment);
+};
+
+export const deleteDeployment = async (id: string): Promise<void> => {
+    await deploymentsCollection.doc(id).delete();
 };
 
 // --- Budgets ---
@@ -267,14 +327,3 @@ export const uploadTextAsFile = async (text: string, fileName: string): Promise<
     };
 }
 
-// Helper to avoid Firestore/Firebase SDK references in components that don't need it.
-// This is a placeholder for a more robust solution.
-const query = (collection: any, ...constraints: any): any => {
-    return firebase.firestore().collection(collection.path).where(constraints[0], constraints[1], constraints[2]);
-}
-const where = (field: string, op: any, value: any) => {
-    return [field, op, value];
-}
-const getDocs = async (query: any) => {
-    return await query;
-}
