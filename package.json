@@ -22,9 +22,9 @@
     "lucide-react": "^0.554.0",
     "marked": "^13.0.0",
     "node-fetch": "^3.3.2",
-    "react": "^19.2.0",
+    "react": "^18.3.1",
     "react-datepicker": "^8.9.0",
-    "react-dom": "^19.2.0",
+    "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-multi-select-component": "^4.3.4",
     "recharts": "^2.12.7",
@@ -52,7 +52,7 @@
     "vite": "^5.2.0"
   },
   "overrides": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
