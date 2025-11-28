@@ -13,10 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Clear npm cache
+        run: npm cache clean --force
       - name: Install root dependencies
-        run: npm install
+        run: npm ci
       - name: Install functions dependencies
-        run: cd functions && npm install
+        run: cd functions && npm ci
       - name: Build Cloud Functions
         run: cd functions && npm run build
       - name: Build and Type-Check
