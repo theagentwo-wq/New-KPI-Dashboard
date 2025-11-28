@@ -1,6 +1,7 @@
 /dist
 /node_modules
-/server/node_modules
+/functions/node_modules
+/functions/dist
 
 # IDE config files
 .idea

@@ -13,7 +13,9 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nFix API 500 errors: Remove VITE_MAPS_KEY from Cloud Function secrets\n\nRoot cause: Cloud Function was requesting VITE_MAPS_KEY from Google Secret Manager, but this secret doesn''t exist there (it''s only in GitHub Secrets for frontend builds).\n\nChanges:\n- Removed VITE_MAPS_KEY from onRequest secrets declaration (only GEMINI_API_KEY needed)\n- Commented out unused /getPlaceDetails backend endpoint (frontend uses Maps JS SDK directly)\n- Removed unused @googlemaps imports\n- Updated version comment to V12\n\nThis fixes the 500 errors shown in browser console. The Cloud Function now only requires GEMINI_API_KEY from Secret Manager.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(npx firebase-tools deploy --only functions)",
       "Bash(git commit:*)",
-      "Bash(npx firebase-tools:*)"
+      "Bash(npx firebase-tools:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
