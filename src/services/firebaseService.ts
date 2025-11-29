@@ -1,6 +1,6 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import { getFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch, connectFirestoreEmulator, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
     Kpi,
@@ -67,6 +67,9 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         }
 
         console.log("[Firebase Init] Config obtained, initializing app...");
+        console.log("[Firebase Init] Firebase Config:", JSON.stringify(firebaseConfig, null, 2));
+        console.log("[Firebase Init] Project ID:", firebaseConfig.projectId);
+        console.log("[Firebase Init] API Key:", firebaseConfig.apiKey?.substring(0, 10) + "...");
         app = initializeApp(firebaseConfig);
         console.log("[Firebase Init] ✅ App initialized");
 
