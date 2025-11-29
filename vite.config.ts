@@ -41,6 +41,17 @@ export default defineConfig(({ mode }) => {
         include: [/firebase/, /node_modules/],
         transformMixedEsModules: true,
       },
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          keep_classnames: true,
+          keep_fnames: true,
+        },
+        mangle: {
+          keep_classnames: true,
+          keep_fnames: true,
+        },
+      },
       rollupOptions: {
         output: {
           manualChunks: {
