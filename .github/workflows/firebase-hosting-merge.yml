@@ -17,6 +17,8 @@ jobs:
         run: npm cache clean --force
       - name: Install root dependencies
         run: npm ci
+      - name: Clear Vite cache
+        run: rm -rf node_modules/.vite dist
       - name: Install functions dependencies
         run: cd functions && npm ci
       - name: Build Cloud Functions
