@@ -13,12 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clear npm cache
-        run: npm cache clean --force
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      - name: Verify vite.config.ts exists
+        run: |
+          echo "Checking for vite.config.ts..."
+          ls -la vite.config.ts
+          echo "vite.config.ts found!"
       - name: Install root dependencies
         run: npm ci
-      - name: Clear Vite cache
-        run: rm -rf node_modules/.vite dist
       - name: Install functions dependencies
         run: cd functions && npm ci
       - name: Build Cloud Functions
@@ -28,6 +34,16 @@ jobs:
           VITE_MAPS_KEY: ${{ secrets.VITE_MAPS_KEY }}
           VITE_FIREBASE_CLIENT_CONFIG: ${{ secrets.FIREBASE_CLIENT_CONFIG }}
         run: npm run build
+      - name: Verify Firebase chunk was created
+        run: |
+          echo "Checking build output..."
+          ls -lh dist/assets/
+          echo ""
+          echo "Checking for firebase chunk..."
+          ls dist/assets/firebase-*.js && echo "✅ Firebase chunk found!" || echo "❌ Firebase chunk NOT found!"
+          echo ""
+          echo "Contents of index.html:"
+          cat dist/index.html
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
