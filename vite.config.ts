@@ -37,13 +37,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_MAPS_KEY': JSON.stringify(env.VITE_MAPS_KEY),
     },
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'firebase': ['firebase/app', 'firebase/firestore', 'firebase/storage'],
-          },
-        },
-      },
+      // Removed manual chunking to test if that's causing the issue
     },
   }
 })

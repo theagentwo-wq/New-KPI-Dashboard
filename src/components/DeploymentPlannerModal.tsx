@@ -68,6 +68,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('[DeploymentPlanner] handleSave called');
         const deployedPerson = deploymentPersonType.id === 'director' ? director.name : strikeTeamMember;
 
         if (deploymentPersonType.id === 'strikeTeam' && !strikeTeamMember) {
@@ -92,12 +93,13 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
             description: purpose,
         };
 
+        console.log('[DeploymentPlanner] Calling onSave with data:', deploymentData);
         onSave(deploymentData, deploymentToEdit?.id);
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4 animate-fade-in">
-            <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="p-4 border-b border-slate-700 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white">New Deployment for {director.firstName}'s Region</h2>
                     <button type="button" onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
@@ -116,7 +118,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                                     </span>
                                 </Listbox.Button>
                                 <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50">
                                         <Listbox.Option key="director" value={{id: 'director'}} className={({ active }) =>`relative cursor-default select-none py-2 pl-10 pr-4 ${ active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>
                                             {({ selected }) => (
                                                 <><span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>{director.name}</span>{selected ? <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-cyan-400"><Check className="h-5 w-5" aria-hidden="true" /></span> : null}</>
@@ -153,7 +155,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                                     </span>
                                 </Listbox.Button>
                                 <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-10">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50">
                                         {DEPLOYMENT_TYPE_OPTIONS.map((option) => (
                                             <Listbox.Option key={option.id} value={option} className={({ active }) =>`relative cursor-default select-none py-2 pl-10 pr-4 ${ active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>
                                                 {({ selected }) => (
@@ -179,7 +181,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                                     </span>
                                 </Listbox.Button>
                                 <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                                    <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-700 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50">
                                         {storeOptions.map((store, storeIdx) => (
                                             <Listbox.Option key={storeIdx} className={({ active }) => `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-cyan-600 text-white' : 'text-slate-300'}`} value={store}>
                                                 {({ selected }) => (

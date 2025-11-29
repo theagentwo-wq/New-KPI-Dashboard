@@ -52,24 +52,29 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   };
 
   const handleSaveDeployment = async (deploymentData: Partial<Deployment>, deploymentId?: string) => {
+    console.log('[DirectorProfile] handleSaveDeployment called with:', deploymentData, deploymentId);
     try {
       if (deploymentId) {
         // Update existing deployment
+        console.log('[DirectorProfile] Updating deployment...');
         await updateDeployment(deploymentId, deploymentData);
       } else {
         // Create new deployment
+        console.log('[DirectorProfile] Creating new deployment...');
         await createDeployment(deploymentData as Omit<Deployment, 'id'>);
       }
 
       // Refresh deployments list
       if (director) {
+        console.log('[DirectorProfile] Refreshing deployments list...');
         const deploymentsData = await getDeploymentsForDirector(director.id);
         setDeployments(deploymentsData);
       }
 
+      console.log('[DirectorProfile] Deployment saved successfully!');
       handleClosePlanner();
     } catch (error) {
-      console.error('Error saving deployment:', error);
+      console.error('[DirectorProfile] Error saving deployment:', error);
       alert('Failed to save deployment. Please try again.');
     }
   };

@@ -274,11 +274,21 @@ export const getDeploymentsForDirector = async (directorId: string): Promise<Dep
 };
 
 export const createDeployment = async (deployment: Omit<Deployment, 'id'>): Promise<Deployment> => {
-    const docRef = await addDoc(deploymentsCollection, {
-        ...deployment,
-        createdAt: new Date().toISOString()
-    });
-    return { id: docRef.id, ...deployment };
+    console.log('[Firebase] createDeployment called with:', deployment);
+    console.log('[Firebase] deploymentsCollection exists?:', !!deploymentsCollection);
+    console.log('[Firebase] db exists?:', !!db);
+    try {
+        const docRef = await addDoc(deploymentsCollection, {
+            ...deployment,
+            createdAt: new Date().toISOString()
+        });
+        console.log('[Firebase] Deployment created successfully with ID:', docRef.id);
+        return { id: docRef.id, ...deployment };
+    } catch (error) {
+        console.error('[Firebase] Error creating deployment:', error);
+        console.error('[Firebase] Error stack:', (error as Error).stack);
+        throw error;
+    }
 };
 
 export const updateDeployment = async (id: string, deployment: Partial<Deployment>): Promise<void> => {
