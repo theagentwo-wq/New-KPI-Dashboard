@@ -36,5 +36,24 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_FIREBASE_CLIENT_CONFIG': JSON.stringify(env.VITE_FIREBASE_CLIENT_CONFIG),
       'import.meta.env.VITE_MAPS_KEY': JSON.stringify(env.VITE_MAPS_KEY),
     },
+    build: {
+      commonjsOptions: {
+        include: [/firebase/, /node_modules/],
+        transformMixedEsModules: true,
+      },
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'firebase': ['firebase/app', 'firebase/firestore', 'firebase/storage'],
+          },
+        },
+      },
+    },
+    optimizeDeps: {
+      include: ['firebase/app', 'firebase/firestore', 'firebase/storage'],
+      esbuildOptions: {
+        target: 'esnext',
+      },
+    },
   }
 })
