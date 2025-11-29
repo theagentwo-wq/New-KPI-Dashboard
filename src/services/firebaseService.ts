@@ -86,8 +86,9 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         directorsCollection = collection(db, 'directors');
         budgetsCollection = collection(db, 'budgets');
 
-        console.log("[Firebase Init] All collections created. Starting seed...");
-        await seedInitialData();
+        console.log("[Firebase Init] All collections created.");
+        // Removed automatic seeding to fix initialization errors
+        // await seedInitialData();
         console.log("[Firebase Init] ✅ Initialization complete!");
         return { status: 'connected' };
     } catch (error) {
@@ -98,8 +99,9 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
 };
 
 // --- Seeding ---
-
-const seedInitialData = async () => {
+// Seeding removed from initialization to fix startup errors
+// Can be called manually if needed
+export const seedInitialData = async () => {
     const directorsSnapshot = await getDocs(directorsCollection);
     if (directorsSnapshot.empty) {
         console.log("Directors collection is empty. Seeding initial data...");
