@@ -1,6 +1,6 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import { initializeFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import { getStorage, FirebaseStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
     Kpi,
@@ -70,8 +70,11 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         app = initializeApp(firebaseConfig);
         console.log("[Firebase Init] ✅ App initialized");
 
-        console.log("[Firebase Init] Getting Firestore instance...");
-        db = getFirestore(app);
+        console.log("[Firebase Init] Initializing Firestore with custom settings...");
+        db = initializeFirestore(app, {
+            experimentalForceLongPolling: false,
+            experimentalAutoDetectLongPolling: true,
+        });
         console.log("[Firebase Init] Firestore instance created");
 
         console.log("[Firebase Init] Getting Storage instance...");
@@ -277,16 +280,36 @@ export const createDeployment = async (deployment: Omit<Deployment, 'id'>): Prom
     console.log('[Firebase] createDeployment called with:', deployment);
     console.log('[Firebase] deploymentsCollection exists?:', !!deploymentsCollection);
     console.log('[Firebase] db exists?:', !!db);
+
     try {
-        const docRef = await addDoc(deploymentsCollection, {
+        console.log('[Firebase] Starting addDoc call...');
+
+        // Create a timeout promise
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Firestore write operation timed out after 10 seconds')), 10000);
+        });
+
+        // Race between the actual operation and the timeout
+        const addDocPromise = addDoc(deploymentsCollection, {
             ...deployment,
             createdAt: new Date().toISOString()
         });
+
+        console.log('[Firebase] Waiting for addDoc to complete...');
+        const docRef = await Promise.race([addDocPromise, timeoutPromise]);
+
         console.log('[Firebase] Deployment created successfully with ID:', docRef.id);
         return { id: docRef.id, ...deployment };
     } catch (error) {
         console.error('[Firebase] Error creating deployment:', error);
+        console.error('[Firebase] Error message:', (error as Error).message);
         console.error('[Firebase] Error stack:', (error as Error).stack);
+
+        // Provide more helpful error messages
+        if ((error as Error).message.includes('timeout')) {
+            throw new Error('The save operation is taking too long. Please check your internet connection and Firestore security rules.');
+        }
+
         throw error;
     }
 };
