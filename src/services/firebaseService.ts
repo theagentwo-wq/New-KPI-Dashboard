@@ -1,6 +1,6 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { initializeFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
+import { getFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import { getStorage, FirebaseStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
     Kpi,
@@ -70,11 +70,8 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         app = initializeApp(firebaseConfig);
         console.log("[Firebase Init] ✅ App initialized");
 
-        console.log("[Firebase Init] Initializing Firestore with custom settings...");
-        db = initializeFirestore(app, {
-            experimentalForceLongPolling: false,
-            experimentalAutoDetectLongPolling: true,
-        });
+        console.log("[Firebase Init] Getting Firestore instance...");
+        db = getFirestore(app);
         console.log("[Firebase Init] Firestore instance created");
 
         console.log("[Firebase Init] Getting Storage instance...");
