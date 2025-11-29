@@ -37,33 +37,12 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_MAPS_KEY': JSON.stringify(env.VITE_MAPS_KEY),
     },
     build: {
-      commonjsOptions: {
-        include: [/firebase/, /node_modules/],
-        transformMixedEsModules: true,
-      },
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          keep_classnames: true,
-          keep_fnames: true,
-        },
-        mangle: {
-          keep_classnames: true,
-          keep_fnames: true,
-        },
-      },
       rollupOptions: {
         output: {
           manualChunks: {
             'firebase': ['firebase/app', 'firebase/firestore', 'firebase/storage'],
           },
         },
-      },
-    },
-    optimizeDeps: {
-      include: ['firebase/app', 'firebase/firestore', 'firebase/storage'],
-      esbuildOptions: {
-        target: 'esnext',
       },
     },
   }
