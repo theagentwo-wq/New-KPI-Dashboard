@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal } from './Modal';
 import { callGeminiAPI, getPlaceDetails } from '../lib/ai-client';
 import { get7DayForecastForLocation, getWeatherForLocation } from '../services/weatherService';
+import { getPerformanceData } from '../services/firebaseService';
 import { marked } from 'marked';
 import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -20,25 +21,6 @@ interface PlaceDetails {
   formatted_address?: string;
   geometry?: { location: { lat: number; lng: number } };
 }
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="p-2 bg-slate-900 border border-slate-700 rounded-md shadow-lg">
-        <p className="label font-bold text-slate-200">{`${label}`}</p>
-        <p className="intro text-cyan-400">{`Predicted Sales: $${data.predictedSales.toLocaleString()}`}</p>
-        {data.weatherDescription && 
-          <div className="flex items-center gap-2 mt-1">
-            <WeatherIcon condition={data.weatherCondition} className="w-5 h-5" />
-            <span className='text-slate-400'>{data.weatherDescription}</span>
-          </div>
-        }
-      </div>
-    );
-  }
-  return null;
-};
 
 const QuickStat: React.FC<{ kpi: Kpi; value?: number }> = ({ kpi, value }) => {
     if (value === undefined || isNaN(value)) return null;
@@ -154,7 +136,66 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 case 'forecast': {
                     const forecastData = await get7DayForecastForLocation(location);
                     if (forecastData) {
-                         const aiForecast = await callGeminiAPI('getSalesForecast', { locationName: fullLocationName, weatherForecast: forecastData, historicalData: 'N/A' });
+                         // Fetch historical sales data from Firestore
+                         let historicalDataSummary = 'N/A';
+                         try {
+                             const allPerformanceData = await getPerformanceData();
+                             // Filter for this location
+                             const locationData = allPerformanceData.filter(d => d.storeId === location);
+
+                             if (locationData.length > 0) {
+                                 // Sort by date descending (most recent first)
+                                 locationData.sort((a, b) => {
+                                     const dateA = new Date(a.year, a.month - 1, a.day);
+                                     const dateB = new Date(b.year, b.month - 1, b.day);
+                                     return dateB.getTime() - dateA.getTime();
+                                 });
+
+                                 // Get last 5 weeks of data
+                                 const recentWeeks = locationData.slice(0, 5);
+                                 const recentSales: number[] = recentWeeks
+                                     .map(w => w.data.Sales)
+                                     .filter((s): s is number => s !== undefined && s > 0);
+
+                                 // Get YOY data (same weeks from last year)
+                                 const currentYear = new Date().getFullYear();
+                                 const lastYearData = locationData.filter(d =>
+                                     d.year === currentYear - 1 &&
+                                     d.data.Sales !== undefined &&
+                                     d.data.Sales > 0
+                                 );
+                                 const yoySales: number[] = lastYearData.slice(0, 5)
+                                     .map(w => w.data.Sales)
+                                     .filter((s): s is number => s !== undefined);
+
+                                 // Calculate averages
+                                 const recentAvg = recentSales.length > 0
+                                     ? recentSales.reduce((sum, val) => sum + val, 0) / recentSales.length
+                                     : 0;
+                                 const yoyAvg = yoySales.length > 0
+                                     ? yoySales.reduce((sum, val) => sum + val, 0) / yoySales.length
+                                     : 0;
+
+                                 // Format summary for AI
+                                 historicalDataSummary = JSON.stringify({
+                                     recentWeeksCount: recentSales.length,
+                                     recentWeeklyAverage: Math.round(recentAvg),
+                                     recentWeeklySales: recentSales.map(s => Math.round(s)),
+                                     yoyWeeksCount: yoySales.length,
+                                     yoyWeeklyAverage: Math.round(yoyAvg),
+                                     yoyChange: yoyAvg > 0 ? `${(((recentAvg - yoyAvg) / yoyAvg) * 100).toFixed(1)}%` : 'N/A'
+                                 }, null, 2);
+                             }
+                         } catch (error) {
+                             console.error('Error fetching historical data:', error);
+                             // Continue with 'N/A' if fetch fails
+                         }
+
+                         const aiForecast = await callGeminiAPI('getSalesForecast', {
+                             locationName: fullLocationName,
+                             weatherForecast: forecastData,
+                             historicalData: historicalDataSummary
+                         });
                          result = { ...aiForecast, sevenDay: forecastData };
                     } else {
                         throw new Error("7-day weather forecast is currently unavailable.");

@@ -254,6 +254,45 @@ functions/
      - ✅ Accounts for local context (weather + Columbia, SC events)
      - ✅ Can be enhanced later when daily data becomes available
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts), [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
+1. **Enhanced 7-Day Forecast with Actual Historical Data** (2025-11-30)
+   - User request: "ADD to all of the above the actual historical data into the equation"
+   - Previous implementation: Used only generic industry baselines ($70-85K weekly) with `historicalData: 'N/A'`
+   - Solution: Integrated actual sales data from Firestore `performance_actuals` collection
+     - **Frontend enhancement** ([src/components/LocationInsightsModal.tsx:139-196](src/components/LocationInsightsModal.tsx#L139-L196)):
+       - Fetches all performance data from Firestore using `getPerformanceData()`
+       - Filters for the selected location (storeId)
+       - Sorts by date descending (most recent first)
+       - Calculates **last 5 weeks average**: Recent weekly sales average from actual data
+       - Calculates **YOY comparison**: Same 5 weeks from last year for trend analysis
+       - Formats summary JSON with:
+         - `recentWeeksCount`: Number of recent weeks with data
+         - `recentWeeklyAverage`: Actual recent weekly sales average
+         - `recentWeeklySales`: Array of actual weekly sales figures
+         - `yoyWeeksCount`: Number of year-over-year weeks available
+         - `yoyWeeklyAverage`: YOY weekly sales average
+         - `yoyChange`: YOY growth/decline percentage
+       - Falls back to 'N/A' if no historical data available (graceful degradation)
+     - **Backend enhancement** ([functions/src/routes/gemini.ts:470-491](functions/src/routes/gemini.ts#L470-L491)):
+       - Updated prompt to use actual historical data when available
+       - AI now uses `recentWeeklyAverage` as baseline instead of generic $70-85K estimate
+       - Considers `yoyChange` percentage to inform forecast direction (growth/decline trend)
+       - References `recentWeeklySales` array to understand week-to-week variation
+       - Falls back to industry baseline only when historical data is 'N/A'
+       - Overview summary now mentions YOY performance trend when using real data
+   - **Data Flow**:
+     1. User opens forecast for a location (e.g., "Columbia, SC")
+     2. Frontend queries Firestore for all `performance_actuals` where `storeId === location`
+     3. Extracts recent 5 weeks of Sales data and YOY data
+     4. Passes JSON summary to backend API
+     5. Backend AI uses actual data for baseline, applies day-of-week multipliers, weather, and events
+     6. Returns forecast with real historical context
+   - **Benefits**:
+     - ✅ Uses actual store performance instead of generic estimates
+     - ✅ Shows YOY trends to understand if location is growing or declining
+     - ✅ More accurate baselines lead to better forecasts
+     - ✅ Still works when no historical data exists (falls back gracefully)
+     - ✅ AI can reference actual week-to-week variation patterns
+   - Files: [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx), [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues

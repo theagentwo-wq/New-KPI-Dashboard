@@ -467,16 +467,24 @@ TODAY'S DATE: ${currentDate}
 7-Day Weather Forecast:
 ${JSON.stringify(weatherForecast, null, 2)}
 
-Historical Data Available: ${historicalData}
+## HISTORICAL SALES DATA
+
+${historicalData}
 
 ## FORECAST METHODOLOGY
 
-Since detailed daily historical data is limited, use this hybrid approach:
+Use this hybrid approach combining actual historical data with forecasting factors:
 
 **Baseline Calculation:**
-- Assume a typical week for this restaurant category averages $70,000-$85,000 in weekly sales
-- Daily baseline = Weekly avg ÷ 7 = ~$10,000-$12,000
-- Apply day-of-week multipliers:
+- IF historical data is available above:
+  - Use the "recentWeeklyAverage" as your baseline (this is ACTUAL recent performance)
+  - Compare to "yoyWeeklyAverage" to understand trends (growth or decline)
+  - Use "yoyChange" percentage to inform your forecast direction
+  - Reference "recentWeeklySales" array to see actual week-to-week variation
+- IF historical data shows "N/A":
+  - Fall back to industry baseline: $70,000-$85,000 weekly sales
+  - Daily baseline = Weekly avg ÷ 7 = ~$10,000-$12,000
+- Apply day-of-week multipliers to daily baseline:
   - Monday/Tuesday: 0.7-0.8x baseline (slower)
   - Wednesday/Thursday: 0.9-1.0x baseline (moderate)
   - Friday/Saturday: 1.3-1.5x baseline (peak)
@@ -504,6 +512,7 @@ Generate a 7-day sales forecast with TWO components:
 Brief paragraph covering:
 - Expected weekly sales range
 - Overall trend for the week (up/down/stable vs typical)
+- IF using actual historical data: mention YOY performance trend (growth/decline %)
 - Major opportunities or challenges
 - Key recommendation for the week
 
