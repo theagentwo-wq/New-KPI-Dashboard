@@ -94,6 +94,12 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
         };
 
         console.log('[DeploymentPlanner] Calling onSave with data:', deploymentData);
+        console.log('[DeploymentPlanner] Closing modal immediately...');
+
+        // Close modal first, then save in background
+        onClose();
+
+        // Save happens in background
         onSave(deploymentData, deploymentToEdit?.id);
     };
 
@@ -139,7 +145,7 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                     {deploymentPersonType.id === 'strikeTeam' && (
                         <div>
                             <label htmlFor="strikeTeamMember" className="block text-sm font-medium text-slate-300 mb-1">Strike Team Member Name</label>
-                            <input id="strikeTeamMember" type="text" required value={strikeTeamMember} onChange={e => setStrikeTeamMember(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="Enter name" />
+                            <input id="strikeTeamMember" name="strikeTeamMember" type="text" required value={strikeTeamMember} onChange={e => setStrikeTeamMember(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="Enter name" />
                         </div>
                     )}
 
@@ -198,9 +204,11 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                     {/* Date Pickers */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="startDate" className="block text-sm font-medium text-slate-300 mb-1">Start Date</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">Start Date</label>
                             <div className="relative">
                                <DatePicker
+                                    id="startDate"
+                                    name="startDate"
                                     selected={startDate}
                                     onChange={(date: Date | null) => setStartDate(date || undefined)}
                                     selectsStart
@@ -215,9 +223,11 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="endDate" className="block text-sm font-medium text-slate-300 mb-1">End Date</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">End Date</label>
                              <div className="relative">
                                 <DatePicker
+                                    id="endDate"
+                                    name="endDate"
                                     selected={endDate}
                                     onChange={(date: Date | null) => setEndDate(date || undefined)}
                                     selectsEnd
@@ -237,11 +247,11 @@ export const DeploymentPlannerModal: React.FC<DeploymentPlannerModalProps> = ({ 
                     {/* Other fields */}
                     <div>
                         <label htmlFor="purpose" className="block text-sm font-medium text-slate-300 mb-1">Purpose</label>
-                        <textarea id="purpose" required value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" rows={3} placeholder="e.g., Manager shift cover"></textarea>
+                        <textarea id="purpose" name="purpose" required value={purpose} onChange={e => setPurpose(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" rows={3} placeholder="e.g., Manager shift cover"></textarea>
                     </div>
                     <div>
                         <label htmlFor="budget" className="block text-sm font-medium text-slate-300 mb-1">Estimated Budget</label>
-                        <input id="budget" type="number" required value={estimatedBudget} onChange={e => setEstimatedBudget(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="e.g., 1500" />
+                        <input id="budget" name="budget" type="number" required value={estimatedBudget} onChange={e => setEstimatedBudget(e.target.value)} className="w-full bg-slate-700 border-slate-600 rounded-md p-2 text-white" placeholder="e.g., 1500" />
                     </div>
 
                     <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10 -m-6 mt-4">

@@ -15,7 +15,13 @@
       "Bash(git commit:*)",
       "Bash(npx firebase-tools:*)",
       "Bash(firebase deploy:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(gh run:*)",
+      "Bash(git restore:*)",
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

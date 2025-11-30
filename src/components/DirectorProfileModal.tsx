@@ -24,11 +24,20 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   useEffect(() => {
     const fetchDeployments = async () => {
       if (director) {
+        console.log('[DirectorProfile] Starting to fetch deployments for:', director.id);
         try {
-          const deploymentsData = await getDeploymentsForDirector(director.id);
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Deployment fetch timed out after 5 seconds')), 5000);
+          });
+
+          const fetchPromise = getDeploymentsForDirector(director.id);
+          const deploymentsData = await Promise.race([fetchPromise, timeoutPromise]);
+
+          console.log('[DirectorProfile] Deployments fetched:', deploymentsData.length);
           setDeployments(deploymentsData);
         } catch (error) {
-          console.error('Error fetching deployments:', error);
+          console.error('[DirectorProfile] Error fetching deployments:', error);
           setDeployments([]);
         }
       } else {
@@ -36,6 +45,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
       }
     };
 
+    // Fetch in background, don't block modal opening
     fetchDeployments();
   }, [director]);
 
@@ -58,23 +68,35 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         // Update existing deployment
         console.log('[DirectorProfile] Updating deployment...');
         await updateDeployment(deploymentId, deploymentData);
+        console.log('[DirectorProfile] Update complete!');
       } else {
         // Create new deployment
         console.log('[DirectorProfile] Creating new deployment...');
-        await createDeployment(deploymentData as Omit<Deployment, 'id'>);
+        const result = await createDeployment(deploymentData as Omit<Deployment, 'id'>);
+        console.log('[DirectorProfile] Create complete! Result:', result);
       }
 
-      // Refresh deployments list
+      console.log('[DirectorProfile] Closing modal without refresh...');
+      handleClosePlanner();
+
+      // Refresh deployments list AFTER closing modal
       if (director) {
-        console.log('[DirectorProfile] Refreshing deployments list...');
-        const deploymentsData = await getDeploymentsForDirector(director.id);
-        setDeployments(deploymentsData);
+        console.log('[DirectorProfile] Refreshing deployments list in background...');
+        try {
+          const deploymentsData = await getDeploymentsForDirector(director.id);
+          console.log('[DirectorProfile] Got deployments:', deploymentsData.length);
+          setDeployments(deploymentsData);
+          console.log('[DirectorProfile] Deployments refreshed!');
+        } catch (refreshError) {
+          console.error('[DirectorProfile] Error refreshing deployments:', refreshError);
+          // Don't show alert since deployment was saved successfully
+        }
       }
 
       console.log('[DirectorProfile] Deployment saved successfully!');
-      handleClosePlanner();
     } catch (error) {
       console.error('[DirectorProfile] Error saving deployment:', error);
+      console.error('[DirectorProfile] Error details:', error);
       alert('Failed to save deployment. Please try again.');
     }
   };

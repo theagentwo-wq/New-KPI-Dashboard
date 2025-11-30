@@ -1,6 +1,6 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, CollectionReference, doc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch, connectFirestoreEmulator, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
+import { Firestore, collection, CollectionReference, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 import { getStorage, FirebaseStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
     Kpi,
@@ -73,9 +73,25 @@ export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
         app = initializeApp(firebaseConfig);
         console.log("[Firebase Init] ✅ App initialized");
 
-        console.log("[Firebase Init] Getting Firestore instance...");
-        db = getFirestore(app);
-        console.log("[Firebase Init] Firestore instance created");
+        console.log("[Firebase Init] Getting Firestore instance with MEMORY CACHE ONLY...");
+        console.log("[Firebase Init] Connecting to database: 'firebaseapp'");
+
+        // CRITICAL FIX: Use memory-only cache instead of IndexedDB persistence
+        // Setting localCache to undefined was causing "client is offline" errors
+        // CRITICAL FIX 2: Connect to 'firebaseapp' database instead of '(default)'
+        // Data was imported to 'firebaseapp' database, not the default one
+        // Database ID is passed as the third parameter
+        db = initializeFirestore(app, {
+            localCache: memoryLocalCache()
+        }, 'firebaseapp');
+
+        console.log("[Firebase Init] ✅ Firestore instance created (MEMORY CACHE ONLY)");
+
+        // Access internal properties for debugging (using 'any' to bypass TypeScript)
+        const dbAny = db as any;
+        console.log("[Firebase Init] Database ID:", dbAny._databaseId?.database || '(default)');
+        console.log("[Firebase Init] Project ID from DB:", dbAny._databaseId?.projectId);
+        console.log("[Firebase Init] Database host:", dbAny._settings?.host || 'firestore.googleapis.com');
 
         console.log("[Firebase Init] Getting Storage instance...");
         storage = getStorage(app);
@@ -271,45 +287,85 @@ export const updateGoal = async (goalId: string, newTarget: number, newStatus: s
 
 // --- Deployments ---
 export const getDeploymentsForDirector = async (directorId: string): Promise<Deployment[]> => {
-    const q = query(deploymentsCollection, where('directorId', '==', directorId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Deployment));
+    console.log('[Firebase] getDeploymentsForDirector called for:', directorId);
+
+    try {
+        // DEBUG: Try to read the specific test123 document we saw in console
+        console.log('[Firebase] DEBUG: Attempting to read test123 document directly...');
+        const testDocRef = doc(deploymentsCollection, 'test123');
+        const testDoc = await getDoc(testDocRef);
+        console.log('[Firebase] DEBUG: test123 exists?', testDoc.exists());
+        if (testDoc.exists()) {
+            console.log('[Firebase] DEBUG: test123 data:', testDoc.data());
+        }
+
+        // Get ALL deployments (no where clause to avoid query hang)
+        console.log('[Firebase] Fetching all deployments...');
+        console.log('[Firebase] Collection path:', deploymentsCollection.path);
+        console.log('[Firebase] Database instance:', db ? 'exists' : 'null');
+        const startTime = Date.now();
+
+        const snapshot = await getDocs(deploymentsCollection);
+
+        const elapsed = Date.now() - startTime;
+        console.log('[Firebase] ✅ Query completed in', elapsed, 'ms');
+        console.log('[Firebase] Snapshot size:', snapshot.size);
+        console.log('[Firebase] Snapshot empty?:', snapshot.empty);
+        console.log('[Firebase] Snapshot docs length:', snapshot.docs.length);
+
+        // Filter client-side
+        const allDeployments = snapshot.docs.map(docSnap => {
+            console.log('[Firebase] Processing doc:', docSnap.id, docSnap.data());
+            return { id: docSnap.id, ...docSnap.data() } as Deployment;
+        });
+        console.log('[Firebase] Raw deployments:', allDeployments);
+        const filteredDeployments = allDeployments.filter(d => d.directorId === directorId);
+
+        console.log('[Firebase] Found', allDeployments.length, 'total deployments,', filteredDeployments.length, 'for director', directorId);
+        return filteredDeployments;
+    } catch (error) {
+        console.error('[Firebase] Error getting deployments:', error);
+        // Return empty array instead of throwing, so UI doesn't break
+        return [];
+    }
 };
 
 export const createDeployment = async (deployment: Omit<Deployment, 'id'>): Promise<Deployment> => {
     console.log('[Firebase] createDeployment called with:', deployment);
-    console.log('[Firebase] deploymentsCollection exists?:', !!deploymentsCollection);
-    console.log('[Firebase] db exists?:', !!db);
 
     try {
-        console.log('[Firebase] Starting addDoc call...');
+        // Generate a unique ID manually
+        const newId = `${deployment.directorId}_${Date.now()}`;
+        console.log('[Firebase] Generated ID:', newId);
 
-        // Create a timeout promise
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Firestore write operation timed out after 10 seconds')), 10000);
-        });
+        const docRef = doc(deploymentsCollection, newId);
+        console.log('[Firebase] Document reference created:', docRef.path);
+        console.log('[Firebase] Collection path:', deploymentsCollection.path);
+        console.log('[Firebase] Firestore instance:', db ? 'exists' : 'missing');
 
-        // Race between the actual operation and the timeout
-        const addDocPromise = addDoc(deploymentsCollection, {
+        const dataToWrite = {
             ...deployment,
             createdAt: new Date().toISOString()
-        });
+        };
+        console.log('[Firebase] Data to write:', JSON.stringify(dataToWrite, null, 2));
 
-        console.log('[Firebase] Waiting for addDoc to complete...');
-        const docRef = await Promise.race([addDocPromise, timeoutPromise]);
+        console.log('[Firebase] Calling setDoc...');
+        await setDoc(docRef, dataToWrite);
+        console.log('[Firebase] ✅ setDoc completed without error');
 
-        console.log('[Firebase] Deployment created successfully with ID:', docRef.id);
-        return { id: docRef.id, ...deployment };
+        // Verify the write by reading it back immediately
+        console.log('[Firebase] Verifying write by reading back...');
+        const verifySnapshot = await getDocs(deploymentsCollection);
+        console.log('[Firebase] Total documents after write:', verifySnapshot.size);
+        console.log('[Firebase] All document IDs:', verifySnapshot.docs.map(d => d.id));
+
+        console.log('[Firebase] ✅ Deployment created successfully with ID:', newId);
+        return { id: newId, ...deployment };
     } catch (error) {
-        console.error('[Firebase] Error creating deployment:', error);
+        console.error('[Firebase] ❌ ERROR in createDeployment:', error);
+        console.error('[Firebase] Error name:', (error as Error).name);
         console.error('[Firebase] Error message:', (error as Error).message);
         console.error('[Firebase] Error stack:', (error as Error).stack);
-
-        // Provide more helpful error messages
-        if ((error as Error).message.includes('timeout')) {
-            throw new Error('The save operation is taking too long. Please check your internet connection and Firestore security rules.');
-        }
-
         throw error;
     }
 };
