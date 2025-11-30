@@ -128,38 +128,41 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         setIsLoadingAnalysis(prev => ({ ...prev, [type]: true }));
         if (type === 'brief' && audience) setLoadingAudience(audience);
 
+        // Use full restaurant name + location for all API calls
+        const fullLocationName = `Tupelo Honey Southern Kitchen and Bar ${location}`;
+
         let result: any = null;
         try {
             switch (type) {
                 case 'reviews':
                     if (currentPlaceDetails?.name && currentPlaceDetails?.reviews && currentPlaceDetails.reviews.length > 0) {
-                        result = await callGeminiAPI('getReviewSummary', { locationName: currentPlaceDetails.name, reviews: currentPlaceDetails.reviews });
+                        result = await callGeminiAPI('getReviewSummary', { locationName: fullLocationName, reviews: currentPlaceDetails.reviews });
                     } else {
                         throw new Error("No reviews are available to analyze for this location.");
                     }
                     break;
-                case 'market': 
-                    result = await callGeminiAPI('getLocationMarketAnalysis', { locationName: location }); 
+                case 'market':
+                    result = await callGeminiAPI('getLocationMarketAnalysis', { locationName: fullLocationName });
                     break;
                 case 'brief': {
                     const weather = await getWeatherForLocation(location);
                     if (performanceData && audience) {
-                        result = await callGeminiAPI('generateHuddleBrief', { locationName: location, performanceData, audience, weather });
+                        result = await callGeminiAPI('generateHuddleBrief', { locationName: fullLocationName, performanceData, audience, weather });
                     }
                     break;
                 }
                 case 'forecast': {
                     const forecastData = await get7DayForecastForLocation(location);
                     if (forecastData) {
-                         const aiForecast = await callGeminiAPI('getSalesForecast', { locationName: location, weatherForecast: forecastData, historicalData: 'N/A' });
+                         const aiForecast = await callGeminiAPI('getSalesForecast', { locationName: fullLocationName, weatherForecast: forecastData, historicalData: 'N/A' });
                          result = { ...aiForecast, sevenDay: forecastData };
                     } else {
                         throw new Error("7-day weather forecast is currently unavailable.");
                     }
                     break;
                 }
-                case 'marketing': 
-                    result = await callGeminiAPI('getMarketingIdeas', { locationName: location, userLocation }); 
+                case 'marketing':
+                    result = await callGeminiAPI('getMarketingIdeas', { locationName: fullLocationName, userLocation });
                     break;
             }
             if (type !== 'forecast' && typeof result === 'string') result = await marked.parse(result);
@@ -169,7 +172,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const errorMsg = error instanceof Error ? error.message : 'Could not generate results.';
             result = `<p class="text-red-400">Request failed: ${errorMsg}</p>`;
         }
-        
+
         if (type === 'brief' && audience) {
             setAnalysisContent(prev => ({ ...prev, brief: { ...(prev.brief || {}), [audience]: result } }));
         } else {
