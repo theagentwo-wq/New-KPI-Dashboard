@@ -22,6 +22,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [deploymentToEdit, setDeploymentToEdit] = useState<Deployment | null>(null);
   const [topStore, setTopStore] = useState<Store | null>(null);
+  const [topStoreMetrics, setTopStoreMetrics] = useState<{ sales: number; primeCost: number; sop: number } | null>(null);
   const [directorGoals, setDirectorGoals] = useState<Goal[]>([]);
   const [aiSnapshot, setAiSnapshot] = useState<string | null>(null);
   const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
@@ -51,24 +52,36 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         setDeployments([]);
       }
 
-      // Fetch top performing store
+      // Fetch top performing store and calculate metrics
       try {
         const storePerformanceData = await getPerformanceData();
         const directorStores = storePerformanceData.filter(d =>
           director.stores.includes(d.storeId)
         );
 
-        // Calculate total sales per store
-        const storesSales = directorStores.reduce((acc, d) => {
-          if (!acc[d.storeId]) acc[d.storeId] = 0;
-          acc[d.storeId] += d.data.Sales || 0;
+        // Calculate totals per store
+        const storesData = directorStores.reduce((acc, d) => {
+          if (!acc[d.storeId]) {
+            acc[d.storeId] = { sales: 0, primeCost: 0, sop: 0, count: 0 };
+          }
+          acc[d.storeId].sales += d.data.Sales || 0;
+          acc[d.storeId].primeCost += (d.data['Prime Cost'] || 0);
+          acc[d.storeId].sop += (d.data['SOP%'] || 0);
+          acc[d.storeId].count += 1;
           return acc;
-        }, {} as Record<string, number>);
+        }, {} as Record<string, { sales: number; primeCost: number; sop: number; count: number }>);
 
-        const topStoreId = Object.entries(storesSales).sort(([,a], [,b]) => b - a)[0]?.[0];
-        if (topStoreId) {
+        // Find top store by sales and calculate averages
+        const topStoreEntry = Object.entries(storesData).sort(([,a], [,b]) => b.sales - a.sales)[0];
+        if (topStoreEntry) {
+          const [topStoreId, metrics] = topStoreEntry;
           setTopStore({ id: topStoreId, name: topStoreId });
-          console.log('[DirectorProfile] Top store:', topStoreId);
+          setTopStoreMetrics({
+            sales: metrics.sales,
+            primeCost: metrics.primeCost / metrics.count, // Average
+            sop: metrics.sop / metrics.count, // Average
+          });
+          console.log('[DirectorProfile] Top store:', topStoreId, metrics);
         }
       } catch (error) {
         console.error('[DirectorProfile] Error fetching top store:', error);
@@ -217,6 +230,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
               topStore={topStore}
               directorGoals={directorGoals}
               kpiData={null}
+              topStoreMetrics={topStoreMetrics}
             />
           </div>
 
@@ -251,6 +265,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
                 topStore={topStore}
                 directorGoals={directorGoals}
                 kpiData={null}
+                topStoreMetrics={topStoreMetrics}
                 onGenerate={handleGenerateSnapshot}
                 isLoading={isLoadingSnapshot}
                 snapshotData={aiSnapshot}

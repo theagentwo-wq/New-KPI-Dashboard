@@ -10,6 +10,11 @@ interface DirectorProfileModalProps {
     topStore: Store | null;
     directorGoals: Goal[];
     kpiData: any;
+    topStoreMetrics?: {
+        sales: number;
+        primeCost: number;
+        sop: number;
+    } | null;
 }
 
 export const DirectorInfo: React.FC<{ director: DirectorProfile }> = ({ director }) => (
@@ -48,7 +53,7 @@ export const RegionStores: React.FC<{ stores: {id: string, name: string}[] }> = 
     </div>
 );
 
-export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topStore, directorGoals }) => (
+export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topStore, directorGoals, topStoreMetrics }) => (
     <div className="bg-slate-900/50 p-4 rounded-lg w-full text-sm flex-grow">
         <h3 className="font-semibold text-slate-300 text-base mb-3 border-b border-slate-700 pb-2">Goals & Performance</h3>
         <div className="space-y-4">
@@ -56,7 +61,25 @@ export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topSt
                 <h4 className="font-semibold text-slate-400 mb-2 flex items-center"><Trophy size={16} className="mr-2 text-yellow-400"/>Top Performing Store (by Sales)</h4>
                 <div className="bg-slate-800 p-3 rounded-md">
                     {topStore ? (
-                        <p className='font-bold text-cyan-400 text-center text-lg'>{topStore.name}</p>
+                        <>
+                            <p className='font-bold text-cyan-400 text-center text-lg mb-2'>{topStore.name}</p>
+                            {topStoreMetrics && (
+                                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                    <div>
+                                        <p className="text-slate-500">Sales</p>
+                                        <p className="text-green-400 font-semibold">${(topStoreMetrics.sales / 1000).toFixed(0)}k</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-500">Prime Cost</p>
+                                        <p className="text-blue-400 font-semibold">{(topStoreMetrics.primeCost * 100).toFixed(1)}%</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-500">SOP%</p>
+                                        <p className="text-yellow-400 font-semibold">{(topStoreMetrics.sop * 100).toFixed(1)}%</p>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <p className='text-slate-500 text-center text-xs'>Data unavailable</p>
                     )}
