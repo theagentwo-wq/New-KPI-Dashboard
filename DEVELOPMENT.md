@@ -226,6 +226,34 @@ functions/
    - All briefs now reference the Tupelo Honey corporate website to identify live promotions
    - Ensures consistent execution of company-wide promotional campaigns across all teams
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Implemented Enhanced 7-Day Sales Forecast** (2025-11-30)
+   - Challenge: No daily historical data available, only weekly/period averages
+   - User question: "How do we display forecast information without daily data?"
+   - Solution: Hybrid forecast approach combining industry baselines, weather, and local events
+     - **Backend methodology** ([functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)):
+       - Baseline calculation: $70-85K weekly sales ÷ 7 days = $10-12K daily baseline
+       - Day-of-week multipliers: Mon/Tue (0.7-0.8x), Wed/Thu (0.9-1.0x), Fri/Sat (1.3-1.5x), Sun (1.1-1.2x)
+       - Weather impact factors: Sunny 60-75°F (+10-15%), Rain (-15-25%), Very Hot/Cold (-5-15%)
+       - Event impact factors: USC games (+30-50%), Concerts (+20-35%), Vista Art Walks (+15-25%)
+       - Returns JSON with `summary`, `chartData` (salesLow/Mid/High for 7 days), `dailyBreakdown` (detailed info per day)
+     - **Frontend display** ([src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)):
+       - **Overview Summary**: Markdown-formatted week outlook with trends and key recommendations
+       - **3-Line Chart**: Shows sales forecast with confidence bands (solid mid-line, dashed low/high range lines)
+       - **Daily Breakdown Cards**: For each of 7 days shows:
+         - Sales range ($XX,XXX - $XX,XXX) with variance indicator
+         - Traffic level badge (color-coded: VERY HIGH=red, HIGH=orange, MEDIUM=yellow, LOW=gray)
+         - Weather impact description with patio viability
+         - Local events list (USC games with times, concerts, Vista events)
+         - Expected rush periods (displayed as chips)
+         - Operational recommendations (staffing levels, prep priorities, special considerations)
+       - **Weather Outlook**: 7-day weather grid at bottom
+   - Benefits:
+     - ✅ Works with limited historical data (uses industry-standard baseline methodology)
+     - ✅ Provides actionable insights (not just numbers - includes staffing recommendations)
+     - ✅ Sets realistic expectations (shows ranges instead of false precision)
+     - ✅ Accounts for local context (weather + Columbia, SC events)
+     - ✅ Can be enhanced later when daily data becomes available
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts), [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
