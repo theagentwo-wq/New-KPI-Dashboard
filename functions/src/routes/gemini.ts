@@ -132,7 +132,7 @@ Conduct a comprehensive market analysis covering:
    - Population trends, age distribution, income levels, tourism statistics
 
 2. MACRO EVENTS (City-Wide)
-   - Search: "${location} events calendar"
+   - Search: "${locationName} events calendar"
    - Major festivals, conventions, sporting events, citywide celebrations
 
 3. MICRO EVENTS (Neighborhood-Level)
@@ -219,33 +219,45 @@ INCORPORATE:
 TONE: Passionate, professional, pride in craft
 FORMAT: Brief (2-3 minutes to read aloud)`;
   } else {
-    // Manager
-    prompt = `You are preparing a comprehensive pre-shift brief for the MANAGEMENT TEAM at ${locationName}.
+    // Managers
+    prompt = `You are preparing a comprehensive pre-shift brief ONLY for the MANAGEMENT TEAM at ${locationName}.
 
-INCORPORATE ALL OF FOH + BOH:
-- Sales contests for FOH, kitchen passion for BOH
+IMPORTANT: Generate ONLY ONE brief for Managers. Do not generate separate FOH or BOH briefs.
+
+## Sales & Guest Experience Strategy
+- Create 1-2 sales contests for the FOH team to announce (examples: "Upsell Challenge", "Dessert Derby")
+- Guest experience focus areas, service standards
+
+## Kitchen Excellence & Safety
+- Kitchen safety focus for today, food safety reminders
+- Quality standards and timing goals
+- Motivate BOH with passion for craft and excellence
 
 ## Management-Specific Elements
 
 ### Performance & Profitability
-- P&L snapshot (sales, labor %, prime cost), today's profitability goals
+- P&L snapshot from performance data below
+- Today's profitability goals, labor %, prime cost targets
+
+Performance Data: ${JSON.stringify(performanceData)}
 
 ### Operations Excellence
-- Floor management strategy, labor deployment, guest recovery protocols
+- Floor management strategy, labor deployment optimization
+- Guest recovery protocols, handling peak periods
 
 ### Culture Building (CRITICAL)
 - Hospitality industry best practices
 - Inspiring leadership moment, team recognition opportunities
-- "How can we make today exceptional?"
+- "How can we make today exceptional for our team AND our guests?"
 
 ### Weather & Local Context
-- Weather: ${JSON.stringify(weather)}
-- Weather impact on traffic, local events driving business
+Weather: ${JSON.stringify(weather)}
+- How weather impacts expected traffic
+- Local events driving business today
 
 ### Action Plan
-- Specific goals for the shift, metrics to track
-
-Performance Data: ${JSON.stringify(performanceData)}
+- Specific measurable goals for the shift
+- Metrics to track throughout the day
 
 TONE: Strategic, inspiring, action-oriented
 FORMAT: Comprehensive (5-7 minutes to read/discuss)`;
