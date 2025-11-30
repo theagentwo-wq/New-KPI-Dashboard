@@ -26,24 +26,36 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [directorGoals, setDirectorGoals] = useState<Goal[]>([]);
   const [aiSnapshot, setAiSnapshot] = useState<string | null>(null);
   const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
+  const [localDirector, setLocalDirector] = useState<DirectorProfile | null>(director);
+
+  // Update local director when prop changes
+  useEffect(() => {
+    setLocalDirector(director);
+  }, [director]);
+
+  const handleDirectorUpdate = (updates: Partial<DirectorProfile>) => {
+    if (localDirector) {
+      setLocalDirector({ ...localDirector, ...updates });
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!director) {
+      if (!localDirector) {
         setDeployments([]);
         setTopStore(null);
         setDirectorGoals([]);
         return;
       }
 
-      console.log('[DirectorProfile] Fetching data for:', director.id);
+      console.log('[DirectorProfile] Fetching data for:', localDirector.id);
 
       // Fetch deployments
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Deployment fetch timed out after 5 seconds')), 5000);
         });
-        const fetchPromise = getDeploymentsForDirector(director.id);
+        const fetchPromise = getDeploymentsForDirector(localDirector.id);
         const deploymentsData = await Promise.race([fetchPromise, timeoutPromise]);
         console.log('[DirectorProfile] Deployments fetched:', deploymentsData.length);
         setDeployments(deploymentsData);
@@ -56,7 +68,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
       try {
         const storePerformanceData = await getPerformanceData();
         const directorStores = storePerformanceData.filter(d =>
-          director.stores.includes(d.storeId)
+          localDirector.stores.includes(d.storeId)
         );
 
         // Calculate totals per store
@@ -89,7 +101,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
       // Fetch goals
       try {
-        const goals = await getGoals(director.id);
+        const goals = await getGoals(localDirector.id);
         setDirectorGoals(goals);
         console.log('[DirectorProfile] Goals fetched:', goals.length);
       } catch (error) {
@@ -98,9 +110,9 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     };
 
     fetchData();
-  }, [director]);
+  }, [localDirector]);
 
-  if (!isOpen || !director) return null;
+  if (!isOpen || !localDirector) return null;
 
   const handleOpenPlanner = (deployment?: Deployment) => {
     setDeploymentToEdit(deployment || null);
@@ -131,10 +143,10 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
       handleClosePlanner();
 
       // Refresh deployments list AFTER closing modal
-      if (director) {
+      if (localDirector) {
         console.log('[DirectorProfile] Refreshing deployments list in background...');
         try {
-          const deploymentsData = await getDeploymentsForDirector(director.id);
+          const deploymentsData = await getDeploymentsForDirector(localDirector.id);
           console.log('[DirectorProfile] Got deployments:', deploymentsData.length);
           setDeployments(deploymentsData);
           console.log('[DirectorProfile] Deployments refreshed!');
@@ -159,7 +171,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
         // Refresh deployments list
         if (director) {
-          const deploymentsData = await getDeploymentsForDirector(director.id);
+          const deploymentsData = await getDeploymentsForDirector(localDirector.id);
           setDeployments(deploymentsData);
         }
       } catch (error) {
@@ -186,8 +198,8 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         quarter: 4,
       };
 
-      console.log('[DirectorProfile] Generating AI snapshot for:', director.id);
-      const response = await getDirectorPerformanceSnapshot(director.id, period);
+      console.log('[DirectorProfile] Generating AI snapshot for:', localDirector.id);
+      const response = await getDirectorPerformanceSnapshot(localDirector.id, period);
 
       console.log('[DirectorProfile] AI snapshot received:', response);
       setAiSnapshot(response.data);
@@ -202,7 +214,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const renderContent = () => {
     switch (activeTab) {
       case 'map':
-        return <DeploymentMap deployments={deployments} director={director} />;
+        return <DeploymentMap deployments={deployments} director={localDirector!} />;
       case 'timeline':
         return <DeploymentTimeline 
                     deployments={deployments} 
@@ -210,7 +222,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
                     onDelete={handleDeleteDeployment} 
                 />;
       case 'budget':
-        return <DeploymentBudget deployments={deployments} director={director} />;
+        return <DeploymentBudget deployments={deployments} director={localDirector!} />;
       default:
         return null;
     }
@@ -219,15 +231,15 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-20 p-4" onClick={onClose}>
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-6xl h-[75vh] flex flex-col relative border border-slate-700" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white z-10"><X size={24} /></button>
+        <button onClick={onClose} className="absolute top-3 left-3 text-slate-400 hover:text-white z-10 bg-slate-900/50 hover:bg-slate-900 rounded-full p-2 transition-colors" title="Close"><X size={20} /></button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 h-full overflow-hidden">
           {/* LEFT PANEL - Director Info */}
           <div className="md:col-span-1 bg-slate-900/50 p-6 overflow-y-auto custom-scrollbar flex flex-col">
-            <DirectorInfo director={director} />
-            <RegionStores stores={director.stores.map(s => ({id: s, name: s}))} />
+            <DirectorInfo director={localDirector} onUpdate={handleDirectorUpdate} />
+            <RegionStores stores={localDirector.stores.map(s => ({id: s, name: s}))} />
             <GoalsAndPerformance
-              director={director}
+              director={localDirector}
               topStore={topStore}
               directorGoals={directorGoals}
               kpiData={null}
@@ -280,7 +292,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
         <DeploymentPlannerModal
           isOpen={isPlannerOpen}
           onClose={handleClosePlanner}
-          director={director}
+          director={localDirector!}
           onSave={handleSaveDeployment}
           deploymentToEdit={deploymentToEdit}
         />

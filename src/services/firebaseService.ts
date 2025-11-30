@@ -17,7 +17,7 @@ import {
     NoteCategory,
     Budget
 } from '../types';
-import { DIRECTORS } from '../constants';
+import { DIRECTORS, STORE_DETAILS } from '../constants';
 
 // --- Firebase Initialization ---
 
@@ -330,6 +330,15 @@ export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
         // Extract firstName from name (or use name as firstName if no space)
         const firstName = data.name?.split(' ')[0] || data.name || '';
 
+        // Get home store coordinates from STORE_DETAILS (based on homeLocation)
+        let homeLat = data.homeLat || 0;
+        let homeLon = data.homeLon || 0;
+
+        if (data.homeLocation && STORE_DETAILS[data.homeLocation]) {
+            homeLat = STORE_DETAILS[data.homeLocation].lat;
+            homeLon = STORE_DETAILS[data.homeLocation].lon;
+        }
+
         return {
             id: docSnap.id, // Use Firestore document ID
             name: data.name || '',
@@ -341,12 +350,17 @@ export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
             email: data.email || '',
             phone: data.phone || '',
             homeLocation: data.homeLocation || '',
-            homeLat: data.homeLat || 0,
-            homeLon: data.homeLon || 0,
-            yearlyTravelBudget: data.yearlyTravelBudget || 50000, // Default budget
+            homeLat: homeLat,
+            homeLon: homeLon,
+            yearlyTravelBudget: data.yearlyTravelBudget || 30000, // Default budget: $30k
             bio: data.bio || '',
         } as DirectorProfile;
     });
+};
+
+export const updateDirectorProfile = async (directorId: string, updates: Partial<DirectorProfile>): Promise<void> => {
+    const directorRef = doc(directorsCollection, directorId);
+    await updateDoc(directorRef, updates as any);
 };
 
 export const addGoal = async (directorId: string, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {

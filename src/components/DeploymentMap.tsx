@@ -31,37 +31,57 @@ const mapStyles = [
     { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] },
 ];
 
+// Pin/marker icon path - teardrop shape pointing down
+const PIN_PATH = 'M12 0C7.31 0 3.5 3.81 3.5 8.5C3.5 14.88 12 24 12 24S20.5 14.88 20.5 8.5C20.5 3.81 16.69 0 12 0Z';
+
 const ICONS = {
     HOME: {
-        path: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z', // Material Icons home
-        fillColor: '#4ade80', // green-400
-        fillOpacity: 1,
-        strokeWeight: 0,
+        path: PIN_PATH,
+        fillColor: '#06b6d4', // cyan-500 - home location
+        fillOpacity: 0.95,
+        strokeWeight: 2,
+        strokeColor: '#0e7490', // cyan-700 - darker border
+        rotation: 0,
+        scale: 1.3,
+        anchor: { x: 12, y: 24 }, // Bottom point of pin
+    },
+    DIRECTOR_DEPLOYMENT: {
+        path: PIN_PATH,
+        fillColor: '#0ea5e9', // sky-500 - director on deployment
+        fillOpacity: 0.95,
+        strokeWeight: 2,
+        strokeColor: '#0369a1', // sky-700 - darker border
+        rotation: 0,
+        scale: 1.3,
+        anchor: { x: 12, y: 24 },
+    },
+    TEAM_DEPLOYMENT: {
+        path: PIN_PATH,
+        fillColor: '#8b5cf6', // violet-500 - team member deployment
+        fillOpacity: 0.95,
+        strokeWeight: 2,
+        strokeColor: '#6d28d9', // violet-700 - darker border
         rotation: 0,
         scale: 1.2,
-        anchor: { x: 12, y: 12 },
-    },
-    DIRECTOR_SUITCASE: {
-        path: 'M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zM10 4h4v2h-4V4zm10 15H4V8h16v11z', // Material Icons business_center
-        fillColor: '#22d3ee', // cyan-400
-        fillOpacity: 1,
-        strokeWeight: 0,
-        rotation: 0,
-        scale: 1.1,
-        anchor: { x: 12, y: 12 },
-    },
-    STRIKE_TEAM_SUITCASE: {
-        path: 'M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zM10 4h4v2h-4V4zm10 15H4V8h16v11z', // Material Icons business_center
-        fillColor: '#f472b6', // pink-400
-        fillOpacity: 1,
-        strokeWeight: 0,
-        rotation: 0,
-        scale: 1.1,
-        anchor: { x: 12, y: 12 },
+        anchor: { x: 12, y: 24 },
     }
 };
 
-// --- Component --- 
+// --- Helper Functions ---
+
+/**
+ * Check if a deployment is currently active (happening right now)
+ */
+const isDeploymentActive = (deployment: Deployment): boolean => {
+    const now = new Date();
+    const start = new Date(deployment.startDate);
+    const end = new Date(deployment.endDate);
+
+    // Check if current date is between start and end dates
+    return now >= start && now <= end;
+};
+
+// --- Component ---
 
 interface DeploymentMapProps {
   deployments: Deployment[];
@@ -75,7 +95,7 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
   useEffect(() => {
     if (window.google && mapRef.current && director) {
       const bounds = new window.google.maps.LatLngBounds();
-      
+
       const map = new window.google.maps.Map(mapRef.current, {
         styles: mapStyles,
         disableDefaultUI: true,
@@ -84,41 +104,51 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
         zoom: 4, // Show entire United States
       });
 
-      // Add Director's Home Base
-      const homePosition = { lat: director.homeLat, lng: director.homeLon };
-      new window.google.maps.Marker({
-        position: homePosition,
-        map,
-        title: `Home Base: ${director.homeLocation}`,
-        icon: ICONS.HOME,
-        label: {
-          text: director.firstName || director.name.split(' ')[0],
-          color: '#4ade80',
-          fontSize: '11px',
-          fontWeight: 'bold',
-          className: 'marker-label-below'
-        }
-      });
-      bounds.extend(homePosition);
+      // Filter to only active (current) deployments
+      const activeDeployments = deployments.filter(isDeploymentActive);
 
-      // Add Deployment Markers
-      deployments.forEach(deployment => {
+      // Check if director has an active deployment
+      const directorActiveDeployment = activeDeployments.find(
+        d => d.deployedPerson === director.name
+      );
+
+      // Only show home icon if director is NOT currently deployed
+      if (!directorActiveDeployment) {
+        const homePosition = { lat: director.homeLat, lng: director.homeLon };
+        new window.google.maps.Marker({
+          position: homePosition,
+          map,
+          title: `Home Base: ${director.homeLocation}`,
+          icon: ICONS.HOME,
+          label: {
+            text: director.firstName || director.name.split(' ')[0],
+            color: '#ffffff',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            className: 'marker-label-home'
+          }
+        });
+        bounds.extend(homePosition);
+      }
+
+      // Add markers for ACTIVE deployments only
+      activeDeployments.forEach(deployment => {
         const storeInfo = STORE_DETAILS[deployment.destination];
         if (storeInfo) {
           const position = { lat: storeInfo.lat, lng: storeInfo.lon };
           const isDirector = deployment.deployedPerson === director.name;
-          
+
           const marker = new window.google.maps.Marker({
             position,
             map,
             title: `${deployment.purpose} @ ${deployment.destination}`,
-            icon: isDirector ? ICONS.DIRECTOR_SUITCASE : ICONS.STRIKE_TEAM_SUITCASE,
+            icon: isDirector ? ICONS.DIRECTOR_DEPLOYMENT : ICONS.TEAM_DEPLOYMENT,
             label: {
                 text: deployment.deployedPerson.split(' ')[0], // First name
-                color: isDirector ? '#22d3ee' : '#f472b6', // Cyan for director, pink for strike team
-                fontSize: '11px',
+                color: '#ffffff',
+                fontSize: '13px',
                 fontWeight: 'bold',
-                className: 'marker-label-below'
+                className: 'marker-label-deployment'
             }
           });
           bounds.extend(position);
@@ -139,8 +169,17 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
   return (
     <div className="h-full w-full relative bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
         <style>{`
-            .marker-label-below {
-                margin-top: 28px !important;
+            .marker-label-home,
+            .marker-label-deployment {
+                margin-top: 32px !important;
+                text-shadow:
+                    -1px -1px 2px rgba(0, 0, 0, 0.9),
+                    1px -1px 2px rgba(0, 0, 0, 0.9),
+                    -1px 1px 2px rgba(0, 0, 0, 0.9),
+                    1px 1px 2px rgba(0, 0, 0, 0.9),
+                    0 0 4px rgba(0, 0, 0, 0.8) !important;
+                font-family: system-ui, -apple-system, sans-serif !important;
+                letter-spacing: 0.5px !important;
             }
         `}</style>
       <div ref={mapRef} className="h-full w-full" />
