@@ -58,8 +58,10 @@ const App = () => {
             getNotes(),
             getDirectorProfiles(),
           ]);
+          console.log('[App] Received', initialNotes.length, 'notes from getNotes()');
+          console.log('[App] Notes data:', initialNotes);
           setNotes(initialNotes);
-          console.log('[App] Initial data loaded successfully');
+          console.log('[App] Initial data loaded successfully, notes state updated');
           // We use the initial directors from constants.ts, but in a real app this would be fetched
         } else {
           console.warn('[App] Firebase not connected:', status);

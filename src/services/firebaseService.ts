@@ -167,9 +167,22 @@ export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory
 };
 
 export const getNotes = async (): Promise<Note[]> => {
-    const q = query(notesCollection, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note));
+    try {
+        console.log('[Firebase] getNotes: Fetching notes from Firestore...');
+        console.log('[Firebase] getNotes: Collection path:', notesCollection.path);
+        const q = query(notesCollection, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        console.log('[Firebase] getNotes: Found', snapshot.size, 'notes');
+        const notes = snapshot.docs.map(doc => {
+            console.log('[Firebase] getNotes: Note ID:', doc.id, 'Data:', doc.data());
+            return { id: doc.id, ...doc.data() } as Note;
+        });
+        console.log('[Firebase] getNotes: Returning', notes.length, 'notes');
+        return notes;
+    } catch (error) {
+        console.error('[Firebase] getNotes: ERROR fetching notes:', error);
+        return [];
+    }
 };
 
 export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
