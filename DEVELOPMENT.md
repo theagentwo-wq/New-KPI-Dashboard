@@ -207,6 +207,25 @@ functions/
    - All briefs now show USC Gamecocks games, Colonial Life Arena concerts, Trustus Theatre shows, Vista events, and conventions
    - Helps teams anticipate traffic patterns and prepare accordingly
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Added Company Promotions to All Hot Topics Briefs** (2025-11-30)
+   - User request: Reference https://www.tupelohoneycafe.com in all Hot Topics briefs for current company promotions
+   - Solution: Added company promotions section to all three audience briefs
+     - **FOH**: Added to "Sales Focus & Contests" section
+       - Check website for current promotions/specials
+       - Highlight active promotions to guests
+       - Train servers on promotion details and upselling points
+     - **BOH**: Added to "Today's Execution Plan & Traffic Drivers" section
+       - Identify promoted menu items requiring extra prep
+       - Ensure ingredients stocked for promoted dishes
+       - Communicate special preparation needs
+       - Updated execution planning to consider active promotions
+     - **Managers**: Added to "Team Leadership & Communication" section (marked CRITICAL)
+       - Ensure all teams aware of active promotions
+       - Communicate promotion details, upselling points, execution requirements
+       - Verify FOH knows presentation and BOH knows preparation
+   - All briefs now reference the Tupelo Honey corporate website to identify live promotions
+   - Ensures consistent execution of company-wide promotional campaigns across all teams
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
