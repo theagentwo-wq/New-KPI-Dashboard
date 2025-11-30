@@ -14,7 +14,18 @@ interface DirectorProfileModalProps {
 
 export const DirectorInfo: React.FC<{ director: DirectorProfile }> = ({ director }) => (
     <div className="flex flex-col items-center text-center mb-6">
-        <img src={director.photo} alt={director.name} className="w-28 h-28 rounded-full border-4 border-cyan-400 object-cover shadow-lg mb-4"/>
+        <div className="relative mb-4">
+            {/* Decorative background pattern */}
+            <div className="absolute inset-0 w-32 h-32 -m-2">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-400 opacity-20 blur-md"></div>
+            </div>
+            {/* Director photo */}
+            <img
+                src={director.photo}
+                alt={director.name}
+                className="relative w-28 h-28 rounded-full border-4 border-cyan-400 object-cover shadow-lg z-10"
+            />
+        </div>
         <h2 className="text-2xl font-bold text-white">{director.name}</h2>
         <p className="text-md text-cyan-300">{director.title}</p>
         <div className="mt-4 text-left bg-slate-900/50 p-4 rounded-lg w-full text-sm">
@@ -65,12 +76,61 @@ export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topSt
     </div>
 );
 
-export const AIPerformanceSnapshot: React.FC<DirectorProfileModalProps> = () => (
-    <div className="bg-slate-900/50 p-4 rounded-lg w-full h-full flex flex-col justify-center items-center">
-        <h3 className="font-semibold text-slate-300 text-base mb-3">AI Performance Snapshot</h3>
-        <p className="text-slate-400 text-center mb-4 max-w-sm">
-            Get an AI-powered summary of this director's performance for W48 FY2025 (Nov 24).
-        </p>
-        <button className="bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center transition-colors"><TrendingUp size={16} className="mr-2"/> Generate Snapshot</button>
+interface AIPerformanceSnapshotProps extends DirectorProfileModalProps {
+    onGenerate?: () => void;
+    isLoading?: boolean;
+    snapshotData?: string | null;
+}
+
+export const AIPerformanceSnapshot: React.FC<AIPerformanceSnapshotProps> = ({
+    onGenerate,
+    isLoading = false,
+    snapshotData = null
+}) => (
+    <div className="bg-slate-900/50 p-6 rounded-lg w-full">
+        <h3 className="font-semibold text-cyan-400 text-lg mb-3">AI Performance Snapshot</h3>
+
+        {!snapshotData && !isLoading && (
+            <>
+                <p className="text-slate-400 text-center mb-4 text-sm">
+                    Get an AI-powered summary of this director's performance for W48 FY2025 (Nov 24).
+                </p>
+                <div className="flex justify-center">
+                    <button
+                        onClick={onGenerate}
+                        className="bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center transition-colors"
+                    >
+                        <TrendingUp size={16} className="mr-2"/> Generate Snapshot
+                    </button>
+                </div>
+            </>
+        )}
+
+        {isLoading && (
+            <div className="flex flex-col items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mb-4"></div>
+                <p className="text-slate-400 text-sm">Generating AI snapshot...</p>
+            </div>
+        )}
+
+        {snapshotData && !isLoading && (
+            <div className="mt-4">
+                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <div className="prose prose-invert prose-sm max-w-none">
+                        <div className="text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
+                            {snapshotData}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onGenerate}
+                        className="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center transition-colors"
+                    >
+                        <TrendingUp size={16} className="mr-2"/> Regenerate
+                    </button>
+                </div>
+            </div>
+        )}
     </div>
 );

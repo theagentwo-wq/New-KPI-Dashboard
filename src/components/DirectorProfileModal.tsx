@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { DirectorProfile, Deployment } from '../types';
-import DirectorSummary from './DirectorSummary';
+import { DirectorProfile, Deployment, Store, Goal, Period } from '../types';
+import { DirectorInfo, RegionStores, GoalsAndPerformance, AIPerformanceSnapshot } from './DirectorProfileSubComponents';
 import { DeploymentTimeline } from './DeploymentTimeline';
 import { DeploymentBudget } from './DeploymentBudget';
 import { DeploymentMap } from './DeploymentMap';
 import { DeploymentPlannerModal } from './DeploymentPlannerModal';
-import { getDeploymentsForDirector, createDeployment, updateDeployment, deleteDeployment } from '../services/firebaseService';
+import { getDeploymentsForDirector, createDeployment, updateDeployment, deleteDeployment, getPerformanceData, getGoals } from '../services/firebaseService';
+import { getDirectorPerformanceSnapshot } from '../services/geminiService';
 
 interface DirectorProfileModalProps {
   isOpen: boolean;
@@ -20,33 +21,70 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [isPlannerOpen, setPlannerOpen] = useState(false);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [deploymentToEdit, setDeploymentToEdit] = useState<Deployment | null>(null);
+  const [topStore, setTopStore] = useState<Store | null>(null);
+  const [directorGoals, setDirectorGoals] = useState<Goal[]>([]);
+  const [aiSnapshot, setAiSnapshot] = useState<string | null>(null);
+  const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
 
   useEffect(() => {
-    const fetchDeployments = async () => {
-      if (director) {
-        console.log('[DirectorProfile] Starting to fetch deployments for:', director.id);
-        try {
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Deployment fetch timed out after 5 seconds')), 5000);
-          });
-
-          const fetchPromise = getDeploymentsForDirector(director.id);
-          const deploymentsData = await Promise.race([fetchPromise, timeoutPromise]);
-
-          console.log('[DirectorProfile] Deployments fetched:', deploymentsData.length);
-          setDeployments(deploymentsData);
-        } catch (error) {
-          console.error('[DirectorProfile] Error fetching deployments:', error);
-          setDeployments([]);
-        }
-      } else {
+    const fetchData = async () => {
+      if (!director) {
         setDeployments([]);
+        setTopStore(null);
+        setDirectorGoals([]);
+        return;
+      }
+
+      console.log('[DirectorProfile] Fetching data for:', director.id);
+
+      // Fetch deployments
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Deployment fetch timed out after 5 seconds')), 5000);
+        });
+        const fetchPromise = getDeploymentsForDirector(director.id);
+        const deploymentsData = await Promise.race([fetchPromise, timeoutPromise]);
+        console.log('[DirectorProfile] Deployments fetched:', deploymentsData.length);
+        setDeployments(deploymentsData);
+      } catch (error) {
+        console.error('[DirectorProfile] Error fetching deployments:', error);
+        setDeployments([]);
+      }
+
+      // Fetch top performing store
+      try {
+        const storePerformanceData = await getPerformanceData();
+        const directorStores = storePerformanceData.filter(d =>
+          director.stores.includes(d.storeId)
+        );
+
+        // Calculate total sales per store
+        const storesSales = directorStores.reduce((acc, d) => {
+          if (!acc[d.storeId]) acc[d.storeId] = 0;
+          acc[d.storeId] += d.data.Sales || 0;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const topStoreId = Object.entries(storesSales).sort(([,a], [,b]) => b - a)[0]?.[0];
+        if (topStoreId) {
+          setTopStore({ id: topStoreId, name: topStoreId });
+          console.log('[DirectorProfile] Top store:', topStoreId);
+        }
+      } catch (error) {
+        console.error('[DirectorProfile] Error fetching top store:', error);
+      }
+
+      // Fetch goals
+      try {
+        const goals = await getGoals(director.id);
+        setDirectorGoals(goals);
+        console.log('[DirectorProfile] Goals fetched:', goals.length);
+      } catch (error) {
+        console.error('[DirectorProfile] Error fetching goals:', error);
       }
     };
 
-    // Fetch in background, don't block modal opening
-    fetchDeployments();
+    fetchData();
   }, [director]);
 
   if (!isOpen || !director) return null;
@@ -117,7 +155,36 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
       }
     }
   };
-  
+
+  const handleGenerateSnapshot = async () => {
+    if (!director) return;
+
+    setIsLoadingSnapshot(true);
+    setAiSnapshot(null);
+
+    try {
+      // Use current week period (you can adjust this as needed)
+      const today = new Date();
+      const period: Period = {
+        label: `W48 FY2025`,
+        type: 'weekly',
+        startDate: new Date(2024, 10, 24), // Nov 24, 2024
+        endDate: new Date(2024, 10, 30),   // Nov 30, 2024
+      };
+
+      console.log('[DirectorProfile] Generating AI snapshot for:', director.id);
+      const response = await getDirectorPerformanceSnapshot(director.id, period);
+
+      console.log('[DirectorProfile] AI snapshot received:', response);
+      setAiSnapshot(response.data);
+    } catch (error) {
+      console.error('[DirectorProfile] Error generating AI snapshot:', error);
+      setAiSnapshot('Failed to generate performance snapshot. Please try again.');
+    } finally {
+      setIsLoadingSnapshot(false);
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'map':
@@ -140,32 +207,55 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col relative border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white z-10"><X size={24} /></button>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 h-full">
-          <div className="md:col-span-1 bg-slate-900/50 p-6 overflow-y-auto custom-scrollbar">
-            <DirectorSummary director={director} />
+        <div className="grid grid-cols-1 md:grid-cols-3 h-full overflow-hidden">
+          {/* LEFT PANEL - Director Info */}
+          <div className="md:col-span-1 bg-slate-900/50 p-6 overflow-y-auto custom-scrollbar flex flex-col">
+            <DirectorInfo director={director} />
+            <RegionStores stores={director.stores.map(s => ({id: s, name: s}))} />
+            <GoalsAndPerformance
+              director={director}
+              topStore={topStore}
+              directorGoals={directorGoals}
+              kpiData={null}
+            />
           </div>
 
-          <div className="md:col-span-2 p-6 flex flex-col bg-slate-800">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-white">Deployments</h2>
-              <button onClick={() => handleOpenPlanner()} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                + Plan New
-              </button>
+          {/* RIGHT PANEL - Deployments & AI Snapshot */}
+          <div className="md:col-span-2 p-6 flex flex-col bg-slate-800 overflow-y-auto custom-scrollbar space-y-6">
+            {/* Deployments Section */}
+            <div className="flex-shrink-0">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-white">Deployments</h2>
+                <button onClick={() => handleOpenPlanner()} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                  + Plan New
+                </button>
+              </div>
+
+              <div className="border-b border-slate-700 mb-4">
+                <nav className="-mb-px flex space-x-6">
+                  <TabButton title="Map" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                  <TabButton title="Timeline" isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
+                  <TabButton title="Budget" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
+                </nav>
+              </div>
+
+              <div className="bg-slate-900/50 rounded-lg p-4 h-64 overflow-hidden">
+                {renderContent()}
+              </div>
             </div>
 
-            <div className="flex-grow flex flex-col">
-                <div className="border-b border-slate-700 mb-4">
-                    <nav className="-mb-px flex space-x-6">
-                        <TabButton title="Map" isActive={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-                        <TabButton title="Timeline" isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
-                        <TabButton title="Budget" isActive={activeTab === 'budget'} onClick={() => setActiveTab('budget')} />
-                    </nav>
-                </div>
-                <div className="flex-grow bg-slate-900/50 rounded-lg p-4">
-                    {renderContent()}
-                </div>
+            {/* AI Performance Snapshot Section */}
+            <div className="flex-shrink-0">
+              <AIPerformanceSnapshot
+                director={director}
+                topStore={topStore}
+                directorGoals={directorGoals}
+                kpiData={null}
+                onGenerate={handleGenerateSnapshot}
+                isLoading={isLoadingSnapshot}
+                snapshotData={aiSnapshot}
+              />
             </div>
-
           </div>
         </div>
       </div>
