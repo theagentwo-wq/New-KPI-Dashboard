@@ -1473,6 +1473,263 @@ If rebuild fails:
 - Sessions can be done same day with breaks, or spread across 2-3 days
 - Each session has safe checkpoints for conversation expiration
 
+---
+
+### Phase 13: Store Rankings Redesign & Enhancement ✅ COMPLETE
+
+**Status:** Completed Nov 30, 2024
+
+**What:** Transform Store Rankings from basic single-KPI view to comprehensive multi-KPI dashboard with enhanced interactivity and data loading fixes.
+
+#### Completed Changes:
+
+**1. UI Transformation - Comprehensive Multi-KPI Layout** ([CompanyStoreRankings.tsx](src/components/CompanyStoreRankings.tsx))
+- ✅ Redesigned from single-KPI to 7 KPIs displayed simultaneously
+- ✅ Each KPI shows 3 columns: Actual, vs. PP (Prior Period), and Variance %
+- ✅ Added medal icons (🥇🥈🥉) for top 3 ranked stores
+- ✅ Rankings based on Sales as primary KPI
+- ✅ Abbreviated number formatting ($72.8k, $1.5M) for better readability
+- ✅ Period formatting (W48 FY2025 (Nov 24)) for weekly view
+
+**2. KPI Filter System**
+- ✅ Added Filter dropdown button with checkboxes for all 7 KPIs:
+  - Sales, SOP, Prime Cost, Food Cost, Variable Labor, Avg. Reviews, Culinary Audit Score
+- ✅ Users can toggle KPI visibility dynamically
+- ✅ Fixed z-index clipping issue (z-50) for proper layering
+- ✅ Added max-height with overflow-y-auto for scrollable list
+
+**3. Weather Icon Integration** ([CompanyStoreRankings.tsx:94-114](src/components/CompanyStoreRankings.tsx#L94-L114))
+- ✅ Weather icons display next to store names
+- ✅ Icons load on page mount (not on hover)
+- ✅ Hover shows tooltip with temperature and description
+- ✅ Parallel fetching of all store weather data using Promise.all()
+- ✅ useEffect in DashboardPage fetches weather for all visible stores
+
+**4. Enhanced Interactivity**
+- ✅ Store names are clickable buttons
+- ✅ Clicking store name opens LocationInsightsModal for detailed analysis
+- ✅ Hover states with color transitions (hover:text-cyan-400)
+
+**5. Table Scrolling Optimization**
+- ✅ Fixed dual scrollbar conflict by consolidating table structure
+- ✅ Single overflow-auto container with max-height
+- ✅ Shows top 8 stores, scrollbar for remaining
+- ✅ Sticky header (bg-slate-900, z-10) stays visible during scroll
+- ✅ Fixed header transparency issue (removed 50% transparency)
+
+**6. Date Navigation Extension** ([dateUtils.ts:221-226](src/utils/dateUtils.ts#L221-L226))
+- ✅ Extended ALL_PERIODS from 2025-2028 to 2023-2025
+- ✅ Added generateQuarterlyPeriods() function
+- ✅ Added generateYearlyPeriods() function
+- ✅ Now covers full data range in Firebase (2023-Oct 2025)
+- ✅ Users can navigate all historical periods
+
+**7. Critical Data Loading Fixes**
+
+**Fix #1: Kpi Enum Alignment** ([types.ts](src/types.ts))
+- **Problem:** Kpi enum values didn't match Firebase field names exactly
+- **Root Cause:** `SOP = 'SOP%'` and `AvgReviews = 'Avg Reviews'` didn't match database
+- **Fix:** Changed to `SOP = 'SOP'` and `AvgReviews = 'Avg. Reviews'` (added dot)
+- **Impact:** KPI cards and Store Rankings now load real data from Firebase
+
+**Fix #2: Data Aggregation** ([DashboardPage.tsx](src/pages/DashboardPage.tsx))
+- **Problem:** KPI cards showing 0 or empty despite data existing
+- **Root Cause:** Using `Object.keys(Kpi)` which returns TypeScript keys, not enum values
+- **Fix:** Changed to `Object.values(Kpi)` in summaryDataForCards and directorAggregates
+- **Impact:** All KPI cards now populate with correct aggregated values
+
+**Fix #3: DirectorProfileModal Field Name** ([DirectorProfileModal.tsx:81](src/components/DirectorProfileModal.tsx#L81))
+- **Problem:** Using old field name 'SOP%' instead of 'SOP'
+- **Fix:** Updated to use `data['SOP']` to match enum change
+- **Impact:** Director Hub now shows correct SOP% metrics
+
+**8. Code Quality Improvements**
+- ✅ Removed unused imports (RefreshCw, useCallback)
+- ✅ Added TypeScript strict typing for all components
+- ✅ Memoized RankingRow component for performance
+- ✅ Used React.Fragment for grouped columns
+
+#### Files Modified:
+
+**Core Components:**
+- [CompanyStoreRankings.tsx](src/components/CompanyStoreRankings.tsx) - Complete redesign
+- [DashboardPage.tsx](src/pages/DashboardPage.tsx) - Data aggregation fixes, weather fetching
+- [KPISummaryCards.tsx](src/components/KPISummaryCards.tsx) - Import interface from types.ts
+- [DirectorProfileModal.tsx](src/components/DirectorProfileModal.tsx) - Field name fix
+
+**Type Definitions:**
+- [types.ts](src/types.ts) - Critical Kpi enum alignment
+
+**Utilities:**
+- [dateUtils.ts](src/utils/dateUtils.ts) - Extended period generation to 2023-2025
+
+**Services:**
+- [weatherService.ts](src/services/weatherService.ts) - Already existed, no changes needed
+
+#### Technical Implementation Details:
+
+**Period Formatting Function:**
+```typescript
+const formatPeriodLabel = (): string => {
+    const date = period.startDate;
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+
+    if (periodType === 'Week') {
+        const startOfYear = new Date(date.getFullYear(), 0, 1);
+        const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+        const weekNum = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+        return `W${weekNum} FY${period.year} (${month} ${day})`;
+    }
+    return period.label;
+};
+```
+
+**Weather Parallel Fetching:**
+```typescript
+useEffect(() => {
+    const storeIds = Object.keys(processedDataForTable);
+    if (storeIds.length === 0) return;
+
+    const fetchAllWeather = async () => {
+        const weatherPromises = storeIds.map(async (storeId) => {
+            if (weatherData[storeId]) return;
+            try {
+                const weather = await getWeatherForLocation(storeId);
+                if (weather) {
+                    setWeatherData(prev => ({ ...prev, [storeId]: weather }));
+                }
+            } catch (error) {
+                console.error(`Failed to fetch weather for ${storeId}:`, error);
+            }
+        });
+        await Promise.all(weatherPromises);
+    };
+
+    fetchAllWeather();
+}, [processedDataForTable, weatherData]);
+```
+
+**Abbreviated Number Formatting:**
+```typescript
+const abbreviateNumber = (value: number): string => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
+    return `$${value.toFixed(0)}`;
+};
+```
+
+#### Issues Resolved:
+
+**Issue #1: TypeScript - RefreshCw declared but never used**
+- Removed unused import from lucide-react
+
+**Issue #2: TypeScript - Type '"Sales"' not assignable to type 'Kpi'**
+- Changed AVAILABLE_KPIS from string literals to Kpi enum values
+
+**Issue #3: TypeScript - Property 'SOP%' does not exist on type 'PerformanceData'**
+- Updated DirectorProfileModal to use 'SOP' instead of 'SOP%'
+
+**Issue #4: Data not loading from Firebase**
+- Root Cause: Kpi enum values didn't match Firebase field names
+- Solution: Aligned enum exactly with database (SOP, Avg. Reviews)
+
+**Issue #5: KPI Cards showing 0 or empty**
+- Root Cause: Object.keys(Kpi) returns TypeScript keys, not enum values
+- Solution: Changed to Object.values(Kpi) for proper iteration
+
+**Issue #6: Dual scrollbars in table**
+- Root Cause: Split table structure with separate overflow containers
+- Solution: Consolidated into single table with one overflow-auto wrapper
+
+**Issue #7: Weather icons not displaying**
+- Root Cause: Weather only fetched on hover, not on mount
+- Solution: Added useEffect to fetch all weather in parallel on page load
+
+**Issue #8: Header transparency showing content underneath**
+- Root Cause: thead had bg-slate-900/50 (50% transparency)
+- Solution: Changed to bg-slate-900 (fully opaque)
+
+**Issue #9: KPI dropdown clipping**
+- Root Cause: Low z-index and no max-height
+- Solution: Set z-50 and added max-height with overflow-y-auto
+
+#### Build & Deployment:
+
+**Build Commands:**
+```bash
+npm run build
+```
+
+**Deployment:**
+- ✅ Successfully built with no TypeScript errors
+- ✅ Deployed to Firebase Hosting
+- ✅ All functionality tested and verified
+- ✅ Live URL: https://kpi-dashboardgit-9913298-66e65.web.app
+
+**Git Commits:**
+1. "Transform Store Rankings: multi-KPI layout, medals, weather, filters"
+2. "Fix KPI data loading: correct enum values and Object.values aggregation"
+3. "Fix Store Rankings: expand KPIs, fix scrolling, add weather functionality"
+4. "Extend date periods to 2023, fix KPI dropdown z-index, make stores clickable"
+5. "Remove onFetchWeather from hover, add weather fetch on mount"
+6. "Fix table header transparency causing content clipping on scroll"
+
+#### Success Criteria (All Met):
+
+- ✅ Store Rankings shows all 7 KPIs with real data
+- ✅ Medal icons display for top 3 stores
+- ✅ Weather icons load on page mount
+- ✅ Weather tooltips show temperature and description on hover
+- ✅ KPI filter dropdown works without clipping
+- ✅ Users can show/hide KPIs dynamically
+- ✅ Date navigation covers full 2023-2025 range
+- ✅ Store names clickable to open LocationInsightsModal
+- ✅ Table scrolls smoothly with sticky header
+- ✅ No dual scrollbar conflict
+- ✅ Header stays opaque during scroll
+- ✅ KPI cards populated with real data
+- ✅ All TypeScript errors resolved
+- ✅ Successfully deployed and live
+
+#### User Feedback:
+
+**Round 1:**
+- ❌ KPI selector should include ALL KPIs
+- ❌ Weather icons not displaying
+- ❌ Table too tall - only show top 8 with scrollbar
+
+**Round 2:**
+- ❌ Dual scrollbar conflict
+- ❌ KPI cards not filled with data
+- ❌ Weather icons still not showing
+
+**Round 3:**
+- ❌ Date selectors hanging (data exists 2023-Oct 2025)
+- ❌ Weather icons need hover tooltip (not hover to load)
+- ❌ KPI selector clipping
+- ❌ Store names should be clickable
+
+**Round 4:**
+- ❌ Weather icons should load on page load (not on hover)
+- ✅ Date ranges and KPI filters working now
+
+**Round 5:**
+- ❌ Header transparency - content clipping through when scrolling
+
+**Final:**
+- ✅ "Looks great. Save where we are at in the rebuild plan and all the changes we have accomplished."
+
+#### Key Learnings:
+
+1. **Enum-to-Database Alignment is Critical** - Even small differences (SOP vs SOP%, missing dot in Avg. Reviews) break data loading completely
+2. **Object.keys vs Object.values** - TypeScript enums require Object.values() to iterate actual values
+3. **Parallel Data Fetching** - Use Promise.all() for weather data to load all stores simultaneously
+4. **Table Structure Matters** - Single overflow container prevents dual scrollbar issues
+5. **Z-index Management** - Dropdowns need high z-index (z-50) to layer properly over content
+
+---
+
 ## Questions for User Before Starting
 
 1. ✅ Confirmed: Keep ALL data in constants.ts exactly as-is?
