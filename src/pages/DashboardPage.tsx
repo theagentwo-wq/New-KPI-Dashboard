@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus, KPISummaryCardsProps, AnomalyDetailModalProps, WeatherInfo } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
@@ -291,19 +291,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         setIsAlertsModalOpen(false);
     }, [setIsAlertsModalOpen]);
 
-    const handleFetchWeather = useCallback(async (storeId: string) => {
-        // Only fetch if we don't already have weather data for this store
-        if (weatherData[storeId]) return;
+    // Fetch weather for all visible stores on mount/data change
+    useEffect(() => {
+        const storeIds = Object.keys(processedDataForTable);
+        if (storeIds.length === 0) return;
 
-        try {
-            const weather = await getWeatherForLocation(storeId);
-            if (weather) {
-                setWeatherData(prev => ({ ...prev, [storeId]: weather }));
-            }
-        } catch (error) {
-            console.error(`Failed to fetch weather for ${storeId}:`, error);
-        }
-    }, [weatherData]);
+        // Fetch weather for all stores in parallel
+        const fetchAllWeather = async () => {
+            const weatherPromises = storeIds.map(async (storeId) => {
+                // Skip if already fetched
+                if (weatherData[storeId]) return;
+
+                try {
+                    const weather = await getWeatherForLocation(storeId);
+                    if (weather) {
+                        setWeatherData(prev => ({ ...prev, [storeId]: weather }));
+                    }
+                } catch (error) {
+                    console.error(`Failed to fetch weather for ${storeId}:`, error);
+                }
+            });
+
+            await Promise.all(weatherPromises);
+        };
+
+        fetchAllWeather();
+    }, [processedDataForTable, weatherData]);
 
     const historicalDataForAI = useMemo(() => { return []; }, []);
 
@@ -346,7 +359,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          isNextPeriodDisabled={isNextPeriodDisabled}
                          onResetView={handleResetView}
                          weatherData={weatherData}
-                         onFetchWeather={handleFetchWeather}
                     />
                     <NotesPanel 
                         allNotes={notes}

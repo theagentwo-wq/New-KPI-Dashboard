@@ -1,5 +1,5 @@
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Kpi, View, Period, WeatherInfo } from '../types';
 import { KPI_CONFIG } from '../constants';
 import { ChevronsLeft, ChevronsRight, RotateCcw, Filter } from 'lucide-react';
@@ -22,7 +22,6 @@ interface CompanyStoreRankingsProps {
     isNextPeriodDisabled: boolean;
     onResetView: () => void;
     weatherData?: { [storeId: string]: WeatherInfo };
-    onFetchWeather?: (storeId: string) => void;
 }
 
 // Available KPIs to display - all KPIs from the dashboard
@@ -67,23 +66,19 @@ const getMedalIcon = (rank: number): string => {
 };
 
 const RankingRow = React.memo(({
-    rank, storeId, allData, visibleKpis, onFetchWeather, weather, onLocationSelect
+    rank, storeId, allData, visibleKpis, weather, onLocationSelect
 }: {
     rank: number;
     storeId: string;
     allData: { actual: any; comparison?: any; variance: any; };
     visibleKpis: Kpi[];
-    onFetchWeather?: (storeId: string) => void;
     weather?: WeatherInfo;
     onLocationSelect?: (location: string) => void;
 }) => {
     const medal = getMedalIcon(rank);
 
     return (
-        <tr
-            className="border-b border-slate-700 hover:bg-slate-750 transition-colors"
-            onMouseEnter={() => onFetchWeather?.(storeId)}
-        >
+        <tr className="border-b border-slate-700 hover:bg-slate-750 transition-colors">
             {/* Rank */}
             <td className="py-3 px-4 text-white">
                 {medal ? (
@@ -156,7 +151,7 @@ const RankingRow = React.memo(({
 export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
     data, period, periodType, setPeriodType, comparisonMode, setComparisonMode,
     onPrevPeriod, onNextPeriod, isPrevPeriodDisabled,
-    isNextPeriodDisabled, onResetView, weatherData, onFetchWeather, onLocationSelect
+    isNextPeriodDisabled, onResetView, weatherData, onLocationSelect
 }) => {
     const [visibleKpis, setVisibleKpis] = useState<Kpi[]>(AVAILABLE_KPIS);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -169,12 +164,6 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
             return valB - valA; // Higher sales = better rank
         });
     }, [data]);
-
-    const handleFetchWeather = useCallback((storeId: string) => {
-        if (onFetchWeather) {
-            onFetchWeather(storeId);
-        }
-    }, [onFetchWeather]);
 
     const toggleKpiVisibility = (kpi: Kpi) => {
         setVisibleKpis(prev =>
@@ -331,7 +320,6 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
                                     storeId={storeId}
                                     allData={storeData}
                                     visibleKpis={visibleKpis}
-                                    onFetchWeather={handleFetchWeather}
                                     weather={weatherData?.[storeId]}
                                     onLocationSelect={onLocationSelect}
                                 />
