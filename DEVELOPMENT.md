@@ -100,22 +100,25 @@ functions/
 
 1. **Fixed Store Hub Street View & Details Location Accuracy** (2025-11-30)
    - Issue: Street View showing "Invalid 'location' parameter" error and wrong addresses (1924 Gregg St, 2179 Pickens St)
-   - Root cause: Street View Embed API was rejecting all parameter formats (business name, address, coordinates)
-   - **Final solution**: Use Google Maps "place" mode instead of direct Street View
+   - Root cause: Street View Embed API was rejecting addresses and coordinates
+   - **Final solution**: Use Google Plus Codes (Open Location Codes)
      1. **Search by business name** via Places API: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
-     2. **Extract place_id** from Places API result
-     3. **Use place mode embed** with place_id: `https://www.google.com/maps/embed/v1/place?q=place_id:XXXXX`
-   - This shows a map view of the restaurant location with Street View accessible via pegman icon
-   - Benefits over direct Street View embed:
-     - place_id is guaranteed to work (comes from verified Places API result)
-     - Shows location context on map
-     - User can click Street View pegman to enter Street View mode
-     - More reliable than direct Street View embed with complex parameters
+     2. **Extract Plus Code** from Places API result (e.g., "2X88+PR Columbia, South Carolina")
+     3. **Use Plus Code for Street View**: `location=2X88%2BPR%20Columbia%2C%20South%20Carolina`
+   - Plus Codes are Google's geocoding system designed specifically for Maps/Street View
+   - Benefits:
+     - Globally unique and precise location codes
+     - Designed by Google specifically for their mapping services
+     - More reliable than addresses or coordinates for Street View API
+     - Already provided by Places API (no extra conversion needed)
+   - Fallback chain: Plus Code → place_id (map mode) → error
    - Implementation:
-     - Details & Photos tab: Business name search → `getPlaceDetails("Tupelo Honey Southern Kitchen and Bar Columbia, SC")`
-     - Street View tab: Use place_id from placeDetails → show map with Street View available
+     - Added `plus_code` field to Places API request
+     - Try Plus Code first (compound_code or global_code)
+     - Fallback to place mode with place_id if Plus Code unavailable
+   - Credit: User suggested Plus Codes from Google Maps UI
    - Also fixed: Updated Columbia, SC coordinates in STORE_DETAILS from `34.01509,-81.02641` to `34.0165288,-81.0327102`
-   - Files: [LocationInsightsModal.tsx:110,195-227](src/components/LocationInsightsModal.tsx#L110), [ai-client.ts:84-88](src/lib/ai-client.ts#L84-L88), [constants.ts:68](src/constants.ts#L68)
+   - Files: [LocationInsightsModal.tsx:211-234](src/components/LocationInsightsModal.tsx#L211-L234), [ai-client.ts:75](src/lib/ai-client.ts#L75), [constants.ts:68](src/constants.ts#L68)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
