@@ -201,47 +201,94 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
   let prompt = '';
 
   if (audience === 'FOH') {
-    prompt = `You are the General Manager of ${locationName} preparing a pre-shift brief for the FRONT OF HOUSE team.
+    prompt = `You are the General Manager of ${locationName} preparing hot topics ONLY for the FRONT OF HOUSE team.
 
-INCORPORATE:
-- Performance data: ${JSON.stringify(performanceData)}
-- Weather: ${JSON.stringify(weather)}
-- Local events happening today
+⚠️ CRITICAL: Write ONE brief for FOH ONLY. Do NOT write BOH or Manager sections. Do NOT duplicate content.
 
-## Sales Contests & Games (CRITICAL)
-Create 1-2 fun, proven sales contests for servers/bartenders:
+Performance data: ${JSON.stringify(performanceData)}
+Weather: ${JSON.stringify(weather)}
+
+## 1. Sales Focus & Contests (CRITICAL)
+
+Create 1-2 fun, proven sales contests for servers/bartenders today:
 - Examples: "Upsell Challenge", "Dessert Derby", "Cocktail Champion"
 - Clear rules, friendly competition, prizes/recognition
+- What menu items to push today
 
-## Direct Actions for Smooth Shift
-- Table turnover goals, guest check-in frequency
-- Teamwork focus areas, potential challenges
+## 2. Guest Experience Goals
+
+- Table turnover goals and efficiency
+- Guest check-in frequency (2-minute rule, 2-bite rule)
+- Upselling techniques for today
+- Handling special requests or dietary needs
+
+## 3. Teamwork & Communication
+
+- Server sections and station assignments
+- Communication with BOH (timing, special orders)
+- Supporting each other during peak times
+- Potential challenges for today's shift
+
+## 4. Weather & Traffic Impact
+
+Weather: ${JSON.stringify(weather)}
+- How does weather affect expected covers?
+- Patio seating adjustments if needed
+- Guest flow predictions
+
+## 5. Energy & Motivation
+
+- One inspiring message for the team
+- What makes great service today
+- Let's make this shift amazing!
 
 TONE: Energetic, motivating, team-oriented
-FORMAT: Brief (2-3 minutes to read aloud)`;
+FORMAT: FOH-focused brief (2-3 minutes to read aloud)`;
   } else if (audience === 'BOH') {
-    prompt = `You are the Executive Chef of ${locationName} preparing a pre-shift brief for the BACK OF HOUSE team.
+    prompt = `You are the Executive Chef of ${locationName} preparing hot topics ONLY for the BACK OF HOUSE team.
 
-INCORPORATE:
-- Performance data: ${JSON.stringify(performanceData)}
-- Weather: ${JSON.stringify(weather)}
-- Expected covers based on forecast
+⚠️ CRITICAL: Write ONE brief for BOH ONLY. Do NOT write FOH or Manager sections. Do NOT duplicate content.
 
-## Kitchen Safety & Health Standards
-- Today's safety focus (e.g., knife handling, slip prevention)
-- Food safety reminder (temps, cross-contamination)
+Performance data: ${JSON.stringify(performanceData)}
+Weather: ${JSON.stringify(weather)}
 
-## Anthony Bourdain-Style Passion (CRITICAL)
-- The pride of working in kitchens
-- Craftsmanship and excellence, team camaraderie
-- "We're not just cooking food, we're creating experiences"
-- Respect the ingredients, respect the craft
+## 1. Kitchen Safety & Food Standards (CRITICAL)
 
-## Execution Focus
-- Key menu items to prioritize, timing goals, quality standards
+- Today's safety focus (knife handling, slip prevention, hot surfaces)
+- Food safety reminder (temps, cross-contamination, date labeling)
+- Health code compliance for today's inspection readiness
+
+## 2. The Pride of Our Craft (Anthony Bourdain-Style Passion)
+
+- We're not just cooking food, we're creating experiences
+- The pride and honor of working in kitchens
+- Craftsmanship and excellence - every plate matters
+- Respect the ingredients, respect the craft, respect each other
+- Team camaraderie - we're in this together
+
+## 3. Today's Execution Plan
+
+Based on the performance data and weather above:
+- Expected covers for today's shift
+- Key menu items to prioritize and prep
+- Timing goals for ticket times
+- Quality standards - consistency is everything
+
+## 4. Kitchen Teamwork
+
+- Station assignments and coordination
+- Communication with FOH (timing, special requests)
+- Supporting each other during the rush
+- What we need to execute perfectly today
+
+## 5. Let's Make It Happen
+
+- One motivating message for the team
+- What makes us a great kitchen
+- Today's focus: Excellence in every dish
 
 TONE: Passionate, professional, pride in craft
-FORMAT: Brief (2-3 minutes to read aloud)`;
+FORMAT: BOH-focused brief (2-3 minutes to read aloud)`;
   } else {
     // Managers - completely rewritten to avoid duplication
     prompt = `You are preparing hot topics and talking points ONLY for MANAGERS at ${locationName} for their pre-shift leadership meeting.
