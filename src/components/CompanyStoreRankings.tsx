@@ -67,7 +67,7 @@ const getMedalIcon = (rank: number): string => {
 };
 
 const RankingRow = React.memo(({
-    rank, storeId, allData, visibleKpis, onFetchWeather, weather
+    rank, storeId, allData, visibleKpis, onFetchWeather, weather, onLocationSelect
 }: {
     rank: number;
     storeId: string;
@@ -75,6 +75,7 @@ const RankingRow = React.memo(({
     visibleKpis: Kpi[];
     onFetchWeather?: (storeId: string) => void;
     weather?: WeatherInfo;
+    onLocationSelect?: (location: string) => void;
 }) => {
     const medal = getMedalIcon(rank);
 
@@ -98,8 +99,22 @@ const RankingRow = React.memo(({
             {/* Location with weather icon */}
             <td className="py-3 px-4 text-white">
                 <div className="flex items-center gap-2">
-                    {weather && <WeatherIcon condition={weather.condition} className="w-5 h-5" />}
-                    <span className="font-medium">{storeId}</span>
+                    {weather && (
+                        <div className="relative group">
+                            <WeatherIcon condition={weather.condition} className="w-5 h-5" />
+                            {/* Weather tooltip */}
+                            <div className="absolute left-0 top-full mt-1 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                                <div className="font-semibold">{weather.temperature}°F</div>
+                                <div>{weather.description}</div>
+                            </div>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => onLocationSelect?.(storeId)}
+                        className="font-medium hover:text-cyan-400 transition-colors cursor-pointer text-left"
+                    >
+                        {storeId}
+                    </button>
                 </div>
             </td>
 
@@ -141,7 +156,7 @@ const RankingRow = React.memo(({
 export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
     data, period, periodType, setPeriodType, comparisonMode, setComparisonMode,
     onPrevPeriod, onNextPeriod, isPrevPeriodDisabled,
-    isNextPeriodDisabled, onResetView, weatherData, onFetchWeather
+    isNextPeriodDisabled, onResetView, weatherData, onFetchWeather, onLocationSelect
 }) => {
     const [visibleKpis, setVisibleKpis] = useState<Kpi[]>(AVAILABLE_KPIS);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -259,7 +274,7 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
                             </button>
 
                             {isFilterOpen && (
-                                <div className="absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[200px]">
+                                <div className="absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 min-w-[200px] max-h-[400px] overflow-y-auto">
                                     <div className="p-3">
                                         <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Select KPIs</p>
                                         {AVAILABLE_KPIS.map(kpi => (
@@ -318,6 +333,7 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
                                     visibleKpis={visibleKpis}
                                     onFetchWeather={handleFetchWeather}
                                     weather={weatherData?.[storeId]}
+                                    onLocationSelect={onLocationSelect}
                                 />
                             );
                         })}

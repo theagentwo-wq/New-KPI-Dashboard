@@ -174,8 +174,53 @@ export const generateWeeklyPeriods = (startYear: number, endYear: number): Perio
   return periods;
 };
 
+// Generate quarterly periods for a range of years
+export const generateQuarterlyPeriods = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    for (let quarter = 1; quarter <= 4; quarter++) {
+      const startDate = new Date(year, (quarter - 1) * 3, 1);
+      const endDate = new Date(year, quarter * 3, 0);
+
+      periods.push({
+        label: `Q${quarter} ${year}`,
+        startDate,
+        endDate,
+        type: 'quarterly',
+        year,
+        quarter
+      });
+    }
+  }
+
+  return periods;
+};
+
+// Generate yearly periods
+export const generateYearlyPeriods = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31);
+
+    periods.push({
+      label: `${year}`,
+      startDate,
+      endDate,
+      type: 'yearly',
+      year,
+      quarter: 4
+    });
+  }
+
+  return periods;
+};
+
 export const ALL_PERIODS = [
-  ...getPeriodOptions(),
-  ...generateMonthlyPeriods(2025, 2028),
-  ...generateWeeklyPeriods(2025, 2028)
+  ...generateWeeklyPeriods(2023, 2025),
+  ...generateMonthlyPeriods(2023, 2025),
+  ...generateQuarterlyPeriods(2023, 2025),
+  ...generateYearlyPeriods(2023, 2025)
 ];
