@@ -74,6 +74,10 @@ export const getStrategicExecutiveAnalysis = (
     });
 };
 
+export const getDirectorPerformanceSnapshot = (directorId: string, period: Period): Promise<any> => {
+    return callGeminiAPI('getDirectorPerformanceSnapshot', { directorId, period });
+};
+
 export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {

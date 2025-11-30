@@ -176,13 +176,14 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     setAiSnapshot(null);
 
     try {
-      // Use current week period (you can adjust this as needed)
-      const today = new Date();
+      // Use current week period - W48 FY2025
       const period: Period = {
         label: `W48 FY2025`,
         type: 'weekly',
         startDate: new Date(2024, 10, 24), // Nov 24, 2024
         endDate: new Date(2024, 10, 30),   // Nov 30, 2024
+        year: 2025,
+        quarter: 4,
       };
 
       console.log('[DirectorProfile] Generating AI snapshot for:', director.id);
