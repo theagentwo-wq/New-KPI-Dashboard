@@ -202,7 +202,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             if (placeDetailsError || !placeDetails) {
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
-                        <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
+                        <h4 className="font-bold text-yellow-400">Map Unavailable</h4>
                         <p className="text-slate-500 text-xs mt-1">Could not load location details.</p>
                     </div>
                 );
@@ -335,7 +335,7 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             <div className="flex flex-col md:flex-row gap-6 h-full">
                 <div className="md:w-1/3 space-y-4 flex flex-col flex-shrink-0">
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700"><h3 className="font-bold text-lg text-white">{location}</h3>{director && <div className="flex items-center gap-2 mt-2 text-sm"><img src={director.photo} alt={director.name} className="w-8 h-8 rounded-full object-cover" /><div><p className="text-slate-400">Area Director</p><p className="font-semibold text-cyan-400">{director.name} {director.lastName}</p></div></div>}</div>
-                    <div className="h-64 bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden flex flex-col"><div className="flex-shrink-0 flex border-b border-slate-700"><button onClick={() => setActiveVisualTab('details')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'details' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Details & Photos</button><button onClick={() => setActiveVisualTab('streetview')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'streetview' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Street View</button></div><div className="flex-1 min-h-0">{renderVisualContent()}</div></div>
+                    <div className="h-64 bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden flex flex-col"><div className="flex-shrink-0 flex border-b border-slate-700"><button onClick={() => setActiveVisualTab('details')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'details' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Details & Photos</button><button onClick={() => setActiveVisualTab('streetview')} className={`flex-1 px-3 py-1.5 text-xs font-semibold ${activeVisualTab === 'streetview' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}>Map</button></div><div className="flex-1 min-h-0">{renderVisualContent()}</div></div>
                     {performanceData && <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 space-y-2"><h4 className="font-bold text-slate-300 mb-2">Quick Stats (This Period)</h4><QuickStat kpi={Kpi.Sales} value={performanceData[Kpi.Sales]} /><QuickStat kpi={Kpi.SOP} value={performanceData[Kpi.SOP]} /><QuickStat kpi={Kpi.PrimeCost} value={performanceData[Kpi.PrimeCost]} /><QuickStat kpi={Kpi.AvgReviews} value={performanceData[Kpi.AvgReviews]} /></div>}
                 </div>
                 <div className="flex-1 flex flex-col min-w-0">
