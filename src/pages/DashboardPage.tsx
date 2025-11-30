@@ -142,6 +142,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 result[storeId] = {};
                 (Object.keys(sums) as Kpi[]).forEach(kpi => {
                     const config = KPI_CONFIG[kpi];
+                    // Skip if config doesn't exist for this KPI
+                    if (!config) {
+                        console.warn(`[DashboardPage] No config found for KPI: ${kpi}`);
+                        return;
+                    }
                     const count = counts[kpi] || 1;
                     result[storeId][kpi] = config.aggregation === 'sum' ? sums[kpi] : (sums[kpi] || 0) / count;
                 });
@@ -206,9 +211,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         const aggregated: PerformanceData = {};
         (Object.keys(Kpi) as Kpi[]).forEach(kpi => {
             const kpiConfig = KPI_CONFIG[kpi];
+            // Skip if config doesn't exist for this KPI
+            if (!kpiConfig) {
+                console.warn(`[DashboardPage] No config found for KPI: ${kpi}`);
+                return;
+            }
             const values = dataToSummarize.map(d => d[kpi]).filter(v => v !== undefined) as number[];
             if (values.length === 0) return;
-            
+
             if (kpiConfig.aggregation === 'sum') {
                 aggregated[kpi] = values.reduce((sum, v) => sum + v, 0);
             } else {
@@ -233,11 +243,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     
             (Object.keys(Kpi) as Kpi[]).forEach(kpi => {
                  const kpiConfig = KPI_CONFIG[kpi];
+                 // Skip if config doesn't exist for this KPI
+                 if (!kpiConfig) {
+                     console.warn(`[DashboardPage] No config found for KPI: ${kpi}`);
+                     return;
+                 }
                  const actualValues = Object.values(directorStoreData).map(s => s.actual?.[kpi]).filter(v => v !== undefined) as number[];
                  const comparisonValues = Object.values(directorStoreData).map(s => s.comparison?.[kpi]).filter(v => v !== undefined) as number[];
-                
+
                 if (actualValues.length === 0) return;
-    
+
                 if (kpiConfig.aggregation === 'sum') {
                     aggregated.actual[kpi] = actualValues.reduce((a, b) => a + b, 0);
                     aggregated.comparison[kpi] = comparisonValues.reduce((a, b) => a + b, 0);
