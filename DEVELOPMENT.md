@@ -176,6 +176,16 @@ functions/
      - Both now explicitly state: "Write ONE brief for [AUDIENCE] ONLY. Do NOT write [other] sections."
    - All three audience types now have consistent structure and anti-duplication safeguards
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Fixed FOH and BOH Still Combining: Added STOP Instructions** (2025-11-30)
+   - Issue: After previous fix, Manager was separated but FOH and BOH were still appearing together in one brief
+   - User feedback: "The manager hot topics no longer appears but the FOH and BOH are still combined into one"
+   - Solution: Added even stronger anti-duplication instructions matching the most explicit pattern:
+     - **FOH (lines 242-247)**: Added "STOP after completing the FOH brief" as final instruction
+     - **BOH (lines 291-296)**: Applied identical pattern with "STOP after completing the BOH brief"
+     - Both now have 7-point CRITICAL INSTRUCTIONS list with explicit "Do NOT write [other audience]" and "STOP after completing"
+   - This mirrors the exact pattern that successfully fixed Manager Hot Topics
+   - Expected result: Complete separation of all three audience briefs (FOH, BOH, Manager)
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
