@@ -1,5 +1,5 @@
 
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import { Firestore, collection, CollectionReference, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, query, where, orderBy, writeBatch, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 import { getStorage, FirebaseStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import {
@@ -36,6 +36,16 @@ let budgetsCollection: CollectionReference;
 export const initializeFirebaseService = async (): Promise<FirebaseStatus> => {
     try {
         console.log("[Firebase Init] Starting initialization...");
+
+        // Check if Firebase is already initialized
+        if (getApps().length > 0) {
+            console.log("[Firebase Init] ⚠️ Firebase already initialized, skipping...");
+            // Collections should already be set up, just return success
+            if (db) {
+                return { status: 'connected' };
+            }
+        }
+
         let firebaseConfig;
 
         try {
