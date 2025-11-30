@@ -149,6 +149,24 @@ functions/
      - Renamed tab from "Huddle Brief" to "Hot Topics" throughout UI
      - Updated description and section headers
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts), [LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
+1. **Fixed Store Hub: Outdated Local Market Data & Persistent Hot Topics Duplication** (2025-11-30)
+   - Issue 1: Local Market showing outdated events (Labor Day in September when current date is December)
+   - Root cause: No current date context in prompt, AI defaulting to training data
+   - Issue 2: Hot Topics for Managers STILL generating all 3 briefs (FOH + BOH + Managers) instead of one
+   - Root cause: Previous prompt still said "incorporate FOH/BOH" which AI interpreted as "write all three"
+   - Solution:
+     - **Local Market**: Added server-side current date to prompt
+       - `const today = new Date()` to get actual current date
+       - Emphasized "NEXT 30 DAYS from ${currentDate}"
+       - Broadened event search: music, sports, arts, conventions, construction, city initiatives
+       - Added "DO NOT reference past events" instruction
+       - Specific date requirements in timing recommendations
+     - **Hot Topics Managers**: Completely rewrote prompt structure
+       - Changed focus from "comprehensive brief with FOH/BOH" to "manager talking points"
+       - Added ⚠️ CRITICAL warning against duplicating briefs
+       - New structure: 5 manager-focused sections (Performance, Team Leadership, Operations, Culture, Action Plan)
+       - FOH/BOH mentions are now "suggestions for what managers should communicate" not separate briefs
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
