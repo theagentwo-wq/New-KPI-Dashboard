@@ -53,7 +53,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const recognitionRef = useRef<any>(null);
 
   const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'monthly')!, [mainDashboardPeriod]);
-  const [notesPeriod, setNotesPeriod] = useState<Period>(initialMonthlyPeriod);
+  const [notesPeriod, setNotesPeriod] = useState<Period | null>(null); // null = show all notes
+  const [showAllPeriods, setShowAllPeriods] = useState<boolean>(true);
 
   const defaultScope = JSON.stringify({ view: currentView });
   const [selectedScope, setSelectedScope] = useState<string>(defaultScope);
@@ -172,15 +173,48 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   };
 
   const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'monthly'), []);
+  const weeklyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'weekly'), []);
+
+  // Generate periods for 2025-2028 (weekly and monthly)
+  const allAvailablePeriods = useMemo(() => {
+    const periods2025to2028 = ALL_PERIODS.filter((p: Period) => {
+      const year = new Date(p.startDate).getFullYear();
+      return year >= 2025 && year <= 2028 && (p.type === 'weekly' || p.type === 'monthly');
+    });
+    return periods2025to2028;
+  }, []);
 
   const handlePrevPeriod = () => {
-    const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex > 0) setNotesPeriod(monthlyPeriods[currentIndex - 1]);
+    if (!notesPeriod) return;
+    const currentPeriods = notesPeriod.type === 'monthly' ? monthlyPeriods : weeklyPeriods;
+    const currentIndex = currentPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex > 0) {
+      setNotesPeriod(currentPeriods[currentIndex - 1]);
+      setShowAllPeriods(false);
+    }
   };
-  
+
   const handleNextPeriod = () => {
-    const currentIndex = monthlyPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex < monthlyPeriods.length - 1) setNotesPeriod(monthlyPeriods[currentIndex + 1]);
+    if (!notesPeriod) return;
+    const currentPeriods = notesPeriod.type === 'monthly' ? monthlyPeriods : weeklyPeriods;
+    const currentIndex = currentPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex < currentPeriods.length - 1) {
+      setNotesPeriod(currentPeriods[currentIndex + 1]);
+      setShowAllPeriods(false);
+    }
+  };
+
+  const handlePeriodChange = (selectedLabel: string) => {
+    if (selectedLabel === 'ALL') {
+      setShowAllPeriods(true);
+      setNotesPeriod(null);
+    } else {
+      const selectedPeriod = allAvailablePeriods.find(p => p.label === selectedLabel);
+      if (selectedPeriod) {
+        setNotesPeriod(selectedPeriod);
+        setShowAllPeriods(false);
+      }
+    }
   };
   
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,9 +227,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   };
 
   const handleAddNote = () => {
-    if (content.trim() && notesPeriod) {
+    if (!content.trim()) return;
+
+    // If showing all periods, use the initial monthly period for the note
+    const periodToUse = notesPeriod || initialMonthlyPeriod;
+
+    if (periodToUse) {
       const scope = JSON.parse(selectedScope);
-      addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
+      addNote(periodToUse.label, category, content, scope, stagedImage || undefined);
       setContent('');
       setStagedImage(null);
       if(fileInputRef.current) fileInputRef.current.value = "";
@@ -246,23 +285,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     console.log('[NotesPanel] Total notes received:', allNotes.length);
     console.log('[NotesPanel] Current notesPeriod:', notesPeriod);
     console.log('[NotesPanel] notesPeriod.label:', notesPeriod?.label);
+    console.log('[NotesPanel] showAllPeriods:', showAllPeriods);
     console.log('[NotesPanel] selectedScope:', selectedScope);
     console.log('[NotesPanel] filterCategory:', filterCategory);
     console.log('[NotesPanel] searchTerm:', searchTerm);
 
-    if (!notesPeriod) {
-      console.log('[NotesPanel] No notesPeriod set, returning empty array');
-      return [];
-    }
-
     const scope = JSON.parse(selectedScope);
     console.log('[NotesPanel] Parsed scope:', scope);
 
-    const periodFiltered = allNotes.filter((note: Note) => {
-      const matches = note.monthlyPeriodLabel === notesPeriod.label;
-      console.log(`[NotesPanel] Note "${note.content.substring(0, 30)}..." - Period: "${note.monthlyPeriodLabel}" vs "${notesPeriod.label}" - Matches: ${matches}`);
-      return matches;
-    });
+    // If showAllPeriods or no period selected, don't filter by period
+    let periodFiltered = allNotes;
+    if (!showAllPeriods && notesPeriod) {
+      periodFiltered = allNotes.filter((note: Note) => {
+        const matches = note.monthlyPeriodLabel === notesPeriod.label;
+        console.log(`[NotesPanel] Note "${note.content.substring(0, 30)}..." - Period: "${note.monthlyPeriodLabel}" vs "${notesPeriod.label}" - Matches: ${matches}`);
+        return matches;
+      });
+    } else {
+      console.log('[NotesPanel] Showing all periods - no period filter applied');
+    }
     console.log('[NotesPanel] After period filter:', periodFiltered.length);
 
     const scopeFiltered = periodFiltered.filter((note: Note) => {
@@ -284,7 +325,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     console.log('[NotesPanel] Final filtered notes:', searchFiltered);
 
     return searchFiltered;
-  }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
+  }, [allNotes, notesPeriod, showAllPeriods, selectedScope, filterCategory, searchTerm]);
   
   const handleAnalyzeTrends = async () => {
     if (filteredNotes.length === 0) return;
@@ -413,9 +454,23 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         <div className="p-4 border-b border-slate-700 space-y-2">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <button onClick={handlePrevPeriod} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronLeft" className="w-5 h-5" /></button>
-                    <h3 className="text-lg font-bold text-cyan-400">Notes for {notesPeriod.label}</h3>
-                    <button onClick={handleNextPeriod} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300"><Icon name="chevronRight" className="w-5 h-5" /></button>
+                    <button
+                      onClick={handlePrevPeriod}
+                      disabled={!notesPeriod}
+                      className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Icon name="chevronLeft" className="w-5 h-5" />
+                    </button>
+                    <h3 className="text-lg font-bold text-cyan-400">
+                      Notes {showAllPeriods ? 'for All Periods' : `for ${notesPeriod?.label || 'All Periods'}`}
+                    </h3>
+                    <button
+                      onClick={handleNextPeriod}
+                      disabled={!notesPeriod}
+                      className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Icon name="chevronRight" className="w-5 h-5" />
+                    </button>
                 </div>
                 <button 
                   onClick={handleAnalyzeTrends}
@@ -427,13 +482,39 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                   Analyze Trends
                 </button>
             </div>
-            <select
-                value={selectedScope}
-                onChange={(e) => setSelectedScope(e.target.value)}
-                className="w-full bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
-                >
-                {noteScopeOptions.map((opt: { label: string, value: string }) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                  value={selectedScope}
+                  onChange={(e) => setSelectedScope(e.target.value)}
+                  className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
+                  >
+                  {noteScopeOptions.map((opt: { label: string, value: string }) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+
+              <select
+                  value={showAllPeriods ? 'ALL' : (notesPeriod?.label || 'ALL')}
+                  onChange={(e) => handlePeriodChange(e.target.value)}
+                  className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
+                  >
+                  <option value="ALL">All Periods</option>
+                  <optgroup label="Monthly Periods (2025-2028)">
+                    {allAvailablePeriods
+                      .filter(p => p.type === 'monthly')
+                      .map(p => (
+                        <option key={p.label} value={p.label}>{p.label}</option>
+                      ))
+                    }
+                  </optgroup>
+                  <optgroup label="Weekly Periods (2025-2028)">
+                    {allAvailablePeriods
+                      .filter(p => p.type === 'weekly')
+                      .map(p => (
+                        <option key={p.label} value={p.label}>{p.label}</option>
+                      ))
+                    }
+                  </optgroup>
+              </select>
+            </div>
             <DiagnosticErrorPanel />
         </div>
         
