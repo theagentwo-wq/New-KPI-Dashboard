@@ -256,6 +256,12 @@ Weather: ${JSON.stringify(weather)}
 
 ## 1. Sales Focus & Contests (CRITICAL)
 
+**Company Promotions:**
+Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
+- Highlight any active promotions to guests
+- Train servers on promotion details and upselling points
+
+**Daily Sales Contests:**
 Create 1-2 fun, proven sales contests for servers/bartenders today:
 - Examples: "Upsell Challenge", "Dessert Derby", "Cocktail Champion"
 - Clear rules, friendly competition, prizes/recognition
@@ -331,6 +337,12 @@ Weather: ${JSON.stringify(weather)}
 
 ## 3. Today's Execution Plan & Traffic Drivers (CRITICAL)
 
+**Company Promotions:**
+Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
+- Identify promoted menu items that may require extra prep
+- Ensure ingredients are stocked for promoted dishes
+- Communicate any special preparation needs to the team
+
 **Local Events Happening Today/Tonight:**
 List any specific events in Columbia, SC that could impact our covers TODAY or TONIGHT:
 - USC Gamecocks games (football, basketball) - include specific time (e.g., "USC vs Clemson at 4:00 PM")
@@ -339,12 +351,12 @@ List any specific events in Columbia, SC that could impact our covers TODAY or T
 - Pre-event rush timing (e.g., "Expect concert crowd 5-7 PM, we'll be slammed")
 
 **Execution Planning:**
-Based on performance data, weather, and events above:
+Based on performance data, weather, events, and promotions above:
 - Expected covers for today's shift
-- Key menu items to prioritize and prep (especially for high-volume periods)
+- Key menu items to prioritize and prep (especially for high-volume periods and promoted items)
 - Timing goals for ticket times
 - Quality standards - consistency is everything
-- Prep priorities based on expected traffic
+- Prep priorities based on expected traffic and active promotions
 
 ## 4. Kitchen Teamwork
 
@@ -380,6 +392,14 @@ ${JSON.stringify(performanceData)}
 
 ## 2. Team Leadership & Communication
 
+**Company Promotions (CRITICAL):**
+Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
+- Ensure all teams are aware of active promotions
+- Communicate promotion details, upselling points, and execution requirements
+- Verify FOH knows how to present promotions to guests
+- Verify BOH has ingredients and knows preparation requirements
+
+**Team Communication Points:**
 What should managers communicate to their teams today?
 
 For FOH: Suggest 1-2 specific sales contests or guest service focuses to announce
