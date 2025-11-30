@@ -208,23 +208,30 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 );
             }
 
-            // Try using place_id with Google Maps place mode
-            // This shows the location on a map with Street View available
-            const placeId = (placeDetails as any).place_id;
+            // Try using Plus Code first (Google's geocoding system - most reliable)
+            // Plus Codes work well with Street View Embed API
+            const plusCode = (placeDetails as any).plus_code?.compound_code || (placeDetails as any).plus_code?.global_code;
 
-            if (!placeId) {
-                return (
-                    <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
-                        <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Place ID not available.</p>
-                    </div>
-                );
+            if (plusCode) {
+                // Use Plus Code for Street View - Google's own geocoding system
+                const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(plusCode)}&pitch=10&fov=90`;
+                return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
             }
 
-            // Use Google Maps place mode with the place_id
-            // This shows the location and allows clicking into Street View
-            const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=18`;
-            return <iframe title="Google Maps Location" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+            // Fallback to place mode if Plus Code not available
+            const placeId = (placeDetails as any).place_id;
+            if (placeId) {
+                const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=18`;
+                return <iframe title="Google Maps Location" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+            }
+
+            // No Plus Code or Place ID available
+            return (
+                <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
+                    <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
+                    <p className="text-slate-500 text-xs mt-1">Location code not available.</p>
+                </div>
+            );
         }
 
         if (isPlaceDetailsLoading) return <LoadingSpinner message="Loading location details..." />;

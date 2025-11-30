@@ -72,7 +72,7 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
         // Step 2: Get full details using the place_id
         const detailsRequest = {
           placeId: placeId,
-          fields: ['name', 'rating', 'reviews', 'website', 'url', 'photos', 'formatted_address', 'geometry'],
+          fields: ['name', 'rating', 'reviews', 'website', 'url', 'photos', 'formatted_address', 'geometry', 'plus_code'],
         };
 
         service.getDetails(detailsRequest, (place: any, detailsStatus: any) => {
