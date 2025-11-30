@@ -100,17 +100,22 @@ functions/
 
 1. **Fixed Store Hub Street View & Details Location Accuracy** (2025-11-30)
    - Issue: Street View showing "Invalid 'location' parameter" error and wrong addresses (1924 Gregg St, 2179 Pickens St)
-   - Root cause: Street View Embed API doesn't support business name searches (only coordinates/addresses/panorama IDs)
-   - **Final solution**: Two-step approach
+   - Root cause: Street View Embed API was rejecting all parameter formats (business name, address, coordinates)
+   - **Final solution**: Use Google Maps "place" mode instead of direct Street View
      1. **Search by business name** via Places API: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
-     2. **Extract coordinates** from Places API result (`placeDetails.geometry.location`)
-     3. **Use coordinates** for Street View embed: `location=lat,lng`
-   - This ensures accurate business location via Places API, then shows Street View at those precise coordinates
+     2. **Extract place_id** from Places API result
+     3. **Use place mode embed** with place_id: `https://www.google.com/maps/embed/v1/place?q=place_id:XXXXX`
+   - This shows a map view of the restaurant location with Street View accessible via pegman icon
+   - Benefits over direct Street View embed:
+     - place_id is guaranteed to work (comes from verified Places API result)
+     - Shows location context on map
+     - User can click Street View pegman to enter Street View mode
+     - More reliable than direct Street View embed with complex parameters
    - Implementation:
-     - Details & Photos tab: Direct business name search → `getPlaceDetails("Tupelo Honey Southern Kitchen and Bar Columbia, SC")`
-     - Street View tab: Wait for placeDetails → extract coordinates → `location=${lat},${lng}`
+     - Details & Photos tab: Business name search → `getPlaceDetails("Tupelo Honey Southern Kitchen and Bar Columbia, SC")`
+     - Street View tab: Use place_id from placeDetails → show map with Street View available
    - Also fixed: Updated Columbia, SC coordinates in STORE_DETAILS from `34.01509,-81.02641` to `34.0165288,-81.0327102`
-   - Files: [LocationInsightsModal.tsx:110,195-227](src/components/LocationInsightsModal.tsx#L110), [constants.ts:68](src/constants.ts#L68)
+   - Files: [LocationInsightsModal.tsx:110,195-227](src/components/LocationInsightsModal.tsx#L110), [ai-client.ts:84-88](src/lib/ai-client.ts#L84-L88), [constants.ts:68](src/constants.ts#L68)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
