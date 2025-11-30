@@ -119,6 +119,14 @@ functions/
      - Actually better UX - users see context before diving into Street View
    - Also fixed: Updated Columbia, SC coordinates in STORE_DETAILS from `34.01509,-81.02641` to `34.0165288,-81.0327102`
    - Files: [LocationInsightsModal.tsx:211-234](src/components/LocationInsightsModal.tsx#L211-L234), [constants.ts:68](src/constants.ts#L68)
+1. **Fixed Store Hub AI Analysis: Missing Location Context** (2025-11-30)
+   - Issue: All AI analyses showing placeholder text "[Insert Restaurant Name and Location Here]" instead of actual location
+   - Root cause: API was only receiving city/state (e.g., "Columbia, SC") without restaurant name
+   - Solution: Pass full restaurant name to all AI API calls
+     - Format: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
+     - Applied to all analysis tabs: Reviews & Buzz, Local Market, Huddle Brief, Forecast, Marketing
+   - Now AI receives proper context: "Tupelo Honey Southern Kitchen and Bar Columbia, SC" instead of just "Columbia, SC"
+   - Files: [LocationInsightsModal.tsx:132](src/components/LocationInsightsModal.tsx#L132)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
