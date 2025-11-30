@@ -307,6 +307,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     console.log('[NotesPanel] After period filter:', periodFiltered.length);
 
     const scopeFiltered = periodFiltered.filter((note: Note) => {
+      // Safety check: if note doesn't have a scope, skip it
+      if (!note.scope) {
+        console.warn('[NotesPanel] Note missing scope property:', note.id);
+        return false;
+      }
       const matches = note.scope.view === scope.view && (note.scope.storeId || undefined) === scope.storeId;
       console.log(`[NotesPanel] Note scope check - view: ${note.scope.view} === ${scope.view}, storeId: ${note.scope.storeId} === ${scope.storeId} - Matches: ${matches}`);
       return matches;
