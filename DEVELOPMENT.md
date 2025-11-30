@@ -99,11 +99,12 @@ functions/
 ### ✅ Completed
 
 1. **Fixed Store Hub Street View Location Accuracy** (2025-11-30)
-   - Issue: Street View showing wrong address (2179 Pickens St instead of correct 2138 Pickens St)
-   - Root cause: Address-based geocoding was causing Google to snap to nearest Street View coverage at wrong location
-   - Solution: Changed to use exact lat/lon coordinates from STORE_DETAILS instead of address string
-   - Format: `location=34.01509,-81.02641` (more precise than address geocoding)
-   - Files: [LocationInsightsModal.tsx:197-215](src/components/LocationInsightsModal.tsx#L197-L215)
+   - Issue: Street View showing wrong address (1926 Gregg St instead of correct 2138 Pickens St)
+   - Root cause: Coordinates in STORE_DETAILS were incorrect for Columbia, SC
+   - Old coordinates: `34.01509, -81.02641` → pointed to 1926 Gregg St ❌
+   - New coordinates: `34.0165288, -81.0327102` → points to 2138 Pickens St ✅
+   - Verified via Google Geocoding API
+   - Files: [constants.ts:68](src/constants.ts#L68), [LocationInsightsModal.tsx:197-215](src/components/LocationInsightsModal.tsx#L197-L215)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
