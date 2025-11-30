@@ -100,25 +100,25 @@ functions/
 
 1. **Fixed Store Hub Street View & Details Location Accuracy** (2025-11-30)
    - Issue: Street View showing "Invalid 'location' parameter" error and wrong addresses (1924 Gregg St, 2179 Pickens St)
-   - Root cause: Street View Embed API was rejecting addresses and coordinates
-   - **Final solution**: Use Google Plus Codes (Open Location Codes)
+   - Root cause: Google Street View Embed API has severe limitations - rejects almost all location parameter formats
+   - **What was tested** (all failed with 400 Bad Request):
+     - ❌ Business names (`"Tupelo Honey Southern Kitchen and Bar Columbia, SC"`)
+     - ❌ Street addresses (`"2138 Pickens Street, Columbia, SC 29201"`)
+     - ❌ Coordinates (`34.0165288,-81.0327102`)
+     - ❌ Plus Codes (`"2X88+PR Columbia, SC, USA"`) - even Google's own geocoding system rejected!
+   - **Final solution**: Use Google Maps "place" mode with place_id
      1. **Search by business name** via Places API: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
-     2. **Extract Plus Code** from Places API result (e.g., "2X88+PR Columbia, South Carolina")
-     3. **Use Plus Code for Street View**: `location=2X88%2BPR%20Columbia%2C%20South%20Carolina`
-   - Plus Codes are Google's geocoding system designed specifically for Maps/Street View
+     2. **Extract place_id** from Places API result
+     3. **Use place mode embed**: `https://www.google.com/maps/embed/v1/place?q=place_id:XXXXX&zoom=19&maptype=satellite`
+   - This shows an interactive map (not direct Street View) where users can click the pegman icon to enter Street View
    - Benefits:
-     - Globally unique and precise location codes
-     - Designed by Google specifically for their mapping services
-     - More reliable than addresses or coordinates for Street View API
-     - Already provided by Places API (no extra conversion needed)
-   - Fallback chain: Plus Code → place_id (map mode) → error
-   - Implementation:
-     - Added `plus_code` field to Places API request
-     - Try Plus Code first (compound_code or global_code)
-     - Fallback to place mode with place_id if Plus Code unavailable
-   - Credit: User suggested Plus Codes from Google Maps UI
+     - place_id is guaranteed to work (only format that worked)
+     - Shows location context on satellite map
+     - User has full control (pan, zoom, Street View access)
+     - More reliable than fighting with broken Street View Embed API
+     - Actually better UX - users see context before diving into Street View
    - Also fixed: Updated Columbia, SC coordinates in STORE_DETAILS from `34.01509,-81.02641` to `34.0165288,-81.0327102`
-   - Files: [LocationInsightsModal.tsx:211-234](src/components/LocationInsightsModal.tsx#L211-L234), [ai-client.ts:75](src/lib/ai-client.ts#L75), [constants.ts:68](src/constants.ts#L68)
+   - Files: [LocationInsightsModal.tsx:211-234](src/components/LocationInsightsModal.tsx#L211-L234), [constants.ts:68](src/constants.ts#L68)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
