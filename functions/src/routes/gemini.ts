@@ -239,7 +239,12 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
   if (audience === 'FOH') {
     prompt = `You are the General Manager of ${locationName} preparing hot topics ONLY for the FRONT OF HOUSE team.
 
-⚠️ CRITICAL: Write ONE brief for FOH ONLY. Do NOT write BOH or Manager sections. Do NOT duplicate content.
+⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY:
+- Write ONE brief for FOH (Front of House) ONLY
+- Do NOT write a BOH (Back of House) brief
+- Do NOT write a Manager brief
+- Do NOT include "Hot Topics for BOH" or "Hot Topics for Managers" sections
+- STOP after completing the FOH brief
 
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
@@ -283,7 +288,12 @@ FORMAT: FOH-focused brief (2-3 minutes to read aloud)`;
   } else if (audience === 'BOH') {
     prompt = `You are the Executive Chef of ${locationName} preparing hot topics ONLY for the BACK OF HOUSE team.
 
-⚠️ CRITICAL: Write ONE brief for BOH ONLY. Do NOT write FOH or Manager sections. Do NOT duplicate content.
+⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY:
+- Write ONE brief for BOH (Back of House) ONLY
+- Do NOT write a FOH (Front of House) brief
+- Do NOT write a Manager brief
+- Do NOT include "Hot Topics for FOH" or "Hot Topics for Managers" sections
+- STOP after completing the BOH brief
 
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
