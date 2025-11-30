@@ -195,22 +195,21 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            // Use precise coordinates for Street View - prevents Google from snapping to wrong address
-            // Address-based was showing 2179 Pickens St instead of correct 2138 Pickens St
-            const storeInfo = location ? STORE_DETAILS[location] : null;
-
-            if (!storeInfo || !storeInfo.lat || !storeInfo.lon) {
+            // Use place search query for Street View - most accurate method
+            // Searching by business name ensures Google finds the exact restaurant location
+            if (!location) {
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
                         <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Could not find coordinates for this location.</p>
+                        <p className="text-slate-500 text-xs mt-1">Location not specified.</p>
                     </div>
                 );
             }
 
-            // Use exact lat/lon coordinates - more accurate than address geocoding
-            // Format: location=latitude,longitude (no spaces, no encoding needed for numbers)
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${storeInfo.lat},${storeInfo.lon}&pitch=10&fov=90`;
+            // Search by business name + location (e.g., "Tupelo Honey Southern Kitchen and Bar Columbia, SC")
+            // This is more accurate than coordinates which can snap to nearby street view points
+            const searchQuery = `Tupelo Honey Southern Kitchen and Bar ${location}`;
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(searchQuery)}&pitch=10&fov=90`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 
