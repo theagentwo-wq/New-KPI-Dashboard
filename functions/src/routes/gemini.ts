@@ -131,55 +131,91 @@ router.post('/getLocationMarketAnalysis', asyncHandler(async (req: Request, res:
 
 TODAY'S DATE: ${currentDate}
 
-IMPORTANT: Your analysis must be current and forward-looking. Focus on events and opportunities in the NEXT 30 DAYS from today's date.
+CRITICAL INSTRUCTIONS:
+- Provide SPECIFIC information from your knowledge, not generic advice
+- If you don't have specific data, provide links to relevant sources
+- DO NOT tell users to "check local listings" - either provide info or provide links
+- Focus on the NEXT 30 DAYS from today's date
 
-Conduct a comprehensive market analysis covering:
+## 1. LOCAL DEMOGRAPHICS
 
-1. LOCAL DEMOGRAPHICS
-   - Population trends, age distribution, income levels, tourism statistics
+Provide SPECIFIC data you know about this city:
+- Population size, growth trends
+- Age distribution and income levels
+- Tourism statistics and seasonal patterns
+- Key demographic facts relevant to restaurants
 
-2. UPCOMING EVENTS - NEXT 30 DAYS (CRITICAL)
-   Search for ALL types of events happening in the next 30 days:
-   - Music concerts and festivals (venues, arenas, outdoor events)
-   - Sporting events (college games, professional sports, marathons)
-   - Arts and cultural events (theater, gallery openings, exhibitions)
-   - Citywide celebrations, parades, holiday events
-   - Conventions and conferences
-   - Construction projects or road closures affecting traffic
-   - City initiatives and community events
+## 2. UPCOMING EVENTS - NEXT 30 DAYS (CRITICAL)
 
-   DO NOT reference past events. Only focus on what's coming up.
+List TOP 3 SPECIFIC EVENTS you know about in each category:
 
-3. MICRO EVENTS (Neighborhood-Level)
-   - Nearby entertainment venues (Colonial Life Arena, Trustus Theatre, Koger Center)
-   - Art galleries, entertainment districts (The Vista)
-   - Neighborhood-specific happenings
+**Major Sporting Events:**
+- List specific games/matches if you know them (college football, basketball, etc.)
+- If unknown, provide link: "Check [University of South Carolina Athletics](https://gamecocksonline.com/) or [Colonial Life Arena](https://www.coloniallifearena.com/events)"
 
-4. HOLIDAY IMPACT (CRITICAL)
-   - Which holidays fall in the next 30 days from ${currentDate}?
-   - Historical impact of these holidays on restaurant traffic
-   - Seasonal dining trends for this time of year
+**Concerts & Music:**
+- List specific concerts/shows if you know them
+- If unknown, provide links: "Check [Colonial Life Arena events](https://www.coloniallifearena.com/events), [Trustus Theatre](https://trustus.org/), [Koger Center](https://www.kogercenterforthearts.com/events)"
 
-5. LOCAL NEWS & TRENDING
-   - Current local news affecting dining/entertainment
-   - New restaurant openings or closures
-   - Construction/development projects
-   - Community initiatives
+**Arts & Cultural Events:**
+- List specific exhibitions/shows if you know them
+- If unknown, provide links: "Check [Columbia Museum of Art](https://www.columbiamuseum.org/), Vista galleries, local theaters"
 
-6. COMPETITION ANALYSIS
-   - Similar restaurants in the area
-   - Recent competitive moves
-   - Market opportunities
+**Citywide Celebrations:**
+- List specific parades, festivals, holiday events
+- Include dates if known
 
-7. WEATHER PATTERNS
-   - Expected weather for this season/month
-   - How weather affects local dining habits
+**Conventions & Conferences:**
+- List specific conventions if you know them
+- If unknown: "Check [Columbia Metropolitan Convention Center](https://www.columbiaconventioncenter.com/)"
 
-PROVIDE:
-- Executive summary (2-3 paragraphs) - MUST BE CURRENT
-- Top 5 opportunities for the next 30 days
-- Timing recommendations with specific dates
-- Specific actionable tactics`;
+## 3. NEIGHBORHOOD EVENTS (The Vista)
+
+**Specific to The Vista district where Tupelo Honey is located:**
+- Gallery crawls, art walks (usually first Thursdays)
+- Nearby venue events
+- Neighborhood-specific happenings
+
+## 4. HOLIDAY IMPACT (CRITICAL)
+
+Which holidays fall in the next 30 days from ${currentDate}?
+- List each holiday with date
+- Expected impact on restaurant traffic (high/medium/low)
+- Seasonal dining trends for this time of year
+
+## 5. LOCAL NEWS & COMPETITION
+
+**New Restaurants:**
+- List any new openings you know about
+- Otherwise: "Monitor local food blogs and Columbia Free Times"
+
+**Similar Restaurants in the area:**
+- List 3-5 direct competitors with their strengths
+- Market positioning vs. Tupelo Honey
+
+**Construction/Road Work:**
+- Any major projects affecting Vista access
+- Otherwise: "Check SCDOT traffic advisories"
+
+## 6. WEATHER IMPACT
+
+Expected weather for this time of year in Columbia, SC:
+- Typical temperature range
+- Precipitation patterns
+- Impact on patio dining and guest traffic
+
+---
+
+## FINAL DELIVERABLES:
+
+**Executive Summary (2-3 paragraphs):**
+Current market conditions and key opportunities
+
+**Top 5 Opportunities for Next 30 Days:**
+With specific dates/timeframes where applicable
+
+**Actionable Tactics:**
+3-5 specific things the restaurant can do to capitalize`;
 
   const result = await client.generateContent(prompt);
 
