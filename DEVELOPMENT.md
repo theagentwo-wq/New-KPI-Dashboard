@@ -100,14 +100,17 @@ functions/
 
 1. **Fixed Store Hub Street View & Details Location Accuracy** (2025-11-30)
    - Issue: Street View showing "Invalid 'location' parameter" error and wrong addresses (1924 Gregg St, 2179 Pickens St)
-   - Root cause: Mixed location search formats - Street View used business name, but Details & Photos still used old address format
-   - **Final solution**: Unified ALL location searches to use business name format
-   - Search format: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
-   - Example: `"Tupelo Honey Southern Kitchen and Bar Columbia, SC"`
-   - Applied to: Street View iframe embed (line 210) AND getPlaceDetails API call (line 110)
-   - This ensures Google Places API consistently finds the exact business location
+   - Root cause: Street View Embed API doesn't support business name searches (only coordinates/addresses/panorama IDs)
+   - **Final solution**: Two-step approach
+     1. **Search by business name** via Places API: `"Tupelo Honey Southern Kitchen and Bar [City, State]"`
+     2. **Extract coordinates** from Places API result (`placeDetails.geometry.location`)
+     3. **Use coordinates** for Street View embed: `location=lat,lng`
+   - This ensures accurate business location via Places API, then shows Street View at those precise coordinates
+   - Implementation:
+     - Details & Photos tab: Direct business name search → `getPlaceDetails("Tupelo Honey Southern Kitchen and Bar Columbia, SC")`
+     - Street View tab: Wait for placeDetails → extract coordinates → `location=${lat},${lng}`
    - Also fixed: Updated Columbia, SC coordinates in STORE_DETAILS from `34.01509,-81.02641` to `34.0165288,-81.0327102`
-   - Files: [LocationInsightsModal.tsx:110,210](src/components/LocationInsightsModal.tsx#L110), [constants.ts:68](src/constants.ts#L68)
+   - Files: [LocationInsightsModal.tsx:110,195-227](src/components/LocationInsightsModal.tsx#L110), [constants.ts:68](src/constants.ts#L68)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
