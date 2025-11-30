@@ -147,23 +147,42 @@ export const seedInitialData = async () => {
 // --- Notes Functions ---
 
 export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string): Promise<Note> => {
-    let imageRefUrl = '';
-    if (imageDataUrl) {
-        const imageRef = ref(storage, `notes_images/${new Date().toISOString()}.jpg`);
-        const snapshot = await uploadString(imageRef, imageDataUrl, 'data_url');
-        imageRefUrl = await getDownloadURL(snapshot.ref);
-    }
+    try {
+        console.log('[Firebase] addNote: Starting note creation...');
+        console.log('[Firebase] addNote: Period:', monthlyPeriodLabel);
+        console.log('[Firebase] addNote: Category:', category);
+        console.log('[Firebase] addNote: Content:', content.substring(0, 50) + '...');
+        console.log('[Firebase] addNote: Scope:', scope);
+        console.log('[Firebase] addNote: Has image:', !!imageDataUrl);
 
-    const newNote: Omit<Note, 'id'> = {
-        monthlyPeriodLabel,
-        category,
-        content,
-        scope,
-        createdAt: new Date().toISOString(),
-        imageUrl: imageRefUrl || undefined,
-    };
-    const docRef = await addDoc(notesCollection, newNote);
-    return { id: docRef.id, ...newNote };
+        let imageRefUrl = '';
+        if (imageDataUrl) {
+            console.log('[Firebase] addNote: Uploading image to storage...');
+            const imageRef = ref(storage, `notes_images/${new Date().toISOString()}.jpg`);
+            const snapshot = await uploadString(imageRef, imageDataUrl, 'data_url');
+            imageRefUrl = await getDownloadURL(snapshot.ref);
+            console.log('[Firebase] addNote: Image uploaded successfully:', imageRefUrl);
+        }
+
+        const newNote: Omit<Note, 'id'> = {
+            monthlyPeriodLabel,
+            category,
+            content,
+            scope,
+            createdAt: new Date().toISOString(),
+            imageUrl: imageRefUrl || undefined,
+        };
+
+        console.log('[Firebase] addNote: Writing to Firestore collection:', notesCollection.path);
+        console.log('[Firebase] addNote: Note data:', newNote);
+        const docRef = await addDoc(notesCollection, newNote);
+        console.log('[Firebase] addNote: ✅ Note created successfully with ID:', docRef.id);
+
+        return { id: docRef.id, ...newNote };
+    } catch (error) {
+        console.error('[Firebase] addNote: ❌ ERROR creating note:', error);
+        throw error;
+    }
 };
 
 export const getNotes = async (): Promise<Note[]> => {
@@ -186,13 +205,29 @@ export const getNotes = async (): Promise<Note[]> => {
 };
 
 export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
-    const noteRef = doc(notesCollection, noteId);
-    await updateDoc(noteRef, { content: newContent, category: newCategory });
+    try {
+        console.log('[Firebase] updateNoteContent: Updating note ID:', noteId);
+        console.log('[Firebase] updateNoteContent: New content:', newContent.substring(0, 50) + '...');
+        console.log('[Firebase] updateNoteContent: New category:', newCategory);
+        const noteRef = doc(notesCollection, noteId);
+        await updateDoc(noteRef, { content: newContent, category: newCategory });
+        console.log('[Firebase] updateNoteContent: ✅ Note updated successfully');
+    } catch (error) {
+        console.error('[Firebase] updateNoteContent: ❌ ERROR updating note:', error);
+        throw error;
+    }
 };
 
 export const deleteNoteById = async (noteId: string): Promise<void> => {
-    const noteRef = doc(notesCollection, noteId);
-    await deleteDoc(noteRef);
+    try {
+        console.log('[Firebase] deleteNoteById: Deleting note ID:', noteId);
+        const noteRef = doc(notesCollection, noteId);
+        await deleteDoc(noteRef);
+        console.log('[Firebase] deleteNoteById: ✅ Note deleted successfully');
+    } catch (error) {
+        console.error('[Firebase] deleteNoteById: ❌ ERROR deleting note:', error);
+        throw error;
+    }
 };
 
 // --- Performance Data Functions ---
