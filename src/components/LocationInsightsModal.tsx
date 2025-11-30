@@ -208,20 +208,29 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 );
             }
 
+            // DEBUG: Log the entire placeDetails to see what we're getting
+            console.log('[Street View Debug] Full placeDetails:', placeDetails);
+            console.log('[Street View Debug] plus_code object:', (placeDetails as any).plus_code);
+            console.log('[Street View Debug] place_id:', (placeDetails as any).place_id);
+
             // Try using Plus Code first (Google's geocoding system - most reliable)
             // Plus Codes work well with Street View Embed API
             const plusCode = (placeDetails as any).plus_code?.compound_code || (placeDetails as any).plus_code?.global_code;
+            console.log('[Street View Debug] Extracted plusCode:', plusCode);
 
             if (plusCode) {
                 // Use Plus Code for Street View - Google's own geocoding system
                 const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(plusCode)}&pitch=10&fov=90`;
+                console.log('[Street View Debug] Using Plus Code, embedUrl:', embedUrl);
                 return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
             }
 
             // Fallback to place mode if Plus Code not available
+            console.log('[Street View Debug] Plus Code not available, trying place_id fallback');
             const placeId = (placeDetails as any).place_id;
             if (placeId) {
                 const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=18`;
+                console.log('[Street View Debug] Using place_id, embedUrl:', embedUrl);
                 return <iframe title="Google Maps Location" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
             }
 

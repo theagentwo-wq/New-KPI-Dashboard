@@ -80,12 +80,20 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
             // The photo URLs from the API need to be processed to be usable.
             const photoUrls = place.photos?.map((photo: any) => photo.getUrl({ maxWidth: 400 })) || [];
 
+            // DEBUG: Log what we got from Places API
+            console.log('[Places API Debug] Raw place object:', place);
+            console.log('[Places API Debug] plus_code:', place.plus_code);
+            console.log('[Places API Debug] place_id:', placeId);
+
             // Explicitly extract place_id and ensure it's included in the result
-            resolve({
+            const result = {
               ...place,
               photoUrls,
               place_id: placeId // Ensure place_id is included for Street View
-            });
+            };
+
+            console.log('[Places API Debug] Resolved result:', result);
+            resolve(result);
           } else {
             reject(new Error(`Failed to fetch full place details. Status: ${detailsStatus}`));
           }
