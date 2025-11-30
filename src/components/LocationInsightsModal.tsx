@@ -195,26 +195,23 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            // Prefer Google Places coordinates (more accurate), fall back to STORE_DETAILS
-            const googleLat = placeDetails?.geometry?.location?.lat;
-            const googleLng = placeDetails?.geometry?.location?.lng;
+            // Use address for Street View - more reliable than coordinates
+            // Street View API geocodes addresses better and finds nearest coverage automatically
             const storeInfo = location ? STORE_DETAILS[location] : null;
+            const address = storeInfo?.address;
 
-            const lat = googleLat || storeInfo?.lat;
-            const lon = googleLng || storeInfo?.lon;
-
-            if (!lat || !lon) {
+            if (!address) {
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
                         <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p>
+                        <p className="text-slate-500 text-xs mt-1">Could not find address for this location.</p>
                     </div>
                 );
             }
 
-            // Let Google auto-orient the Street View by not specifying heading
-            // This provides the best view of the location
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lon}&pitch=10&fov=90`;
+            // Use address instead of coordinates - Street View API handles geocoding better
+            // Let Google auto-orient by not specifying heading
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(address)}&pitch=10&fov=90`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 
