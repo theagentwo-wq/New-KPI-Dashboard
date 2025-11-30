@@ -8,7 +8,7 @@ import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
-import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP, STORE_DETAILS } from '../constants';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 
 interface PlaceDetails {
   name: string;
@@ -105,11 +105,9 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const fetchInitialData = async () => {
                 try {
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
-                    // Use full address from STORE_DETAILS for better search results
-                    const storeInfo = STORE_DETAILS[location];
-                    const searchQuery = storeInfo
-                        ? `Tupelo Honey Cafe ${storeInfo.address}`
-                        : `Tupelo Honey Cafe ${location}`;
+                    // Use business name search for consistent, accurate results
+                    // Same format as Street View: "Tupelo Honey Southern Kitchen and Bar [City, State]"
+                    const searchQuery = `Tupelo Honey Southern Kitchen and Bar ${location}`;
                     const details = await getPlaceDetails(searchQuery);
                     setPlaceDetails(details);
                 } catch (error) {
