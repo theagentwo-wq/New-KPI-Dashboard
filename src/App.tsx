@@ -47,15 +47,26 @@ const App = () => {
 
   useEffect(() => {
     const init = async () => {
-      const status = await initializeFirebaseService();
-      setDbStatus(status);
-      if (status.status === 'connected') {
-        const [initialNotes] = await Promise.all([
-          getNotes(),
-          getDirectorProfiles(),
-        ]);
-        setNotes(initialNotes);
-        // We use the initial directors from constants.ts, but in a real app this would be fetched
+      try {
+        console.log('[App] Starting Firebase initialization...');
+        const status = await initializeFirebaseService();
+        console.log('[App] Firebase status:', status);
+        setDbStatus(status);
+        if (status.status === 'connected') {
+          console.log('[App] Fetching initial data...');
+          const [initialNotes] = await Promise.all([
+            getNotes(),
+            getDirectorProfiles(),
+          ]);
+          setNotes(initialNotes);
+          console.log('[App] Initial data loaded successfully');
+          // We use the initial directors from constants.ts, but in a real app this would be fetched
+        } else {
+          console.warn('[App] Firebase not connected:', status);
+        }
+      } catch (error) {
+        console.error('[App] ❌ ERROR during initialization:', error);
+        setDbStatus({ status: 'error', message: (error as Error).message, error: (error as Error).message });
       }
     };
     init();
@@ -65,24 +76,30 @@ const App = () => {
     const fetchData = async () => {
         if (dbStatus.status !== 'connected') return;
 
-        const startYear = activePeriod.startDate.getFullYear();
-        const endYear = activePeriod.endDate.getFullYear();
-        const yearsToFetch = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+        try {
+          console.log('[App] Fetching performance data and budgets...');
+          const startYear = activePeriod.startDate.getFullYear();
+          const endYear = activePeriod.endDate.getFullYear();
+          const yearsToFetch = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
-        const promises: Promise<any>[] = [
-            getPerformanceData()
-        ];
+          const promises: Promise<any>[] = [
+              getPerformanceData()
+          ];
 
-        yearsToFetch.forEach(year => {
-            promises.push(getBudgets(year));
-        });
+          yearsToFetch.forEach(year => {
+              promises.push(getBudgets(year));
+          });
 
-        const results = await Promise.all(promises);
-        const performanceData = results[0];
-        const allFetchedBudgets = results.slice(1).flat();
+          const results = await Promise.all(promises);
+          const performanceData = results[0];
+          const allFetchedBudgets = results.slice(1).flat();
 
-        setLoadedData(performanceData);
-        setBudgets(allFetchedBudgets);
+          setLoadedData(performanceData);
+          setBudgets(allFetchedBudgets);
+          console.log('[App] Performance data and budgets loaded successfully');
+        } catch (error) {
+          console.error('[App] ❌ ERROR fetching data:', error);
+        }
     };
 
     fetchData();

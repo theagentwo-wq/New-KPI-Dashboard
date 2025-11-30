@@ -21,7 +21,8 @@
       "Bash(git restore:*)",
       "Bash(node:*)",
       "Bash(npm --version:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(timeout 5 bash:*)"
     ],
     "deny": [],
     "ask": []
