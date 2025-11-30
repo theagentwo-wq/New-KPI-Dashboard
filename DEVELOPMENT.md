@@ -127,6 +127,16 @@ functions/
      - Applied to all analysis tabs: Reviews & Buzz, Local Market, Huddle Brief, Forecast, Marketing
    - Now AI receives proper context: "Tupelo Honey Southern Kitchen and Bar Columbia, SC" instead of just "Columbia, SC"
    - Files: [LocationInsightsModal.tsx:132](src/components/LocationInsightsModal.tsx#L132)
+1. **Fixed Backend API Parameter Mismatch** (2025-11-30)
+   - Issue: AI still showing "Okay. I'm ready to analyze customer reviews for undefined" even after frontend fix
+   - Root cause: Backend expecting `location` but frontend sending `locationName`, backend not using passed `reviews` data
+   - Solution: Updated backend to match frontend data structure
+     - All API interfaces changed from `location: string` to `locationName: string`
+     - Updated `getReviewSummary` to analyze actual Google reviews passed from frontend (was asking AI to search)
+     - Updated `generateHuddleBrief` to use `performanceData` instead of `storeData`
+     - All endpoints now extract from `req.body.data` (matching frontend format)
+   - Now backend receives and uses: `{ locationName: "Tupelo Honey Southern Kitchen and Bar Columbia, SC", reviews: [...] }`
+   - Files: [functions/src/types/api.ts](functions/src/types/api.ts), [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
