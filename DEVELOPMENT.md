@@ -179,6 +179,34 @@ None currently
 
 ---
 
+#### Priority 2.5: Notes Feature Complete ✅ COMPLETE
+**Status**: Notes feature fully functional with period filtering!
+
+**What was done**:
+- ✅ Diagnosed notes not loading (filtering logic issue)
+- ✅ Implemented comprehensive period selector (weekly/monthly 2025-2028)
+- ✅ Added "All Periods" view as default
+- ✅ Period navigation buttons work with prev/next period
+- ✅ Added comprehensive logging to all note write operations
+- ✅ Verified notes read/write/update/delete functionality
+
+**Features Implemented**:
+- ✅ Default view shows all notes from all periods
+- ✅ Dropdown selector to filter by specific weekly or monthly periods (2025-2028)
+- ✅ Period navigation buttons (disabled when showing all periods)
+- ✅ Heading displays "All Periods" or specific period label
+- ✅ New notes use selected period or fallback to current monthly period
+- ✅ Comprehensive logging for debugging write operations
+
+**Files Modified**:
+- `src/components/NotesPanel.tsx` - Period selector UI and filtering logic
+- `src/services/firebaseService.ts` - Added logging to addNote, updateNoteContent, deleteNoteById
+
+**User Request Fulfilled**:
+> "I want to be able to pick notes weekly or monthly for years 2025 thru 2028"
+
+---
+
 #### Priority 3: UI/UX Functionality Restoration 🔴 REQUIRES USER INPUT
 **Status**: Needs assessment, user has screenshots and descriptions
 
