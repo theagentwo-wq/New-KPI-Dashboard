@@ -186,6 +186,27 @@ functions/
    - This mirrors the exact pattern that successfully fixed Manager Hot Topics
    - Expected result: Complete separation of all three audience briefs (FOH, BOH, Manager)
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Added Local Events to All Hot Topics Briefs** (2025-11-30)
+   - User request: Include local events (like USC games, concerts) in FOH Hot Topics similar to marketing brief
+   - Example: "There is a Clemson football game at 4 PM today" or "Concert at the auditorium will bring guests before the show"
+   - Solution: Added event context to all three audience briefs (FOH, BOH, Managers)
+     - Added current date generation with weekday format for all briefs
+     - **FOH**: New section "Weather, Events & Traffic Impact" with:
+       - Local events happening today/tonight (USC games, concerts, Vista events)
+       - Specific times when known (e.g., "USC vs Clemson at 4:00 PM")
+       - Pre-event rush timing predictions
+       - Traffic flow predictions based on events and weather
+     - **BOH**: Enhanced section "Today's Execution Plan & Traffic Drivers" with:
+       - Same event listings as FOH
+       - Prep priorities based on expected event-driven volume
+       - Timing goals for high-volume periods
+     - **Managers**: Expanded section "Operations Strategy & Traffic Drivers" with:
+       - Event context for staffing decisions
+       - Expected traffic patterns based on events
+       - Floor management and section assignments based on expected volume
+   - All briefs now show USC Gamecocks games, Colonial Life Arena concerts, Trustus Theatre shows, Vista events, and conventions
+   - Helps teams anticipate traffic patterns and prepare accordingly
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
