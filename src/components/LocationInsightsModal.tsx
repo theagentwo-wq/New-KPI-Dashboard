@@ -193,21 +193,37 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            // Use place search query for Street View - most accurate method
-            // Searching by business name ensures Google finds the exact restaurant location
-            if (!location) {
+            // Street View requires coordinates from Places API (doesn't support business name search)
+            // Wait for placeDetails to load, then use its coordinates
+            if (isPlaceDetailsLoading) {
+                return <LoadingSpinner message="Loading location details..." />;
+            }
+
+            if (placeDetailsError || !placeDetails) {
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
                         <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Location not specified.</p>
+                        <p className="text-slate-500 text-xs mt-1">Could not load location coordinates.</p>
                     </div>
                 );
             }
 
-            // Search by business name + location (e.g., "Tupelo Honey Southern Kitchen and Bar Columbia, SC")
-            // This is more accurate than coordinates which can snap to nearby street view points
-            const searchQuery = `Tupelo Honey Southern Kitchen and Bar ${location}`;
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(searchQuery)}&pitch=10&fov=90`;
+            // Use coordinates from placeDetails (which was found via business name search)
+            // This gives us the exact location Google found for "Tupelo Honey Southern Kitchen and Bar [City]"
+            const lat = placeDetails.geometry?.location?.lat;
+            const lng = placeDetails.geometry?.location?.lng;
+
+            if (!lat || !lng) {
+                return (
+                    <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
+                        <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
+                        <p className="text-slate-500 text-xs mt-1">Location coordinates not available.</p>
+                    </div>
+                );
+            }
+
+            // Use exact coordinates from Places API
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lng}&pitch=10&fov=90`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 
