@@ -242,20 +242,48 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
 
   const filteredNotes = useMemo(() => {
-    if (!notesPeriod) return [];
+    console.log('[NotesPanel] Filtering notes...');
+    console.log('[NotesPanel] Total notes received:', allNotes.length);
+    console.log('[NotesPanel] Current notesPeriod:', notesPeriod);
+    console.log('[NotesPanel] notesPeriod.label:', notesPeriod?.label);
+    console.log('[NotesPanel] selectedScope:', selectedScope);
+    console.log('[NotesPanel] filterCategory:', filterCategory);
+    console.log('[NotesPanel] searchTerm:', searchTerm);
+
+    if (!notesPeriod) {
+      console.log('[NotesPanel] No notesPeriod set, returning empty array');
+      return [];
+    }
+
     const scope = JSON.parse(selectedScope);
-    return allNotes
-        .filter((note: Note) => 
-            note.monthlyPeriodLabel === notesPeriod.label &&
-            note.scope.view === scope.view &&
-            (note.scope.storeId || undefined) === scope.storeId
-        )
-        .filter((note: Note) => 
-            filterCategory === 'All' || note.category === filterCategory
-        )
-        .filter((note: Note) => 
-            note.content.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+    console.log('[NotesPanel] Parsed scope:', scope);
+
+    const periodFiltered = allNotes.filter((note: Note) => {
+      const matches = note.monthlyPeriodLabel === notesPeriod.label;
+      console.log(`[NotesPanel] Note "${note.content.substring(0, 30)}..." - Period: "${note.monthlyPeriodLabel}" vs "${notesPeriod.label}" - Matches: ${matches}`);
+      return matches;
+    });
+    console.log('[NotesPanel] After period filter:', periodFiltered.length);
+
+    const scopeFiltered = periodFiltered.filter((note: Note) => {
+      const matches = note.scope.view === scope.view && (note.scope.storeId || undefined) === scope.storeId;
+      console.log(`[NotesPanel] Note scope check - view: ${note.scope.view} === ${scope.view}, storeId: ${note.scope.storeId} === ${scope.storeId} - Matches: ${matches}`);
+      return matches;
+    });
+    console.log('[NotesPanel] After scope filter:', scopeFiltered.length);
+
+    const categoryFiltered = scopeFiltered.filter((note: Note) =>
+        filterCategory === 'All' || note.category === filterCategory
+    );
+    console.log('[NotesPanel] After category filter:', categoryFiltered.length);
+
+    const searchFiltered = categoryFiltered.filter((note: Note) =>
+        note.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    console.log('[NotesPanel] After search filter:', searchFiltered.length);
+    console.log('[NotesPanel] Final filtered notes:', searchFiltered);
+
+    return searchFiltered;
   }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
   
   const handleAnalyzeTrends = async () => {
