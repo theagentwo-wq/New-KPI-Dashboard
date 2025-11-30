@@ -297,7 +297,7 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
             {/* Table */}
             <div className="overflow-auto" style={{ maxHeight: 'calc(8 * 56px + 48px)' }}>
                 <table className="w-full">
-                    <thead className="bg-slate-900/50 sticky top-0 z-10">
+                    <thead className="bg-slate-900 sticky top-0 z-10">
                         <tr className="border-b border-slate-700">
                             <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Rank</th>
                             <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Location</th>
