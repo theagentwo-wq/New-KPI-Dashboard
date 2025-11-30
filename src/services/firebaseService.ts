@@ -324,7 +324,29 @@ export const getAggregatedPerformanceDataForPeriod = async (period: Period, stor
 
 export const getDirectorProfiles = async (): Promise<DirectorProfile[]> => {
     const snapshot = await getDocs(directorsCollection);
-    return snapshot.docs.map(docSnap => docSnap.data() as DirectorProfile);
+    return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+
+        // Extract firstName from name (or use name as firstName if no space)
+        const firstName = data.name?.split(' ')[0] || data.name || '';
+
+        return {
+            id: docSnap.id, // Use Firestore document ID
+            name: data.name || '',
+            firstName: firstName,
+            lastName: data.lastName || '',
+            title: data.title || '',
+            photo: data.photo || '',
+            stores: data.stores || [],
+            email: data.email || '',
+            phone: data.phone || '',
+            homeLocation: data.homeLocation || '',
+            homeLat: data.homeLat || 0,
+            homeLon: data.homeLon || 0,
+            yearlyTravelBudget: data.yearlyTravelBudget || 50000, // Default budget
+            bio: data.bio || '',
+        } as DirectorProfile;
+    });
 };
 
 export const addGoal = async (directorId: string, quarter: number, year: number, kpi: Kpi, target: number): Promise<Goal> => {

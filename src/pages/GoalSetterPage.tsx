@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { GoalSetter } from '../components/GoalSetter';
 import { Goal, DirectorProfile, Period, Kpi } from '../types';
-import { DIRECTORS } from '../constants';
 import { getDefaultPeriod } from '../utils/dateUtils';
-import { addGoal, getGoals } from '../services/firebaseService';
+import { addGoal, getGoals, getDirectorProfiles } from '../services/firebaseService';
 import { Target, Trash2 } from 'lucide-react';
 import { KPI_CONFIG } from '../constants';
 
 export const GoalSetterPage: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>([]);
+    const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     const [isGoalSetterOpen, setIsGoalSetterOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | null>(null);
     const [activePeriod] = useState<Period>(getDefaultPeriod());
@@ -17,20 +17,25 @@ export const GoalSetterPage: React.FC = () => {
     const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
 
     useEffect(() => {
-        loadAllGoals();
+        loadAllData();
     }, []);
 
-    const loadAllGoals = async () => {
+    const loadAllData = async () => {
         setIsLoading(true);
         try {
+            // Load directors from Firebase
+            const loadedDirectors = await getDirectorProfiles();
+            setDirectors(loadedDirectors);
+
+            // Load goals for all directors
             const allGoals: Goal[] = [];
-            for (const director of DIRECTORS) {
+            for (const director of loadedDirectors) {
                 const directorGoals = await getGoals(director.id);
                 allGoals.push(...directorGoals);
             }
             setGoals(allGoals);
         } catch (error) {
-            console.error('Error loading goals:', error);
+            console.error('Error loading data:', error);
         } finally {
             setIsLoading(false);
         }
@@ -70,7 +75,7 @@ export const GoalSetterPage: React.FC = () => {
     });
 
     const getDirectorName = (directorId: string) => {
-        const director = DIRECTORS.find(d => d.id === directorId);
+        const director = directors.find(d => d.id === directorId);
         return director?.name || directorId;
     };
 
@@ -102,7 +107,7 @@ export const GoalSetterPage: React.FC = () => {
             <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
                 <h2 className="text-xl font-bold text-white mb-4">Set New Goal</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {DIRECTORS.map(director => (
+                    {directors.map(director => (
                         <button
                             key={director.id}
                             onClick={() => handleOpenGoalSetter(director)}
@@ -136,7 +141,7 @@ export const GoalSetterPage: React.FC = () => {
                         className="w-full bg-slate-900 border-slate-600 rounded-md p-2 text-white"
                     >
                         <option value="all">All Directors</option>
-                        {DIRECTORS.map(d => (
+                        {directors.map(d => (
                             <option key={d.id} value={d.id}>{d.name}</option>
                         ))}
                     </select>

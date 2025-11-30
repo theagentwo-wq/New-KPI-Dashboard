@@ -8,7 +8,6 @@ import { FinancialsPage } from './pages/FinancialsPage';
 import { GoalSetterPage } from './pages/GoalSetterPage';
 import { IndustryNewsPage } from './pages/IndustryNewsPage';
 import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, FirebaseStatus, PerformanceData, ActiveJob } from './types';
-import { DIRECTORS } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
 import { 
     initializeFirebaseService, 
@@ -37,7 +36,7 @@ const App = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loadedData, setLoadedData] = useState<StorePerformanceData[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [directors] = useState<DirectorProfile[]>(DIRECTORS);
+  const [directors, setDirectors] = useState<DirectorProfile[]>([]);
   
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isExecutiveSummaryOpen, setIsExecutiveSummaryOpen] = useState(false);
@@ -56,15 +55,17 @@ const App = () => {
         setDbStatus(status);
         if (status.status === 'connected') {
           console.log('[App] Fetching initial data...');
-          const [initialNotes] = await Promise.all([
+          const [initialNotes, initialDirectors] = await Promise.all([
             getNotes(),
             getDirectorProfiles(),
           ]);
           console.log('[App] Received', initialNotes.length, 'notes from getNotes()');
+          console.log('[App] Received', initialDirectors.length, 'directors from getDirectorProfiles()');
           console.log('[App] Notes data:', initialNotes);
+          console.log('[App] Directors data:', initialDirectors);
           setNotes(initialNotes);
-          console.log('[App] Initial data loaded successfully, notes state updated');
-          // We use the initial directors from constants.ts, but in a real app this would be fetched
+          setDirectors(initialDirectors);
+          console.log('[App] Initial data loaded successfully, notes and directors state updated')
         } else {
           console.warn('[App] Firebase not connected:', status);
         }
