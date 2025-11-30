@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus, KPISummaryCardsProps, AnomalyDetailModalProps } from '../types';
+import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Budget, Anomaly, Note, NoteCategory, DataItem, Kpi, PeriodType, PeriodOption, FirebaseStatus, KPISummaryCardsProps, AnomalyDetailModalProps, WeatherInfo } from '../types';
 import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
+import { getWeatherForLocation } from '../services/weatherService';
 import { AIAssistant } from '../components/AIAssistant';
 import { NotesPanel } from '../components/NotesPanel';
 import { LocationInsightsModal } from '../components/LocationInsightsModal';
@@ -41,6 +42,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const [userLocation, _setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
     const [anomalies, _setAnomalies] = useState<Anomaly[]>([]);
     const [selectedKpi, setSelectedKpi] = useState<Kpi>(Kpi.Sales);
+    const [weatherData, setWeatherData] = useState<{ [storeId: string]: WeatherInfo }>({});
 
     const [isLocationInsightsOpen, setLocationInsightsOpen] = useState(false);
     const [isReviewModalOpen, setReviewModalOpen] = useState(false);
@@ -207,9 +209,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const summaryDataForCards = useMemo(() => {
         const dataToSummarize = Object.values(processedDataForTable).map(d => d.actual as PerformanceData);
         if (dataToSummarize.length === 0) return {};
-        
+
         const aggregated: PerformanceData = {};
-        (Object.keys(Kpi) as Kpi[]).forEach(kpi => {
+        // Use Object.values to get actual enum values, not keys
+        (Object.values(Kpi) as Kpi[]).forEach(kpi => {
             const kpiConfig = KPI_CONFIG[kpi];
             // Skip if config doesn't exist for this KPI
             if (!kpiConfig) {
@@ -225,6 +228,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 aggregated[kpi] = values.reduce((sum, v) => sum + v, 0) / values.length;
             }
         });
+        console.log('[DashboardPage] Summary data for cards:', aggregated);
         return aggregated;
     }, [processedDataForTable]);
 
@@ -240,8 +244,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             const aggregated: { actual: PerformanceData, comparison: PerformanceData, variance: PerformanceData } = {
                 actual: {}, comparison: {}, variance: {}
             };
-    
-            (Object.keys(Kpi) as Kpi[]).forEach(kpi => {
+
+            // Use Object.values to get actual enum values, not keys
+            (Object.values(Kpi) as Kpi[]).forEach(kpi => {
                  const kpiConfig = KPI_CONFIG[kpi];
                  // Skip if config doesn't exist for this KPI
                  if (!kpiConfig) {
@@ -285,7 +290,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         setAnomalyModalOpen(true);
         setIsAlertsModalOpen(false);
     }, [setIsAlertsModalOpen]);
-    
+
+    const handleFetchWeather = useCallback(async (storeId: string) => {
+        // Only fetch if we don't already have weather data for this store
+        if (weatherData[storeId]) return;
+
+        try {
+            const weather = await getWeatherForLocation(storeId);
+            if (weather) {
+                setWeatherData(prev => ({ ...prev, [storeId]: weather }));
+            }
+        } catch (error) {
+            console.error(`Failed to fetch weather for ${storeId}:`, error);
+        }
+    }, [weatherData]);
+
     const historicalDataForAI = useMemo(() => { return []; }, []);
 
     const kpiSummaryCardsProps: KPISummaryCardsProps = {
@@ -326,6 +345,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                          isPrevPeriodDisabled={isPrevPeriodDisabled}
                          isNextPeriodDisabled={isNextPeriodDisabled}
                          onResetView={handleResetView}
+                         weatherData={weatherData}
+                         onFetchWeather={handleFetchWeather}
                     />
                     <NotesPanel 
                         allNotes={notes}

@@ -1,15 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Kpi, PerformanceData } from '../types';
+import { Kpi, KPISummaryCardsProps } from '../types';
 import { KPI_CONFIG, KPI_ICON_MAP } from '../constants';
 import { Icon } from './Icon';
 import { AnimatedNumberDisplay } from './AnimatedNumberDisplay';
-
-interface KPISummaryCardsProps {
-    data?: PerformanceData;
-    selectedKpi: Kpi;
-    onKpiSelect: (kpi: Kpi) => void;
-}
 
 const cardVariants: any = {
     hidden: { opacity: 0, y: 20 },
@@ -106,7 +100,7 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
         }
     };
 
-    if (!data) {
+    if (!data || Object.keys(data).length === 0) {
         return (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {kpisToShow.map((kpi) => (

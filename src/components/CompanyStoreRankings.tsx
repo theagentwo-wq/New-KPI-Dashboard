@@ -1,8 +1,8 @@
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Kpi, View, Period, WeatherInfo } from '../types';
 import { KPI_CONFIG } from '../constants';
-import { ChevronsLeft, ChevronsRight, RotateCcw, BarChart, TrendingDown, TrendingUp, Zap } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, RotateCcw, Filter } from 'lucide-react';
 import { WeatherIcon } from './WeatherIcon';
 
 interface CompanyStoreRankingsProps {
@@ -25,94 +25,135 @@ interface CompanyStoreRankingsProps {
     onFetchWeather?: (storeId: string) => void;
 }
 
+// Available KPIs to display - all KPIs from the dashboard
+const AVAILABLE_KPIS: Kpi[] = [
+    Kpi.Sales,
+    Kpi.SOP,
+    Kpi.PrimeCost,
+    Kpi.FoodCost,
+    Kpi.VariableLabor,
+    Kpi.AvgReviews,
+    Kpi.CulinaryAuditScore
+];
+
+// Helper function to abbreviate large numbers
+const abbreviateNumber = (value: number): string => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
+    return `$${value.toFixed(0)}`;
+};
+
+// Format value based on KPI type
+const formatKpiValue = (kpi: Kpi, value: number | null | undefined, abbreviated: boolean = false): string => {
+    if (value === null || value === undefined) return '-';
+    const config = KPI_CONFIG[kpi];
+    if (!config) return '-';
+
+    if (config.format === 'currency') {
+        return abbreviated ? abbreviateNumber(value) : `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+    if (config.format === 'percent') {
+        return `${(value * 100).toFixed(1)}%`;
+    }
+    return value.toFixed(2);
+};
+
+// Medal icons for top 3
+const getMedalIcon = (rank: number): string => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '';
+};
+
 const RankingRow = React.memo(({
-    rank, storeId, kpi, actualValue, varianceValue, onLocationSelect, onReviewClick, onFetchWeather, weather
+    rank, storeId, allData, visibleKpis, onFetchWeather, weather
 }: {
     rank: number;
     storeId: string;
-    kpi: Kpi;
-    actualValue: number;
-    varianceValue?: number;
-    onLocationSelect: (loc: string) => void;
-    onReviewClick: (loc: string) => void;
+    allData: { actual: any; comparison?: any; variance: any; };
+    visibleKpis: Kpi[];
     onFetchWeather?: (storeId: string) => void;
     weather?: WeatherInfo;
 }) => {
-    const kpiConfig = KPI_CONFIG[kpi];
-    if (!kpiConfig) return null;
-
-    const formatValue = (value: number) => {
-        if (kpiConfig.format === 'currency') return `$${(value / 1).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-        if (kpiConfig.format === 'percent') return `${(value * 100).toFixed(1)}%`;
-        return value.toFixed(2);
-    };
-
-    const hasVariance = varianceValue !== undefined && varianceValue !== null;
-    const isPositiveVariance = hasVariance && varianceValue! > 0;
-    const isNegativeVariance = hasVariance && varianceValue! < 0;
-
-    const varianceColor = () => {
-        if (!hasVariance) return 'text-slate-500';
-        const positiveIsGood = kpiConfig.higherIsBetter;
-        if ((positiveIsGood && isPositiveVariance) || (!positiveIsGood && isNegativeVariance)) return 'text-green-400';
-        return 'text-red-400';
-    };
+    const medal = getMedalIcon(rank);
 
     return (
-        <tr 
-            className="bg-slate-800 hover:bg-slate-700/50 transition-colors duration-150 group"
+        <tr
+            className="border-b border-slate-700 hover:bg-slate-750 transition-colors"
             onMouseEnter={() => onFetchWeather?.(storeId)}
         >
-            <td className="p-3 text-sm text-slate-400 font-medium whitespace-nowrap">#{rank}</td>
-            <td className="p-3 text-sm font-semibold text-white whitespace-nowrap">{storeId}</td>
-            <td className="p-3 text-sm text-right font-mono text-cyan-300 whitespace-nowrap">{formatValue(actualValue)}</td>
-            <td className={`p-3 text-sm text-right font-mono whitespace-nowrap flex items-center justify-end ${varianceColor()}`}>
-                {hasVariance ? (
-                    <>
-                        {isPositiveVariance ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
-                        {formatValue(varianceValue!)}
-                    </>
+            {/* Rank */}
+            <td className="py-3 px-4 text-white">
+                {medal ? (
+                    <span className="flex items-center gap-2">
+                        <span className="text-lg">{medal}</span>
+                        <span className="text-sm font-semibold">{rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}</span>
+                    </span>
                 ) : (
-                    <span className="text-slate-600">-</span>
+                    <span className="text-sm">{rank}th</span>
                 )}
             </td>
-            <td className="p-3 text-center">
-                <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     {weather && <WeatherIcon condition={weather.condition} className="w-5 h-5" />}
+
+            {/* Location with weather icon */}
+            <td className="py-3 px-4 text-white">
+                <div className="flex items-center gap-2">
+                    {weather && <WeatherIcon condition={weather.condition} className="w-5 h-5" />}
+                    <span className="font-medium">{storeId}</span>
                 </div>
             </td>
-            <td className="p-3 text-right">
-                <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onLocationSelect(storeId)} className="p-1.5 rounded-md bg-slate-600/50 hover:bg-slate-600 text-white" title="View Location Insights">
-                        <BarChart size={16}/>
-                    </button>
-                    <button onClick={() => onReviewClick(storeId)} className="p-1.5 rounded-md bg-slate-600/50 hover:bg-slate-600 text-white" title="Analyze Customer Reviews">
-                        <Zap size={16}/>
-                    </button>
-                </div>
-            </td>
+
+            {/* KPI Columns */}
+            {visibleKpis.map(kpi => {
+                const config = KPI_CONFIG[kpi];
+                if (!config) return null;
+
+                const actualValue = allData?.actual?.[kpi];
+                const comparisonValue = allData?.comparison?.[kpi];
+                const varianceValue = allData?.variance?.[kpi];
+
+                const hasVariance = varianceValue !== undefined && varianceValue !== null;
+                const variancePercent = hasVariance && comparisonValue !== 0
+                    ? ((varianceValue / comparisonValue) * 100).toFixed(1)
+                    : '0.0';
+
+                return (
+                    <React.Fragment key={kpi}>
+                        {/* Actual */}
+                        <td className="py-3 px-4 text-white font-semibold text-sm">
+                            {formatKpiValue(kpi, actualValue, true)}
+                        </td>
+                        {/* vs. PP */}
+                        <td className="py-3 px-4 text-slate-400 text-sm">
+                            {formatKpiValue(kpi, comparisonValue, true)}
+                        </td>
+                        {/* Variance */}
+                        <td className="py-3 px-4 text-slate-400 text-sm">
+                            {hasVariance ? `${variancePercent}%` : '0.0%'}
+                        </td>
+                    </React.Fragment>
+                );
+            })}
         </tr>
-    )
+    );
 });
 
-export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({ 
-    data, selectedKpi, period, periodType, setPeriodType, comparisonMode, setComparisonMode,
-    onLocationSelect, onReviewClick, onPrevPeriod, onNextPeriod, isPrevPeriodDisabled,
+export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
+    data, period, periodType, setPeriodType, comparisonMode, setComparisonMode,
+    onPrevPeriod, onNextPeriod, isPrevPeriodDisabled,
     isNextPeriodDisabled, onResetView, weatherData, onFetchWeather
 }) => {
+    const [visibleKpis, setVisibleKpis] = useState<Kpi[]>(AVAILABLE_KPIS);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     const sortedStoreIds = useMemo(() => {
-        const kpiConfig = KPI_CONFIG[selectedKpi];
-        if (!kpiConfig) return [];
+        // Sort by Sales (primary ranking KPI)
         return Object.keys(data).sort((a, b) => {
-            const valA = data[a]?.actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-            const valB = data[b]?.actual[selectedKpi] ?? (kpiConfig.higherIsBetter ? -Infinity : Infinity);
-            return kpiConfig.higherIsBetter ? valB - valA : valA - valB;
+            const valA = data[a]?.actual?.[Kpi.Sales] ?? -Infinity;
+            const valB = data[b]?.actual?.[Kpi.Sales] ?? -Infinity;
+            return valB - valA; // Higher sales = better rank
         });
-    }, [data, selectedKpi]);
-    
-    const kpiConfig = KPI_CONFIG[selectedKpi];
-    if (!kpiConfig) return null;
+    }, [data]);
 
     const handleFetchWeather = useCallback((storeId: string) => {
         if (onFetchWeather) {
@@ -120,80 +161,165 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
         }
     }, [onFetchWeather]);
 
+    const toggleKpiVisibility = (kpi: Kpi) => {
+        setVisibleKpis(prev =>
+            prev.includes(kpi)
+                ? prev.filter(k => k !== kpi)
+                : [...prev, kpi]
+        );
+    };
+
+    // Format period label (e.g., "W48 FY2025 (Nov 24)")
+    const formatPeriodLabel = (): string => {
+        const date = period.startDate;
+        const month = date.toLocaleDateString('en-US', { month: 'short' });
+        const day = date.getDate();
+
+        if (periodType === 'Week') {
+            // Calculate week number
+            const startOfYear = new Date(date.getFullYear(), 0, 1);
+            const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+            const weekNum = Math.ceil((days + startOfYear.getDay() + 1) / 7);
+            return `W${weekNum} FY${period.year} (${month} ${day})`;
+        }
+
+        return period.label;
+    };
+
     return (
         <div className="bg-slate-800/50 rounded-lg">
-            <div className="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h3 className="font-bold text-white text-lg">{kpiConfig.label} Rankings</h3>
-                    <p className="text-sm text-slate-400">Comparing performance across all locations.</p>
-                </div>
-                 <div className="flex items-center bg-slate-900/70 border border-slate-700 rounded-lg p-1">
-                    <button onClick={onPrevPeriod} disabled={isPrevPeriodDisabled} className="px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"><ChevronsLeft size={18} /></button>
-                    <div className="text-center px-4">
-                        <p className="font-bold text-white text-sm whitespace-nowrap">{period.label}</p>
-                        <p className="text-xs text-slate-400">{periodType}</p>
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-white text-xl">Store Rankings</h3>
+
+                    <div className="flex items-center gap-3">
+                        {/* Period Type Tabs */}
+                        <div className="flex bg-slate-900/70 rounded-lg overflow-hidden border border-slate-700">
+                            {['Week', 'Month', 'Quarter', 'Year'].map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => setPeriodType(type)}
+                                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                                        periodType === type
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                    }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <button onClick={onNextPeriod} disabled={isNextPeriodDisabled} className="px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"><ChevronsRight size={18} /></button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                    {/* Period Selector */}
+                    <div className="flex items-center bg-slate-900/70 border border-slate-700 rounded-lg">
+                        <button
+                            onClick={onPrevPeriod}
+                            disabled={isPrevPeriodDisabled}
+                            className="px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                        >
+                            <ChevronsLeft size={18} />
+                        </button>
+                        <div className="px-4 py-2 min-w-[200px] text-center">
+                            <p className="font-bold text-white text-sm whitespace-nowrap">{formatPeriodLabel()}</p>
+                        </div>
+                        <button
+                            onClick={onNextPeriod}
+                            disabled={isNextPeriodDisabled}
+                            className="px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                        >
+                            <ChevronsRight size={18} />
+                        </button>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center gap-2">
+                        {/* Comparison Mode */}
+                        <select
+                            value={comparisonMode}
+                            onChange={(e) => setComparisonMode(e.target.value)}
+                            className="bg-slate-700 text-white text-sm rounded-md px-3 py-2 border border-slate-600 focus:ring-cyan-500 focus:border-cyan-500"
+                        >
+                            <option value="vs. Prior Period">vs. Prior Period</option>
+                            <option value="vs. Last Year">vs. Last Year</option>
+                            <option value="vs. Budget">vs. Budget</option>
+                        </select>
+
+                        {/* KPI Filter */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md border border-slate-600 transition-colors"
+                            >
+                                <Filter size={16} />
+                                <span className="text-sm">Filter KPIs</span>
+                            </button>
+
+                            {isFilterOpen && (
+                                <div className="absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10 min-w-[200px]">
+                                    <div className="p-3">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Select KPIs</p>
+                                        {AVAILABLE_KPIS.map(kpi => (
+                                            <label key={kpi} className="flex items-center gap-2 py-2 hover:bg-slate-700/50 px-2 rounded cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={visibleKpis.includes(kpi)}
+                                                    onChange={() => toggleKpiVisibility(kpi)}
+                                                    className="w-4 h-4 rounded border-slate-600 text-cyan-600 focus:ring-cyan-500"
+                                                />
+                                                <span className="text-sm text-white">{KPI_CONFIG[kpi]?.label || kpi}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Reset Button */}
+                        <button
+                            onClick={onResetView}
+                            className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors"
+                            title="Reset View"
+                        >
+                            <RotateCcw size={18} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="p-4 bg-slate-800 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-300">Compare:</span>
-                     <select value={comparisonMode} onChange={(e) => setComparisonMode(e.target.value)} className="bg-slate-700 text-white text-sm rounded-md p-2 border border-slate-600 focus:ring-cyan-500 focus:border-cyan-500">
-                        <option value="vs. Prior Period">vs. Prior Period</option>
-                        <option value="vs. Last Year">vs. Last Year</option>
-                        <option value="vs. Budget">vs. Budget</option>
-                    </select>
-                </div>
-                <div className="flex items-center gap-2">
-                     <span className="text-sm font-medium text-slate-300">Period Type:</span>
-                     <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-700 text-white text-sm rounded-md p-2 border border-slate-600 focus:ring-cyan-500 focus:border-cyan-500">
-                        <option>Week</option>
-                        <option>Month</option>
-                        <option>Quarter</option>
-                        <option>Year</option>
-                    </select>
-                </div>
-                <button onClick={onResetView} className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors flex items-center gap-2" title="Reset to default view">
-                    <RotateCcw size={16} />
-                    <span className="text-sm">Reset View</span>
-                </button>
-            </div>
-
-            <div className="overflow-x-auto">
+            {/* Table */}
+            <div className="overflow-auto" style={{ maxHeight: 'calc(8 * 56px + 48px)' }}>
                 <table className="w-full">
-                    <thead className="bg-slate-900/50">
-                        <tr>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-left whitespace-nowrap">Rank</th>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-left whitespace-nowrap">Location</th>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-right whitespace-nowrap">Actual</th>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-right whitespace-nowrap">{comparisonMode.replace('vs. ', '')} Var.</th>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-center whitespace-nowrap">Weather</th>
-                            <th className="p-3 text-xs font-semibold text-slate-400 text-right whitespace-nowrap">Actions</th>
+                    <thead className="bg-slate-900/50 sticky top-0 z-10">
+                        <tr className="border-b border-slate-700">
+                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Rank</th>
+                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Location</th>
+                            {visibleKpis.map(kpi => (
+                                <React.Fragment key={kpi}>
+                                    <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">{KPI_CONFIG[kpi]?.label || kpi} Act.</th>
+                                    <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">vs. PP</th>
+                                    <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Var.</th>
+                                </React.Fragment>
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
                         {sortedStoreIds.map((storeId, index) => {
                             const storeData = data[storeId];
-                            const actualValue = storeData?.actual?.[selectedKpi];
-                            
-                            if (actualValue === undefined || actualValue === null) return null;
-
                             return (
-                                <RankingRow 
-                                    key={storeId} 
+                                <RankingRow
+                                    key={storeId}
                                     rank={index + 1}
                                     storeId={storeId}
-                                    kpi={selectedKpi}
-                                    actualValue={actualValue}
-                                    varianceValue={storeData?.variance?.[selectedKpi]}
-                                    onLocationSelect={onLocationSelect}
-                                    onReviewClick={onReviewClick}
+                                    allData={storeData}
+                                    visibleKpis={visibleKpis}
                                     onFetchWeather={handleFetchWeather}
                                     weather={weatherData?.[storeId]}
                                 />
-                            )
+                            );
                         })}
                     </tbody>
                 </table>

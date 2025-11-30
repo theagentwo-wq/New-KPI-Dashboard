@@ -3,10 +3,10 @@ export enum Kpi {
   Sales = 'Sales',
   Guests = 'Guests',
   Labor = 'Labor%',
-  SOP = 'SOP%',
+  SOP = 'SOP',  // Changed from 'SOP%' to match Firebase
   AvgTicket = 'Avg Ticket',
   PrimeCost = 'Prime Cost',
-  AvgReviews = 'Avg Reviews',
+  AvgReviews = 'Avg. Reviews',  // Changed from 'Avg Reviews' to match Firebase (with dot)
   FoodCost = 'Food Cost',
   VariableLabor = 'Variable Labor',
   CulinaryAuditScore = 'Culinary Audit Score',

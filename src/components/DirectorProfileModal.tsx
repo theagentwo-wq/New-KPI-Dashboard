@@ -78,7 +78,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
           }
           acc[d.storeId].sales += d.data.Sales || 0;
           acc[d.storeId].primeCost += (d.data['Prime Cost'] || 0);
-          acc[d.storeId].sop += (d.data['SOP%'] || 0);
+          acc[d.storeId].sop += (d.data['SOP'] || 0);
           acc[d.storeId].count += 1;
           return acc;
         }, {} as Record<string, { sales: number; primeCost: number; sop: number; count: number }>);
