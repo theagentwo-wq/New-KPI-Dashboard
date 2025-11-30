@@ -208,37 +208,28 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 );
             }
 
-            // DEBUG: Log the entire placeDetails to see what we're getting
-            console.log('[Street View Debug] Full placeDetails:', placeDetails);
-            console.log('[Street View Debug] plus_code object:', (placeDetails as any).plus_code);
-            console.log('[Street View Debug] place_id:', (placeDetails as any).place_id);
+            // Street View Embed API tested with all formats - NONE work:
+            // ❌ Business names - rejected
+            // ❌ Street addresses - rejected
+            // ❌ Coordinates - rejected
+            // ❌ Plus Codes - rejected (400 Bad Request)
+            //
+            // Solution: Use place mode with place_id (most reliable)
+            // This shows an interactive map where users can click pegman to enter Street View
 
-            // Try using Plus Code first (Google's geocoding system - most reliable)
-            // Plus Codes work well with Street View Embed API
-            const plusCode = (placeDetails as any).plus_code?.compound_code || (placeDetails as any).plus_code?.global_code;
-            console.log('[Street View Debug] Extracted plusCode:', plusCode);
-
-            if (plusCode) {
-                // Use Plus Code for Street View - Google's own geocoding system
-                const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${encodeURIComponent(plusCode)}&pitch=10&fov=90`;
-                console.log('[Street View Debug] Using Plus Code, embedUrl:', embedUrl);
-                return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
-            }
-
-            // Fallback to place mode if Plus Code not available
-            console.log('[Street View Debug] Plus Code not available, trying place_id fallback');
             const placeId = (placeDetails as any).place_id;
             if (placeId) {
-                const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=18`;
-                console.log('[Street View Debug] Using place_id, embedUrl:', embedUrl);
-                return <iframe title="Google Maps Location" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+                // Use Google Maps "place" mode - shows interactive map with Street View access
+                // User can click the Street View pegman icon to enter Street View mode
+                const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=19&maptype=satellite`;
+                return <iframe title="Google Maps - Click pegman for Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
             }
 
-            // No Plus Code or Place ID available
+            // No place ID available
             return (
                 <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
-                    <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                    <p className="text-slate-500 text-xs mt-1">Location code not available.</p>
+                    <h4 className="font-bold text-yellow-400">Map View Unavailable</h4>
+                    <p className="text-slate-500 text-xs mt-1">Location data not available.</p>
                 </div>
             );
         }
