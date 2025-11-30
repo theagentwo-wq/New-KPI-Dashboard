@@ -166,9 +166,39 @@ const App = () => {
     }
   };
 
+  // Show loading screen while Firebase is initializing
+  if (dbStatus.status === 'initializing') {
+    return (
+      <div className="flex h-screen bg-slate-900 text-slate-100 items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl font-bold mb-4">Loading KPI Dashboard...</div>
+          <div className="text-slate-400">Connecting to database...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error screen if Firebase failed to initialize
+  if (dbStatus.status === 'error') {
+    return (
+      <div className="flex h-screen bg-slate-900 text-red-400 items-center justify-center">
+        <div className="text-center max-w-2xl px-6">
+          <div className="text-2xl font-bold mb-4">❌ Database Connection Error</div>
+          <div className="text-slate-300 mb-4">{dbStatus.message}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-slate-900 text-slate-100 font-sans">
-      <Sidebar 
+      <Sidebar
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         currentPage={activePage}
@@ -184,8 +214,8 @@ const App = () => {
         onOpenStrategyHub={() => setStrategyHubOpen(true)}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          activeView={activeView} 
+        <Header
+          activeView={activeView}
           activePeriod={activePeriod}
           setActivePeriod={setActivePeriod}
         />
