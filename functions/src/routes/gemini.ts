@@ -233,6 +233,10 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
   const { locationName, performanceData, audience, weather }: types.GenerateHuddleBriefRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
+  // Get current date for event context
+  const today = new Date();
+  const currentDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
   // Audience-specific prompts (enhanced in Phase 9)
   let prompt = '';
 
@@ -246,6 +250,7 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
 - Do NOT include "Hot Topics for BOH" or "Hot Topics for Managers" sections
 - STOP after completing the FOH brief
 
+TODAY'S DATE: ${currentDate}
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
 
@@ -270,12 +275,23 @@ Create 1-2 fun, proven sales contests for servers/bartenders today:
 - Supporting each other during peak times
 - Potential challenges for today's shift
 
-## 4. Weather & Traffic Impact
+## 4. Weather, Events & Traffic Impact (CRITICAL)
 
 Weather: ${JSON.stringify(weather)}
-- How does weather affect expected covers?
+
+**Local Events Happening Today/Tonight:**
+List any specific events in Columbia, SC that could impact our traffic TODAY or TONIGHT:
+- USC Gamecocks games (football, basketball) - include specific time if known (e.g., "USC vs Clemson at 4:00 PM")
+- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
+- Vista Art Walks or Gallery Crawls
+- Conventions at Columbia Metropolitan Convention Center
+- Any other events that would bring guests to downtown/Vista area
+
+**Traffic Predictions:**
+- How do weather and events affect expected covers?
 - Patio seating adjustments if needed
-- Guest flow predictions
+- Pre-event rush timing (e.g., "Expect concert crowd 5-7 PM before 8 PM showtime")
+- Guest flow predictions throughout the shift
 
 ## 5. Energy & Motivation
 
@@ -295,6 +311,7 @@ FORMAT: FOH-focused brief (2-3 minutes to read aloud)`;
 - Do NOT include "Hot Topics for FOH" or "Hot Topics for Managers" sections
 - STOP after completing the BOH brief
 
+TODAY'S DATE: ${currentDate}
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
 
@@ -312,13 +329,22 @@ Weather: ${JSON.stringify(weather)}
 - Respect the ingredients, respect the craft, respect each other
 - Team camaraderie - we're in this together
 
-## 3. Today's Execution Plan
+## 3. Today's Execution Plan & Traffic Drivers (CRITICAL)
 
-Based on the performance data and weather above:
+**Local Events Happening Today/Tonight:**
+List any specific events in Columbia, SC that could impact our covers TODAY or TONIGHT:
+- USC Gamecocks games (football, basketball) - include specific time (e.g., "USC vs Clemson at 4:00 PM")
+- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
+- Vista events, conventions, or other traffic drivers
+- Pre-event rush timing (e.g., "Expect concert crowd 5-7 PM, we'll be slammed")
+
+**Execution Planning:**
+Based on performance data, weather, and events above:
 - Expected covers for today's shift
-- Key menu items to prioritize and prep
+- Key menu items to prioritize and prep (especially for high-volume periods)
 - Timing goals for ticket times
 - Quality standards - consistency is everything
+- Prep priorities based on expected traffic
 
 ## 4. Kitchen Teamwork
 
@@ -341,6 +367,8 @@ FORMAT: BOH-focused brief (2-3 minutes to read aloud)`;
 
 ⚠️ CRITICAL: Write ONE manager-focused brief. Do NOT write separate FOH or BOH sections. Do NOT duplicate content.
 
+TODAY'S DATE: ${currentDate}
+
 ## 1. Performance Review & Financial Goals
 
 Review today's key numbers from our performance data:
@@ -359,13 +387,21 @@ For BOH: Highlight safety focus and quality standards to emphasize
 
 (Note: These are talking points for MANAGERS to use - don't write separate team briefs)
 
-## 3. Operations Strategy
+## 3. Operations Strategy & Traffic Drivers
 
-Weather: ${JSON.stringify(weather)}
+**Local Events Happening Today/Tonight:**
+List any specific events in Columbia, SC that could impact our traffic TODAY or TONIGHT:
+- USC Gamecocks games (football, basketball) - include specific time (e.g., "USC vs Clemson at 4:00 PM")
+- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
+- Vista events, conventions, or other traffic drivers
+- Expected traffic patterns based on these events
 
-- How does today's weather affect our expected traffic?
-- Floor management: staffing deployment, section assignments
-- Peak period preparation
+**Weather:** ${JSON.stringify(weather)}
+
+**Operations Planning:**
+- How do weather and events affect our expected traffic?
+- Floor management: staffing deployment, section assignments based on expected volume
+- Peak period preparation (pre-event rush timing)
 - Guest recovery protocols to review
 
 ## 4. Culture & Leadership Moment
