@@ -167,6 +167,15 @@ functions/
        - New structure: 5 manager-focused sections (Performance, Team Leadership, Operations, Culture, Action Plan)
        - FOH/BOH mentions are now "suggestions for what managers should communicate" not separate briefs
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Fixed Store Hub: FOH and BOH Hot Topics Duplication - Complete Solution** (2025-11-30)
+   - Issue: FOH generating all 3 briefs (FOH+BOH+Manager), BOH generating 2 briefs (BOH+Manager)
+   - Root cause: FOH and BOH prompts lacked the same explicit anti-duplication instructions as Managers
+   - Solution: Applied identical fix pattern to FOH and BOH that worked for Managers
+     - **FOH**: Added ⚠️ CRITICAL warning, restructured into 5 FOH-only sections (Sales, Guest Experience, Teamwork, Weather, Motivation)
+     - **BOH**: Added ⚠️ CRITICAL warning, restructured into 5 BOH-only sections (Safety, Craft Pride, Execution, Kitchen Teamwork, Motivation)
+     - Both now explicitly state: "Write ONE brief for [AUDIENCE] ONLY. Do NOT write [other] sections."
+   - All three audience types now have consistent structure and anti-duplication safeguards
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
