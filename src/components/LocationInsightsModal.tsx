@@ -195,10 +195,13 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            // Use coordinates directly from STORE_DETAILS instead of waiting for placeDetails
+            // Prefer Google Places coordinates (more accurate), fall back to STORE_DETAILS
+            const googleLat = placeDetails?.geometry?.location?.lat;
+            const googleLng = placeDetails?.geometry?.location?.lng;
             const storeInfo = location ? STORE_DETAILS[location] : null;
-            const lat = storeInfo?.lat;
-            const lon = storeInfo?.lon;
+
+            const lat = googleLat || storeInfo?.lat;
+            const lon = googleLng || storeInfo?.lon;
 
             if (!lat || !lon) {
                 return (
@@ -209,7 +212,9 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 );
             }
 
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
+            // Let Google auto-orient the Street View by not specifying heading
+            // This provides the best view of the location
+            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lon}&pitch=10&fov=90`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 

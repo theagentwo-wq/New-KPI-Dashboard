@@ -44,6 +44,7 @@ declare let window: GoogleWindow;
 /**
  * Uses the client-side Google Maps SDK to get location details.
  * This function now communicates directly with the Google Maps API from the browser.
+ * Uses a two-step approach: first finds the place ID, then gets full details.
  * @param searchQuery The name or address of the location to search for.
  * @returns Detailed information about the place.
  */
@@ -57,23 +58,38 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
     // Use a dummy div element for the PlacesService, as it requires one.
     const service = new window.google.maps.places.PlacesService(document.createElement('div'));
 
-    const request = {
+    // Step 1: Find the place to get its place_id
+    // Only use fields supported by findPlaceFromQuery
+    const findRequest = {
       query: searchQuery,
-      fields: ['name', 'rating', 'reviews', 'website', 'url', 'photos', 'formatted_address', 'geometry'],
+      fields: ['place_id', 'name', 'formatted_address', 'geometry'],
     };
 
-    service.findPlaceFromQuery(request, (results: any, status: any) => {
+    service.findPlaceFromQuery(findRequest, (results: any, status: any) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
-        const place = results[0];
-        // The photo URLs from the API need to be processed to be usable.
-        const photoUrls = place.photos?.map((photo: any) => photo.getUrl({ maxWidth: 400 })) || [];
-        
-        resolve({ ...place, photoUrls });
+        const placeId = results[0].place_id;
+
+        // Step 2: Get full details using the place_id
+        const detailsRequest = {
+          placeId: placeId,
+          fields: ['name', 'rating', 'reviews', 'website', 'url', 'photos', 'formatted_address', 'geometry'],
+        };
+
+        service.getDetails(detailsRequest, (place: any, detailsStatus: any) => {
+          if (detailsStatus === window.google.maps.places.PlacesServiceStatus.OK && place) {
+            // The photo URLs from the API need to be processed to be usable.
+            const photoUrls = place.photos?.map((photo: any) => photo.getUrl({ maxWidth: 400 })) || [];
+
+            resolve({ ...place, photoUrls });
+          } else {
+            reject(new Error(`Failed to fetch full place details. Status: ${detailsStatus}`));
+          }
+        });
 
       } else if (status === window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-        reject(new Error(`No location details found for \"${searchQuery}\". Please check the spelling or provide a more specific name.`));
+        reject(new Error(`No location found for "${searchQuery}". Please check the spelling or try a different search.`));
       } else {
-        reject(new Error(`Failed to fetch place details from Google Maps. Status: ${status}`));
+        reject(new Error(`Failed to find place. Status: ${status}`));
       }
     });
   });
