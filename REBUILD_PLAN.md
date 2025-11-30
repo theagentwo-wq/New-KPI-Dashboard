@@ -175,9 +175,65 @@ functions/
 4. Update README with new structure
 5. Commit all changes with detailed message
 
-### Phase 7: Restore Deployments Feature (Post-Rebuild)
+### Phase 7: Director Hub UI Redesign ✅ COMPLETE
 
-The Deployments feature UI is **100% complete** but the data layer is broken. All components exist and look perfect:
+**Status:** Completed Nov 30, 2024
+
+The Director Hub has been completely redesigned to match the desired comprehensive profile layout.
+
+#### Completed Changes:
+
+**1. DirectorProfileModal Layout Redesign** ([DirectorProfileModal.tsx](src/components/DirectorProfileModal.tsx))
+- ✅ Split into left panel (director info) and right panel (deployments + AI snapshot)
+- ✅ Modal height reduced from `h-[90vh]` to `h-[75vh]` for more square proportions
+- ✅ Deployments section uses `flex-grow` instead of fixed heights for better responsiveness
+- ✅ Added overflow-auto for scrolling timeline
+- ✅ Reduced spacing (space-y-6 to space-y-4) for more compact layout
+
+**2. Enhanced Director Information Display** ([DirectorProfileSubComponents.tsx](src/components/DirectorProfileSubComponents.tsx))
+- ✅ DirectorInfo: Added decorative yellow/orange gradient background to director photo
+- ✅ RegionStores: List of all stores in director's region
+- ✅ GoalsAndPerformance: Shows top performing store with metrics
+  - Sales (formatted as $XXXk)
+  - Prime Cost (percentage)
+  - SOP% (percentage)
+- ✅ AIPerformanceSnapshot: Integrated AI-powered performance summary for W48 FY2025
+
+**3. Google Maps Enhancements** ([DeploymentMap.tsx](src/components/DeploymentMap.tsx))
+- ✅ Map zooms out to show entire United States (zoom level 4, centered on Kansas)
+- ✅ Removed auto-fitBounds behavior to maintain US-wide view
+- ✅ Person name labels added below ALL map markers:
+  - Home marker: Director's first name in green (#4ade80)
+  - Director deployment: Director's first name in cyan (#22d3ee)
+  - Strike team deployment: Person's first name in pink (#f472b6)
+- ✅ Custom CSS class `marker-label-below` with `margin-top: 28px` for positioning
+
+**4. Top Store Metrics Calculation**
+- ✅ Fetches performance data from Firebase `performance_actuals` collection
+- ✅ Calculates aggregated totals per store
+- ✅ Identifies top performing store by sales
+- ✅ Calculates average Prime Cost and SOP% across periods
+
+**5. Backend Integration**
+- ✅ Fixed missing export: `getDirectorPerformanceSnapshot` in [geminiService.ts](src/services/geminiService.ts)
+- ✅ Added Period properties (year, quarter) for AI snapshot requests
+
+#### Files Modified:
+- [DirectorProfileModal.tsx](src/components/DirectorProfileModal.tsx) - Layout and data fetching
+- [DirectorProfileSubComponents.tsx](src/components/DirectorProfileSubComponents.tsx) - Visual components
+- [DeploymentMap.tsx](src/components/DeploymentMap.tsx) - Map configuration and labels
+- [geminiService.ts](src/services/geminiService.ts) - Export fix
+
+#### Deployment:
+- Committed as: "Improve Director Hub: reduce height, zoom out map, add person names to markers"
+- Successfully deployed to Firebase Hosting
+- Live URL: https://kpi-dashboardgit-9913298-66e65.web.app
+
+---
+
+### Phase 7b: Restore Deployments Feature (Post-Rebuild)
+
+The Deployments feature UI is **100% complete** and CRUD operations are **WORKING**. All components exist and look perfect:
 - ✅ [DeploymentPlannerModal.tsx](src/components/DeploymentPlannerModal.tsx) - Form with all fields
 - ✅ [DeploymentMap.tsx](src/components/DeploymentMap.tsx) - Google Maps with home/suitcase icons
 - ✅ [DeploymentBudget.tsx](src/components/DeploymentBudget.tsx) - Budget tracking
