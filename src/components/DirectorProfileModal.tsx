@@ -236,9 +236,9 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
           </div>
 
           {/* RIGHT PANEL - Deployments & AI Snapshot */}
-          <div className="md:col-span-2 p-6 flex flex-col bg-slate-800 overflow-y-auto custom-scrollbar space-y-6">
+          <div className="md:col-span-2 p-6 flex flex-col bg-slate-800 space-y-4">
             {/* Deployments Section */}
-            <div className="flex-shrink-0">
+            <div className="flex flex-col flex-grow min-h-0">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-white">Deployments</h2>
                 <button onClick={() => handleOpenPlanner()} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors">
@@ -254,7 +254,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
                 </nav>
               </div>
 
-              <div className="bg-slate-900/50 rounded-lg p-4 h-64 overflow-hidden">
+              <div className="bg-slate-900/50 rounded-lg p-4 flex-grow overflow-auto">
                 {renderContent()}
               </div>
             </div>
