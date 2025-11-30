@@ -65,7 +65,7 @@ export const STORE_DETAILS: Record<string, StoreDetails> = {
     'Boise, ID': { address: '150 N 8th St, Suite 200, Boise, ID 83702', lat: 43.6169, lon: -116.2045 },
     'Charlotte, NC': { address: '101 S Tryon St, Suite 130, Charlotte, NC 28280', lat: 35.2269, lon: -80.8433 },
     'Chattanooga, TN': { address: '1110 Market St, Ste 121, Chattanooga, TN 37402', lat: 35.0454, lon: -85.3101 },
-    'Columbia, SC': { address: '2138 Pickens Street, Columbia, SC 29201', lat: 34.01509, lon: -81.02641 },
+    'Columbia, SC': { address: '2138 Pickens Street, Columbia, SC 29201', lat: 34.0165288, lon: -81.0327102 },
     'Columbus, OH': { address: '1678 W Lane Ave, Columbus, OH 43221', lat: 40.0093, lon: -83.0503 },
     'Denver, CO': { address: '1650 Wewatta St, Ste 104, Denver, CO 80202', lat: 39.7537, lon: -105.0001 },
     'Des Moines, IA': { address: '665 Grand Ave, Suite 100, Des Moines, IA 50309', lat: 41.5861, lon: -93.6288 },
