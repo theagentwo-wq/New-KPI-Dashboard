@@ -336,6 +336,22 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                         {/* Overview Summary */}
                         <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: marked.parse(content.summary) }} />
 
+                        {/* Weather Outlook */}
+                        {content.sevenDay && (
+                        <div>
+                            <h4 className="font-semibold text-slate-300 mb-2">7-Day Weather Outlook</h4>
+                            <div className="grid grid-cols-7 gap-2 text-center">
+                            {content.sevenDay.map((day: DailyForecast, i: number) => (
+                                <div key={i} className="bg-slate-900/50 p-2 rounded-lg flex flex-col items-center">
+                                <p className="font-bold text-sm text-slate-300">{day.day}</p>
+                                <WeatherIcon condition={day.condition} className="w-8 h-8 my-1" />
+                                <p className="font-semibold text-cyan-400">{day.temp}°F</p>
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                        )}
+
                         {/* Sales Forecast Chart */}
                         <div>
                             <h4 className="font-semibold text-slate-300 mb-2">7-Day Sales Forecast</h4>
@@ -425,22 +441,6 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                                     ))}
                                 </div>
                             </div>
-                        )}
-
-                        {/* Weather Outlook */}
-                        {content.sevenDay && (
-                        <div>
-                            <h4 className="font-semibold text-slate-300 mb-2">7-Day Weather Outlook</h4>
-                            <div className="grid grid-cols-7 gap-2 text-center">
-                            {content.sevenDay.map((day: DailyForecast, i: number) => (
-                                <div key={i} className="bg-slate-900/50 p-2 rounded-lg flex flex-col items-center">
-                                <p className="font-bold text-sm text-slate-300">{day.day}</p>
-                                <WeatherIcon condition={day.condition} className="w-8 h-8 my-1" />
-                                <p className="font-semibold text-cyan-400">{day.temp}°F</p>
-                                </div>
-                            ))}
-                            </div>
-                        </div>
                         )}
                     </div>
                 );
