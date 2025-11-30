@@ -89,8 +89,6 @@ export const getYoYPeriod = (currentPeriod: Period): Period => {
     };
 }
 
-export const ALL_PERIODS = getPeriodOptions();
-
 export const getMonthlyPeriodForDate = (date: Date): Period => {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -106,3 +104,78 @@ export const getMonthlyPeriodForDate = (date: Date): Period => {
     quarter: Math.floor(month / 3) + 1
   };
 };
+
+// Generate monthly periods for a range of years
+export const generateMonthlyPeriods = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    for (let month = 0; month < 12; month++) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      periods.push({
+        label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
+        startDate,
+        endDate,
+        type: 'monthly',
+        year,
+        quarter: Math.floor(month / 3) + 1
+      });
+    }
+  }
+
+  return periods;
+};
+
+// Generate weekly periods for a range of years
+export const generateWeeklyPeriods = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
+
+    // Find the first Monday of the year (or start of year if it's a Monday)
+    let currentWeekStart = new Date(startOfYear);
+    const dayOfWeek = currentWeekStart.getDay();
+    if (dayOfWeek !== 1) { // If not Monday
+      const daysUntilMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
+      currentWeekStart.setDate(currentWeekStart.getDate() + daysUntilMonday);
+    }
+
+    let weekNumber = 1;
+
+    while (currentWeekStart <= endOfYear) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6); // Sunday
+
+      // If week extends into next year, cap it at end of year
+      const actualWeekEnd = weekEnd > endOfYear ? endOfYear : weekEnd;
+
+      periods.push({
+        label: `Week ${weekNumber} ${year}`,
+        startDate: new Date(currentWeekStart),
+        endDate: actualWeekEnd,
+        type: 'weekly',
+        year,
+        quarter: Math.floor(currentWeekStart.getMonth() / 3) + 1
+      });
+
+      // Move to next week
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      weekNumber++;
+
+      // Safety check: don't generate more than 53 weeks
+      if (weekNumber > 53) break;
+    }
+  }
+
+  return periods;
+};
+
+export const ALL_PERIODS = [
+  ...getPeriodOptions(),
+  ...generateMonthlyPeriods(2025, 2028),
+  ...generateWeeklyPeriods(2025, 2028)
+];
