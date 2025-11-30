@@ -164,13 +164,14 @@ export const addNote = async (monthlyPeriodLabel: string, category: NoteCategory
             console.log('[Firebase] addNote: Image uploaded successfully:', imageRefUrl);
         }
 
+        // Build note object - only include imageUrl if it exists (Firestore doesn't support undefined)
         const newNote: Omit<Note, 'id'> = {
             monthlyPeriodLabel,
             category,
             content,
             scope,
             createdAt: new Date().toISOString(),
-            imageUrl: imageRefUrl || undefined,
+            ...(imageRefUrl && { imageUrl: imageRefUrl }), // Only add imageUrl if it exists
         };
 
         console.log('[Firebase] addNote: Writing to Firestore collection:', notesCollection.path);

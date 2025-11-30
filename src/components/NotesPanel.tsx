@@ -307,13 +307,31 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     console.log('[NotesPanel] After period filter:', periodFiltered.length);
 
     const scopeFiltered = periodFiltered.filter((note: Note) => {
-      // Safety check: if note doesn't have a scope, skip it
-      if (!note.scope) {
-        console.warn('[NotesPanel] Note missing scope property:', note.id);
+      // Handle both old format (view/storeId as top-level fields) and new format (nested in scope)
+      let noteView: string;
+      let noteStoreId: string | undefined;
+
+      if (note.scope) {
+        // New format: scope object exists
+        noteView = note.scope.view;
+        noteStoreId = note.scope.storeId;
+      } else if ((note as any).view) {
+        // Old format: view and storeId are top-level fields
+        console.warn('[NotesPanel] Note using legacy format (top-level view/storeId):', note.id);
+        noteView = (note as any).view;
+        noteStoreId = (note as any).storeId;
+      } else {
+        // Note has neither format - skip it
+        console.warn('[NotesPanel] Note missing scope and view properties:', note.id);
         return false;
       }
-      const matches = note.scope.view === scope.view && (note.scope.storeId || undefined) === scope.storeId;
-      console.log(`[NotesPanel] Note scope check - view: ${note.scope.view} === ${scope.view}, storeId: ${note.scope.storeId} === ${scope.storeId} - Matches: ${matches}`);
+
+      // Case-insensitive comparison to handle old notes with capitalized director names
+      const viewMatches = noteView.toLowerCase() === scope.view.toLowerCase();
+      const storeIdMatches = (noteStoreId || undefined) === scope.storeId;
+      const matches = viewMatches && storeIdMatches;
+
+      console.log(`[NotesPanel] Note scope check - view: "${noteView}" === "${scope.view}" (case-insensitive: ${viewMatches}), storeId: "${noteStoreId}" === "${scope.storeId}" (${storeIdMatches}) - Overall: ${matches}`);
       return matches;
     });
     console.log('[NotesPanel] After scope filter:', scopeFiltered.length);
