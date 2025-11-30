@@ -83,18 +83,29 @@ Be specific with numbers and focus on what matters most.`;
  * Summarize customer reviews for a location
  */
 router.post('/getReviewSummary', asyncHandler(async (req: Request, res: Response) => {
-  const { location }: types.GetReviewSummaryRequest = req.body;
+  const { locationName, reviews }: types.GetReviewSummaryRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are analyzing customer reviews for ${location}.
+  const prompt = `You are analyzing customer reviews for ${locationName}.
 
-Search for recent reviews of this restaurant location and provide:
-1. Overall sentiment summary
-2. Top 3 positive themes
-3. Top 3 negative themes
-4. Recommended actions for management
+Here are the recent customer reviews from Google:
+${JSON.stringify(reviews, null, 2)}
 
-Be specific and actionable.`;
+Analyze these reviews and provide:
+
+## Overall Sentiment Summary
+Brief overview of how customers feel about this location.
+
+## Top 3 Positive Themes
+What customers love most (with specific quotes from reviews as supporting evidence).
+
+## Top 3 Negative Themes
+What needs improvement (with specific quotes from reviews as supporting evidence).
+
+## Recommended Actions for Management
+Specific, actionable steps to address issues and capitalize on strengths.
+
+Be specific and actionable. Use actual quotes from the reviews to support your analysis.`;
 
   const result = await client.generateContent(prompt);
 
@@ -109,11 +120,11 @@ Be specific and actionable.`;
  * Market analysis for a location (will be enhanced in Phase 9)
  */
 router.post('/getLocationMarketAnalysis', asyncHandler(async (req: Request, res: Response) => {
-  const { location }: types.GetLocationMarketAnalysisRequest = req.body;
+  const { locationName }: types.GetLocationMarketAnalysisRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
   // Basic implementation - will be enhanced in Phase 9 with web search, events, holidays
-  const prompt = `You are a local market analyst for ${location}.
+  const prompt = `You are a local market analyst for ${locationName}.
 
 Conduct a comprehensive market analysis covering:
 
@@ -159,17 +170,17 @@ PROVIDE:
  * Daily huddle briefing (will be enhanced in Phase 9 with audience-specific prompts)
  */
 router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Response) => {
-  const { location, storeData, audience, weather }: types.GenerateHuddleBriefRequest = req.body;
+  const { locationName, performanceData, audience, weather }: types.GenerateHuddleBriefRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
   // Audience-specific prompts (enhanced in Phase 9)
   let prompt = '';
 
   if (audience === 'FOH') {
-    prompt = `You are the General Manager of ${location} preparing a pre-shift brief for the FRONT OF HOUSE team.
+    prompt = `You are the General Manager of ${locationName} preparing a pre-shift brief for the FRONT OF HOUSE team.
 
 INCORPORATE:
-- Performance data: ${JSON.stringify(storeData)}
+- Performance data: ${JSON.stringify(performanceData)}
 - Weather: ${JSON.stringify(weather)}
 - Local events happening today
 
@@ -185,10 +196,10 @@ Create 1-2 fun, proven sales contests for servers/bartenders:
 TONE: Energetic, motivating, team-oriented
 FORMAT: Brief (2-3 minutes to read aloud)`;
   } else if (audience === 'BOH') {
-    prompt = `You are the Executive Chef of ${location} preparing a pre-shift brief for the BACK OF HOUSE team.
+    prompt = `You are the Executive Chef of ${locationName} preparing a pre-shift brief for the BACK OF HOUSE team.
 
 INCORPORATE:
-- Performance data: ${JSON.stringify(storeData)}
+- Performance data: ${JSON.stringify(performanceData)}
 - Weather: ${JSON.stringify(weather)}
 - Expected covers based on forecast
 
@@ -209,7 +220,7 @@ TONE: Passionate, professional, pride in craft
 FORMAT: Brief (2-3 minutes to read aloud)`;
   } else {
     // Manager
-    prompt = `You are preparing a comprehensive pre-shift brief for the MANAGEMENT TEAM at ${location}.
+    prompt = `You are preparing a comprehensive pre-shift brief for the MANAGEMENT TEAM at ${locationName}.
 
 INCORPORATE ALL OF FOH + BOH:
 - Sales contests for FOH, kitchen passion for BOH
@@ -234,7 +245,7 @@ INCORPORATE ALL OF FOH + BOH:
 ### Action Plan
 - Specific goals for the shift, metrics to track
 
-Performance Data: ${JSON.stringify(storeData)}
+Performance Data: ${JSON.stringify(performanceData)}
 
 TONE: Strategic, inspiring, action-oriented
 FORMAT: Comprehensive (5-7 minutes to read/discuss)`;
@@ -253,10 +264,10 @@ FORMAT: Comprehensive (5-7 minutes to read/discuss)`;
  * Sales forecasting (will be enhanced in Phase 8 with historical data)
  */
 router.post('/getSalesForecast', asyncHandler(async (req: Request, res: Response) => {
-  const { location, weatherForecast, historicalData }: types.GetSalesForecastRequest = req.body;
+  const { locationName, weatherForecast, historicalData }: types.GetSalesForecastRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are a data analyst forecasting sales for ${location}.
+  const prompt = `You are a data analyst forecasting sales for ${locationName}.
 
 7-Day Weather Forecast:
 ${JSON.stringify(weatherForecast, null, 2)}
@@ -285,10 +296,10 @@ Return as JSON array of forecast points.`;
  * Marketing recommendations (will be enhanced in Phase 9 for multi-generational)
  */
 router.post('/getMarketingIdeas', asyncHandler(async (req: Request, res: Response) => {
-  const { location, userLocation }: types.GetMarketingIdeasRequest = req.body;
+  const { locationName, userLocation }: types.GetMarketingIdeasRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are a creative marketing strategist for ${location}.
+  const prompt = `You are a creative marketing strategist for ${locationName}.
 
 Generate 10-15 actionable, locally-tailored marketing ideas that:
 
@@ -323,7 +334,7 @@ FORMAT FOR EACH IDEA:
 - Expected ROI
 - Step-by-step execution plan
 
-Location: ${location}
+Location: ${locationName}
 User Location: ${JSON.stringify(userLocation)}`;
 
   const result = await client.generateContent(prompt);

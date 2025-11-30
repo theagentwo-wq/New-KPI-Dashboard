@@ -25,28 +25,29 @@ export interface GetExecutiveSummaryRequest {
 }
 
 export interface GetReviewSummaryRequest {
-  location: string;
+  locationName: string;
+  reviews: any[];
 }
 
 export interface GetLocationMarketAnalysisRequest {
-  location: string;
+  locationName: string;
 }
 
 export interface GenerateHuddleBriefRequest {
-  location: string;
-  storeData: Record<string, any>;
+  locationName: string;
+  performanceData: Record<string, any>;
   audience: 'FOH' | 'BOH' | 'Manager';
   weather: any;
 }
 
 export interface GetSalesForecastRequest {
-  location: string;
+  locationName: string;
   weatherForecast: any[];
   historicalData: any;
 }
 
 export interface GetMarketingIdeasRequest {
-  location: string;
+  locationName: string;
   userLocation: { latitude: number; longitude: number } | null;
 }
 
