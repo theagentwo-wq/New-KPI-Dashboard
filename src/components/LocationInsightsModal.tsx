@@ -193,8 +193,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            // Street View requires coordinates from Places API (doesn't support business name search)
-            // Wait for placeDetails to load, then use its coordinates
+            // Street View - use formatted_address from Places API for most reliable results
+            // Wait for placeDetails to load
             if (isPlaceDetailsLoading) {
                 return <LoadingSpinner message="Loading location details..." />;
             }
@@ -203,28 +203,28 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
                         <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Could not load location coordinates.</p>
+                        <p className="text-slate-500 text-xs mt-1">Could not load location details.</p>
                     </div>
                 );
             }
 
-            // Use coordinates from placeDetails (which was found via business name search)
-            // This gives us the exact location Google found for "Tupelo Honey Southern Kitchen and Bar [City]"
-            const lat = placeDetails.geometry?.location?.lat;
-            const lng = placeDetails.geometry?.location?.lng;
+            // Try using place_id with Google Maps place mode
+            // This shows the location on a map with Street View available
+            const placeId = (placeDetails as any).place_id;
 
-            if (!lat || !lng) {
+            if (!placeId) {
                 return (
                     <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
                         <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
-                        <p className="text-slate-500 text-xs mt-1">Location coordinates not available.</p>
+                        <p className="text-slate-500 text-xs mt-1">Place ID not available.</p>
                     </div>
                 );
             }
 
-            // Use exact coordinates from Places API
-            const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lng}&pitch=10&fov=90`;
-            return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
+            // Use Google Maps place mode with the place_id
+            // This shows the location and allows clicking into Street View
+            const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_MAPS_KEY}&q=place_id:${placeId}&zoom=18`;
+            return <iframe title="Google Maps Location" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
         }
 
         if (isPlaceDetailsLoading) return <LoadingSpinner message="Loading location details..." />;

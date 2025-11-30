@@ -80,7 +80,12 @@ export const getPlaceDetails = async (searchQuery: string): Promise<any> => {
             // The photo URLs from the API need to be processed to be usable.
             const photoUrls = place.photos?.map((photo: any) => photo.getUrl({ maxWidth: 400 })) || [];
 
-            resolve({ ...place, photoUrls });
+            // Explicitly extract place_id and ensure it's included in the result
+            resolve({
+              ...place,
+              photoUrls,
+              place_id: placeId // Ensure place_id is included for Street View
+            });
           } else {
             reject(new Error(`Failed to fetch full place details. Status: ${detailsStatus}`));
           }
