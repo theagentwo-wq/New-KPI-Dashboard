@@ -177,17 +177,8 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         if (type === 'brief') setLoadingAudience(null);
     }, [location, performanceData, userLocation]);
     
-    useEffect(() => {
-        if (isOpen && placeDetails) {
-            if (placeDetails.reviews && placeDetails.reviews.length > 0) {
-                if (!analysisContent.reviews) { 
-                    handleAnalysis('reviews', placeDetails);
-                }
-            } else {
-                setAnalysisContent(prev => ({ ...prev, reviews: '<p class="text-slate-400 text-center">No reviews available to summarize for this location.</p>' }));
-            }
-        }
-    }, [isOpen, placeDetails, analysisContent.reviews, handleAnalysis]);
+    // Reviews tab: Wait for user to click "Generate Analysis" button instead of auto-loading
+    // (Removed auto-load useEffect)
 
     const analysisTabConfig = [
         { id: 'reviews', label: 'Reviews & Buzz', icon: 'reviews' },

@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
 import { FinancialsPage } from './pages/FinancialsPage';
+import { GoalSetterPage } from './pages/GoalSetterPage';
+import { IndustryNewsPage } from './pages/IndustryNewsPage';
 import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, FirebaseStatus, PerformanceData, ActiveJob } from './types';
 import { DIRECTORS } from './constants';
 import { getDefaultPeriod } from './utils/dateUtils';
@@ -143,7 +145,7 @@ const App = () => {
   const renderPage = () => {
     switch (activePage) {
       case 'Dashboard':
-        return <DashboardPage 
+        return <DashboardPage
                     activeView={activeView}
                     activePeriod={activePeriod}
                     setActivePeriod={setActivePeriod}
@@ -163,6 +165,10 @@ const App = () => {
         return <DataEntryPage onSave={handleSaveData} />;
       case 'Financials':
         return <FinancialsPage />;
+      case 'Goal Setter':
+        return <GoalSetterPage />;
+      case 'News':
+        return <IndustryNewsPage />;
       default:
         return <div className="p-6 text-white"><h1 className="text-2xl font-bold">{activePage}</h1><p>This page is under construction.</p></div>;
     }
