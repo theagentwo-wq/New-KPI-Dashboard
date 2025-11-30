@@ -8,7 +8,7 @@ import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
-import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP, STORE_DETAILS } from '../constants';
 
 interface PlaceDetails {
   name: string;
@@ -105,7 +105,12 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
             const fetchInitialData = async () => {
                 try {
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
-                    const details = await getPlaceDetails(location);
+                    // Use full address from STORE_DETAILS for better search results
+                    const storeInfo = STORE_DETAILS[location];
+                    const searchQuery = storeInfo
+                        ? `Tupelo Honey Cafe ${storeInfo.address}`
+                        : `Tupelo Honey Cafe ${location}`;
+                    const details = await getPlaceDetails(searchQuery);
                     setPlaceDetails(details);
                 } catch (error) {
                     const msg = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -190,9 +195,19 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
     
     const renderVisualContent = () => {
         if (activeVisualTab === 'streetview') {
-            const lat = placeDetails?.geometry?.location?.lat;
-            const lon = placeDetails?.geometry?.location?.lng;
-            if (!lat || !lon) return <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4"><h4 className="font-bold text-yellow-400">Street View Unavailable</h4><p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p></div>;
+            // Use coordinates directly from STORE_DETAILS instead of waiting for placeDetails
+            const storeInfo = location ? STORE_DETAILS[location] : null;
+            const lat = storeInfo?.lat;
+            const lon = storeInfo?.lon;
+
+            if (!lat || !lon) {
+                return (
+                    <div className="h-full w-full bg-slate-800 flex flex-col items-center justify-center text-center p-4">
+                        <h4 className="font-bold text-yellow-400">Street View Unavailable</h4>
+                        <p className="text-slate-500 text-xs mt-1">Could not get precise coordinates for this location.</p>
+                    </div>
+                );
+            }
 
             const embedUrl = `https://www.google.com/maps/embed/v1/streetview?key=${import.meta.env.VITE_MAPS_KEY}&location=${lat},${lon}&heading=210&pitch=10&fov=75`;
             return <iframe title="Google Street View" className="w-full h-full border-0" loading="lazy" allowFullScreen src={embedUrl}></iframe>;
