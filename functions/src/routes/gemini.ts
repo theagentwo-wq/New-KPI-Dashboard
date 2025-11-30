@@ -124,37 +124,61 @@ router.post('/getLocationMarketAnalysis', asyncHandler(async (req: Request, res:
   const client = getClient(process.env.GEMINI_API_KEY);
 
   // Basic implementation - will be enhanced in Phase 9 with web search, events, holidays
+  const today = new Date();
+  const currentDate = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
   const prompt = `You are a local market analyst for ${locationName}.
+
+TODAY'S DATE: ${currentDate}
+
+IMPORTANT: Your analysis must be current and forward-looking. Focus on events and opportunities in the NEXT 30 DAYS from today's date.
 
 Conduct a comprehensive market analysis covering:
 
 1. LOCAL DEMOGRAPHICS
    - Population trends, age distribution, income levels, tourism statistics
 
-2. MACRO EVENTS (City-Wide)
-   - Search: "${locationName} events calendar"
-   - Major festivals, conventions, sporting events, citywide celebrations
+2. UPCOMING EVENTS - NEXT 30 DAYS (CRITICAL)
+   Search for ALL types of events happening in the next 30 days:
+   - Music concerts and festivals (venues, arenas, outdoor events)
+   - Sporting events (college games, professional sports, marathons)
+   - Arts and cultural events (theater, gallery openings, exhibitions)
+   - Citywide celebrations, parades, holiday events
+   - Conventions and conferences
+   - Construction projects or road closures affecting traffic
+   - City initiatives and community events
+
+   DO NOT reference past events. Only focus on what's coming up.
 
 3. MICRO EVENTS (Neighborhood-Level)
-   - Nearby venues (theaters, arenas), art galleries, entertainment districts
+   - Nearby entertainment venues (Colonial Life Arena, Trustus Theatre, Koger Center)
+   - Art galleries, entertainment districts (The Vista)
+   - Neighborhood-specific happenings
 
 4. HOLIDAY IMPACT (CRITICAL)
-   - Upcoming holidays in next 30 days
-   - Historical impact on restaurant traffic
+   - Which holidays fall in the next 30 days from ${currentDate}?
+   - Historical impact of these holidays on restaurant traffic
+   - Seasonal dining trends for this time of year
 
-5. LOCAL NEWS & ENTERTAINMENT
-   - What's trending, new businesses, construction/road closures
+5. LOCAL NEWS & TRENDING
+   - Current local news affecting dining/entertainment
+   - New restaurant openings or closures
+   - Construction/development projects
+   - Community initiatives
 
 6. COMPETITION ANALYSIS
-   - Other restaurants (similar cuisine), recent reviews, market gaps
+   - Similar restaurants in the area
+   - Recent competitive moves
+   - Market opportunities
 
 7. WEATHER PATTERNS
-   - Seasonal trends, how weather affects local dining habits
+   - Expected weather for this season/month
+   - How weather affects local dining habits
 
 PROVIDE:
-- Executive summary (2-3 paragraphs)
-- Top 5 opportunities for this location
-- Timing recommendations
+- Executive summary (2-3 paragraphs) - MUST BE CURRENT
+- Top 5 opportunities for the next 30 days
+- Timing recommendations with specific dates
 - Specific actionable tactics`;
 
   const result = await client.generateContent(prompt);
@@ -219,48 +243,52 @@ INCORPORATE:
 TONE: Passionate, professional, pride in craft
 FORMAT: Brief (2-3 minutes to read aloud)`;
   } else {
-    // Managers
-    prompt = `You are preparing a comprehensive pre-shift brief ONLY for the MANAGEMENT TEAM at ${locationName}.
+    // Managers - completely rewritten to avoid duplication
+    prompt = `You are preparing hot topics and talking points ONLY for MANAGERS at ${locationName} for their pre-shift leadership meeting.
 
-IMPORTANT: Generate ONLY ONE brief for Managers. Do not generate separate FOH or BOH briefs.
+⚠️ CRITICAL: Write ONE manager-focused brief. Do NOT write separate FOH or BOH sections. Do NOT duplicate content.
 
-## Sales & Guest Experience Strategy
-- Create 1-2 sales contests for the FOH team to announce (examples: "Upsell Challenge", "Dessert Derby")
-- Guest experience focus areas, service standards
+## 1. Performance Review & Financial Goals
 
-## Kitchen Excellence & Safety
-- Kitchen safety focus for today, food safety reminders
-- Quality standards and timing goals
-- Motivate BOH with passion for craft and excellence
+Review today's key numbers from our performance data:
+${JSON.stringify(performanceData)}
 
-## Management-Specific Elements
+- What are our sales, labor %, prime cost, and SOP goals for today?
+- Based on the numbers above, what's our profitability target?
+- Which metrics need the most attention?
 
-### Performance & Profitability
-- P&L snapshot from performance data below
-- Today's profitability goals, labor %, prime cost targets
+## 2. Team Leadership & Communication
 
-Performance Data: ${JSON.stringify(performanceData)}
+What should managers communicate to their teams today?
 
-### Operations Excellence
-- Floor management strategy, labor deployment optimization
-- Guest recovery protocols, handling peak periods
+For FOH: Suggest 1-2 specific sales contests or guest service focuses to announce
+For BOH: Highlight safety focus and quality standards to emphasize
 
-### Culture Building (CRITICAL)
-- Hospitality industry best practices
-- Inspiring leadership moment, team recognition opportunities
-- "How can we make today exceptional for our team AND our guests?"
+(Note: These are talking points for MANAGERS to use - don't write separate team briefs)
 
-### Weather & Local Context
+## 3. Operations Strategy
+
 Weather: ${JSON.stringify(weather)}
-- How weather impacts expected traffic
-- Local events driving business today
 
-### Action Plan
-- Specific measurable goals for the shift
-- Metrics to track throughout the day
+- How does today's weather affect our expected traffic?
+- Floor management: staffing deployment, section assignments
+- Peak period preparation
+- Guest recovery protocols to review
 
-TONE: Strategic, inspiring, action-oriented
-FORMAT: Comprehensive (5-7 minutes to read/discuss)`;
+## 4. Culture & Leadership Moment
+
+- One inspiring message about hospitality excellence
+- Team recognition or shout-outs
+- "How do we make today exceptional?"
+
+## 5. Action Plan & Metrics
+
+- 3-4 specific measurable goals for this shift
+- Key metrics to track throughout the day
+- What success looks like today
+
+TONE: Strategic, leadership-focused, action-oriented
+FORMAT: Manager talking points (5 minutes to discuss)`;
   }
 
   const result = await client.generateContent(prompt);
