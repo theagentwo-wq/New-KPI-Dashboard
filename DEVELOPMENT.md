@@ -137,6 +137,18 @@ functions/
      - All endpoints now extract from `req.body.data` (matching frontend format)
    - Now backend receives and uses: `{ locationName: "Tupelo Honey Southern Kitchen and Bar Columbia, SC", reviews: [...] }`
    - Files: [functions/src/types/api.ts](functions/src/types/api.ts), [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Fixed Store Hub: Local Market 500 Error & Hot Topics Issues** (2025-11-30)
+   - Issue 1: Local Market returning 500 error when generating analysis
+   - Root cause: Leftover `${location}` variable reference in prompt (should be `${locationName}`)
+   - Issue 2: Hot Topics generating all 3 briefs (FOH, BOH, Managers) when only Managers was requested
+   - Root cause: Prompt said "INCORPORATE ALL OF FOH + BOH" which AI interpreted as "generate all three"
+   - Issue 3: Tab name "Huddle Brief" should be "Hot Topics"
+   - Solution:
+     - Fixed Local Market prompt variable reference (line 135)
+     - Rewrote Managers prompt with explicit instruction: "Generate ONLY ONE brief for Managers"
+     - Renamed tab from "Huddle Brief" to "Hot Topics" throughout UI
+     - Updated description and section headers
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts), [LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
