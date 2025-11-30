@@ -218,7 +218,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-20 p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col relative border border-slate-700" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-6xl h-[75vh] flex flex-col relative border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white z-10"><X size={24} /></button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 h-full overflow-hidden">

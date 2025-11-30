@@ -80,6 +80,8 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
         styles: mapStyles,
         disableDefaultUI: true,
         zoomControl: true,
+        center: { lat: 39.8283, lng: -98.5795 }, // Center of US
+        zoom: 4, // Show entire United States
       });
 
       // Add Director's Home Base
@@ -88,7 +90,14 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
         position: homePosition,
         map,
         title: `Home Base: ${director.homeLocation}`,
-        icon: ICONS.HOME
+        icon: ICONS.HOME,
+        label: {
+          text: director.firstName || director.name.split(' ')[0],
+          color: '#4ade80',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          className: 'marker-label-below'
+        }
       });
       bounds.extend(homePosition);
 
@@ -104,12 +113,12 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
             map,
             title: `${deployment.purpose} @ ${deployment.destination}`,
             icon: isDirector ? ICONS.DIRECTOR_SUITCASE : ICONS.STRIKE_TEAM_SUITCASE,
-            label: isDirector ? undefined : {
+            label: {
                 text: deployment.deployedPerson.split(' ')[0], // First name
-                color: 'white',
-                fontSize: '12px',
+                color: isDirector ? '#22d3ee' : '#f472b6', // Cyan for director, pink for strike team
+                fontSize: '11px',
                 fontWeight: 'bold',
-                className: 'marker-label' // for potential styling
+                className: 'marker-label-below'
             }
           });
           bounds.extend(position);
@@ -121,21 +130,17 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
         }
       });
 
-      // Fit map to bounds
-      if (deployments.length > 0 || director) {
-        map.fitBounds(bounds);
-      } else {
-        map.setCenter({ lat: 39.8283, lng: -98.5795 });
-        map.setZoom(4);
-      }
+      // Keep map zoomed out to show entire US
+      // Users can zoom in manually to see specific deployments
+      // Don't use fitBounds - it auto-zooms which defeats the purpose
     }
   }, [deployments, director]);
 
   return (
     <div className="h-full w-full relative bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
         <style>{`
-            .marker-label {
-                transform: translateY(22px);
+            .marker-label-below {
+                margin-top: 28px !important;
             }
         `}</style>
       <div ref={mapRef} className="h-full w-full" />
