@@ -176,6 +176,21 @@ functions/
      - Both now explicitly state: "Write ONE brief for [AUDIENCE] ONLY. Do NOT write [other] sections."
    - All three audience types now have consistent structure and anti-duplication safeguards
    - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
+   - Issue: AI telling users to "check local listings" instead of providing actionable information
+   - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
+   - Solution: Completely rewrote Local Market prompt with directive instructions
+     - Added CRITICAL rule: "Provide SPECIFIC information OR links, DO NOT say 'check local listings'"
+     - Restructured to request TOP 3 specific items in each category
+     - Added specific Columbia, SC venue links:
+       - University of South Carolina Athletics (gamecocksonline.com)
+       - Colonial Life Arena, Trustus Theatre, Koger Center
+       - Columbia Museum of Art
+       - Columbia Metropolitan Convention Center
+       - SCDOT traffic advisories
+     - Enhanced all sections: Demographics (actual numbers), Competition (3-5 named competitors), Weather (specific ranges)
+   - Result: AI provides concrete data or markdown links, not vague instructions
+   - Files: [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
 1. **Fixed TypeScript Build Errors** (2025-11-26)
    - Issue: Server build failing with "Not all code paths return a value" errors
    - Solution: Added explicit `Promise<void>` return types to async route handlers
