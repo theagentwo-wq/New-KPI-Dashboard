@@ -450,27 +450,124 @@ FORMAT: Manager talking points (5 minutes to discuss)`;
 
 /**
  * 6. POST /api/getSalesForecast
- * Sales forecasting (will be enhanced in Phase 8 with historical data)
+ * Sales forecasting with daily breakdowns, ranges, and operational recommendations
  */
 router.post('/getSalesForecast', asyncHandler(async (req: Request, res: Response) => {
   const { locationName, weatherForecast, historicalData }: types.GetSalesForecastRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are a data analyst forecasting sales for ${locationName}.
+  // Get current date
+  const today = new Date();
+  const currentDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const prompt = `You are a restaurant operations analyst forecasting sales for ${locationName}.
+
+TODAY'S DATE: ${currentDate}
 
 7-Day Weather Forecast:
 ${JSON.stringify(weatherForecast, null, 2)}
 
-Historical Data:
-${JSON.stringify(historicalData, null, 2)}
+Historical Data Available: ${historicalData}
 
-Generate a 7-day sales forecast with:
-- Predicted daily sales
-- Confidence level
-- Key factors influencing each day
-- Recommendations for staffing and prep
+## FORECAST METHODOLOGY
 
-Return as JSON array of forecast points.`;
+Since detailed daily historical data is limited, use this hybrid approach:
+
+**Baseline Calculation:**
+- Assume a typical week for this restaurant category averages $70,000-$85,000 in weekly sales
+- Daily baseline = Weekly avg ÷ 7 = ~$10,000-$12,000
+- Apply day-of-week multipliers:
+  - Monday/Tuesday: 0.7-0.8x baseline (slower)
+  - Wednesday/Thursday: 0.9-1.0x baseline (moderate)
+  - Friday/Saturday: 1.3-1.5x baseline (peak)
+  - Sunday: 1.1-1.2x baseline (brunch/dinner)
+
+**Weather Impact Factors:**
+- Sunny/Clear, 60-75°F: +10-15% (ideal patio weather)
+- Rainy/Storm: -15-25% (reduced foot traffic)
+- Very Hot (85°F+): -5-10% (people avoid going out)
+- Very Cold (<40°F): -10-15% (reduced foot traffic)
+
+**Event Impact Factors:**
+For Columbia, SC, consider typical events:
+- USC Gamecocks home games (football/basketball): +30-50% on game days
+- Colonial Life Arena concerts: +20-35% pre-show (5-7 PM)
+- Vista Art Walks (First Thursday): +15-25%
+- Major conventions: +10-20%
+
+## YOUR TASK
+
+Generate a 7-day sales forecast with TWO components:
+
+### 1. OVERVIEW SUMMARY (Markdown format)
+
+Brief paragraph covering:
+- Expected weekly sales range
+- Overall trend for the week (up/down/stable vs typical)
+- Major opportunities or challenges
+- Key recommendation for the week
+
+### 2. DAILY BREAKDOWN (For each of the 7 days)
+
+For each day, provide:
+
+**Date & Day**: (e.g., "Monday, December 4, 2025")
+
+**Projected Sales Range**: $XX,XXX - $XX,XXX
+- Show as range, not exact number
+- Include variance percentage vs Monday baseline
+
+**Traffic Level**: LOW / MEDIUM / HIGH / VERY HIGH
+
+**Weather Impact**:
+- Temperature and conditions
+- How it affects sales (positive/negative/neutral)
+- Patio seating viability
+
+**Local Events**:
+- List any typical events for that day of week in Columbia, SC
+- Specific timing if relevant (e.g., "USC Basketball at 2 PM")
+- Event impact on traffic patterns
+
+**Expected Rush Periods**:
+- When to expect peak traffic
+- Pre-event/post-event crowds if applicable
+
+**Operational Recommendations**:
+- Staffing suggestions (e.g., "+2 servers, +1 line cook")
+- Prep priorities
+- Special considerations
+
+## OUTPUT FORMAT
+
+Return a JSON object with this structure:
+{
+  "summary": "markdown-formatted overview summary",
+  "chartData": [
+    {
+      "date": "Mon 12/4",
+      "salesLow": 8500,
+      "salesHigh": 9200,
+      "salesMid": 8850
+    },
+    // ... 7 days total
+  ],
+  "dailyBreakdown": [
+    {
+      "fullDate": "Monday, December 4, 2025",
+      "salesRange": "$8,500 - $9,200",
+      "variance": "Baseline",
+      "trafficLevel": "MEDIUM",
+      "weatherImpact": "Clear, 65°F - Ideal patio weather (+10%)",
+      "events": ["Standard Monday - No major events"],
+      "rushPeriods": ["Lunch: 11:30 AM - 1:30 PM", "Dinner: 6:00 - 8:30 PM"],
+      "recommendations": ["Standard staffing", "Focus on lunch specials", "Patio prep"]
+    },
+    // ... 7 days total
+  ]
+}
+
+CRITICAL: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
 
   const result = await client.generateJSON(prompt);
 

@@ -280,27 +280,117 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
 
         if (activeAnalysisTab === 'forecast') {
              if (content?.summary && content?.chartData) {
+                const getTrafficColor = (level: string) => {
+                    switch(level) {
+                        case 'VERY HIGH': return 'text-red-400';
+                        case 'HIGH': return 'text-orange-400';
+                        case 'MEDIUM': return 'text-yellow-400';
+                        case 'LOW': return 'text-slate-400';
+                        default: return 'text-slate-400';
+                    }
+                };
+
                 return (
                     <div className="space-y-6">
+                        {/* Overview Summary */}
                         <div className="prose prose-sm prose-invert max-w-none text-slate-200" dangerouslySetInnerHTML={{ __html: marked.parse(content.summary) }} />
+
+                        {/* Sales Forecast Chart */}
                         <div>
-                             <h4 className="font-semibold text-slate-300 mb-2">Sales Forecast by Day</h4>
+                            <h4 className="font-semibold text-slate-300 mb-2">7-Day Sales Forecast</h4>
                             <div style={{ height: 250 }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={content.chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
                                     <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `$${(val / 1000)}k`} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Line type="monotone" dataKey="predictedSales" stroke="#22d3ee" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
+                                        labelStyle={{ color: '#cbd5e1' }}
+                                        itemStyle={{ color: '#22d3ee' }}
+                                        formatter={(value: any) => [`$${value.toLocaleString()}`, '']}
+                                    />
+                                    <Line type="monotone" dataKey="salesLow" stroke="#64748b" strokeWidth={1} strokeDasharray="3 3" dot={false} />
+                                    <Line type="monotone" dataKey="salesMid" stroke="#22d3ee" strokeWidth={3} dot={{ r: 4, fill: '#22d3ee' }} activeDot={{ r: 6 }} />
+                                    <Line type="monotone" dataKey="salesHigh" stroke="#64748b" strokeWidth={1} strokeDasharray="3 3" dot={false} />
                                 </LineChart>
                                 </ResponsiveContainer>
                             </div>
+                            <p className="text-xs text-slate-400 mt-1 text-center">Solid line shows midpoint, dashed lines show forecast range</p>
                         </div>
+
+                        {/* Daily Breakdown Cards */}
+                        {content.dailyBreakdown && content.dailyBreakdown.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-slate-300 mb-3">Daily Breakdown</h4>
+                                <div className="space-y-4">
+                                    {content.dailyBreakdown.map((day: any, index: number) => (
+                                        <div key={index} className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 space-y-2">
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <h5 className="font-bold text-white">{day.fullDate}</h5>
+                                                    <p className="text-2xl font-bold text-cyan-400 mt-1">{day.salesRange}</p>
+                                                    <p className="text-xs text-slate-400">{day.variance}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`text-sm font-bold ${getTrafficColor(day.trafficLevel)}`}>
+                                                        {day.trafficLevel} TRAFFIC
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-700">
+                                                <div>
+                                                    <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Weather Impact</p>
+                                                    <p className="text-sm text-slate-300">{day.weatherImpact}</p>
+                                                </div>
+
+                                                {day.events && day.events.length > 0 && (
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Local Events</p>
+                                                        <ul className="text-sm text-slate-300 space-y-0.5">
+                                                            {day.events.map((event: string, i: number) => (
+                                                                <li key={i}>• {event}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {day.rushPeriods && day.rushPeriods.length > 0 && (
+                                                <div className="pt-2">
+                                                    <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Expected Rush Periods</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {day.rushPeriods.map((period: string, i: number) => (
+                                                            <span key={i} className="text-xs bg-cyan-900/30 text-cyan-300 px-2 py-1 rounded">
+                                                                {period}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {day.recommendations && day.recommendations.length > 0 && (
+                                                <div className="pt-2">
+                                                    <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Operational Recommendations</p>
+                                                    <ul className="text-sm text-slate-300 space-y-0.5">
+                                                        {day.recommendations.map((rec: string, i: number) => (
+                                                            <li key={i}>✓ {rec}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Weather Outlook */}
                         {content.sevenDay && (
                         <div>
                             <h4 className="font-semibold text-slate-300 mb-2">7-Day Weather Outlook</h4>
-                            <div className="grid grid-cols-7 gap-2 text-center"> 
+                            <div className="grid grid-cols-7 gap-2 text-center">
                             {content.sevenDay.map((day: DailyForecast, i: number) => (
                                 <div key={i} className="bg-slate-900/50 p-2 rounded-lg flex flex-col items-center">
                                 <p className="font-bold text-sm text-slate-300">{day.day}</p>
