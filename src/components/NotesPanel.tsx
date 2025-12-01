@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Note, NoteCategory, View, Period } from '../types';
+import { Note, NoteCategory, View, Period, StorePerformanceData } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
-import { getMonthlyPeriodForDate, ALL_PERIODS } from '../utils/dateUtils';
+import { ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { getNoteTrends } from '../services/geminiService';
+import { getPerformanceData } from '../services/firebaseService';
 import { marked } from 'marked';
 import { FirebaseStatus } from '../types';
 
@@ -42,19 +43,44 @@ const categoryDisplayColors: { [key in NoteCategory]: { bg: string, text: string
   [NoteCategory.Reviews]: { bg: 'bg-purple-500/20', text: 'text-purple-300' },
 };
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, mainDashboardPeriod, heightClass = 'max-h-[600px]', dbStatus }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, heightClass = 'max-h-[600px]', dbStatus }) => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>(NoteCategory.General);
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isListening, setIsListening] = useState(false);
   const isListeningRef = useRef(false);
   const recognitionRef = useRef<any>(null);
 
-  const initialMonthlyPeriod = useMemo(() => getMonthlyPeriodForDate(mainDashboardPeriod.startDate) || ALL_PERIODS.find((p: Period) => p.type === 'monthly')!, [mainDashboardPeriod]);
-  const [notesPeriod, setNotesPeriod] = useState<Period | null>(null); // null = show all notes
-  const [showAllPeriods, setShowAllPeriods] = useState<boolean>(true);
+  // Get current week number (Monday-start)
+  const getCurrentWeek = () => {
+    const now = new Date();
+    const monday = new Date(now);
+    const day = monday.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
+    monday.setDate(monday.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+
+    // Find matching weekly period
+    const weeklyPeriods = ALL_PERIODS.filter((p: Period) => p.type === 'weekly');
+    const matchingWeek = weeklyPeriods.find(p => {
+      const start = new Date(p.startDate);
+      start.setHours(0, 0, 0, 0);
+      return start.getTime() === monday.getTime();
+    });
+
+    return matchingWeek || null;
+  };
+
+  const initialWeek = useMemo(() => getCurrentWeek(), []);
+  const [notesPeriod, setNotesPeriod] = useState<Period | null>(initialWeek); // Start with current week
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const defaultScope = JSON.stringify({ view: currentView });
   const [selectedScope, setSelectedScope] = useState<string>(defaultScope);
@@ -62,16 +88,55 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState<NoteCategory>(NoteCategory.General);
-  
+
   const [isTrendsModalOpen, setTrendsModalOpen] = useState(false);
   const [isTrendsLoading, setIsTrendsLoading] = useState(false);
   const [trendsResultHtml, setTrendsResultHtml] = useState('');
-  
+
   const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
 
+  const [isLastWeekModalOpen, setLastWeekModalOpen] = useState(false);
+
   const [filterCategory, setFilterCategory] = useState<NoteCategory | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [performanceData, setPerformanceData] = useState<StorePerformanceData[]>([]);
+
+  // Fetch performance data for Quick Director Context
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getPerformanceData();
+        setPerformanceData(data);
+      } catch (error) {
+        console.error('Error fetching performance data:', error);
+      }
+    };
+    if (dbStatus.status === 'connected') {
+      fetchData();
+    }
+  }, [dbStatus.status]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    if (content.trim()) {
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        setLastSaved(new Date());
+      }, 2000); // Save indicator after 2 seconds of no typing
+    }
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [content]);
 
   useEffect(() => {
     if (filterCategory !== 'All') {
@@ -82,17 +147,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   }, [filterCategory]);
 
   useEffect(() => {
-    const newMonthlyPeriod = getMonthlyPeriodForDate(mainDashboardPeriod.startDate);
-    if (newMonthlyPeriod) {
-      setNotesPeriod(newMonthlyPeriod);
-    }
-  }, [mainDashboardPeriod]);
-  
-  useEffect(() => {
     setSelectedScope(JSON.stringify({ view: currentView }));
-    setFilterCategory('All'); 
+    setFilterCategory('All');
   }, [currentView]);
 
+  // Speech recognition setup
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
 
@@ -109,7 +168,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 finalTranscript += event.results[i][0].transcript;
             }
         }
-        
+
         if (finalTranscript) {
             setContent(prev => {
                 const trimmedPrev = prev.trim();
@@ -126,7 +185,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             setIsListening(false);
         }
     };
-    
+
     recognition.onend = () => {
         if (isListeningRef.current) {
             try { recognition.start(); } catch (e) {
@@ -172,51 +231,60 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
   };
 
-  const monthlyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'monthly'), []);
   const weeklyPeriods = useMemo(() => ALL_PERIODS.filter((p: Period) => p.type === 'weekly'), []);
 
-  // Generate periods for 2025-2028 (weekly and monthly)
-  const allAvailablePeriods = useMemo(() => {
-    const periods2025to2028 = ALL_PERIODS.filter((p: Period) => {
-      const year = new Date(p.startDate).getFullYear();
-      return year >= 2025 && year <= 2028 && (p.type === 'weekly' || p.type === 'monthly');
-    });
-    return periods2025to2028;
-  }, []);
-
-  const handlePrevPeriod = () => {
-    if (!notesPeriod) return;
-    const currentPeriods = notesPeriod.type === 'monthly' ? monthlyPeriods : weeklyPeriods;
-    const currentIndex = currentPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex > 0) {
-      setNotesPeriod(currentPeriods[currentIndex - 1]);
-      setShowAllPeriods(false);
-    }
-  };
-
-  const handleNextPeriod = () => {
-    if (!notesPeriod) return;
-    const currentPeriods = notesPeriod.type === 'monthly' ? monthlyPeriods : weeklyPeriods;
-    const currentIndex = currentPeriods.findIndex(p => p.label === notesPeriod.label);
-    if (currentIndex < currentPeriods.length - 1) {
-      setNotesPeriod(currentPeriods[currentIndex + 1]);
-      setShowAllPeriods(false);
-    }
-  };
-
-  const handlePeriodChange = (selectedLabel: string) => {
-    if (selectedLabel === 'ALL') {
-      setShowAllPeriods(true);
-      setNotesPeriod(null);
-    } else {
-      const selectedPeriod = allAvailablePeriods.find(p => p.label === selectedLabel);
-      if (selectedPeriod) {
-        setNotesPeriod(selectedPeriod);
-        setShowAllPeriods(false);
+  // Month options (2025-2028)
+  const monthOptions = useMemo(() => {
+    const months = [];
+    for (let year = 2025; year <= 2028; year++) {
+      for (let month = 1; month <= 12; month++) {
+        months.push({
+          value: `${year}-${String(month).padStart(2, '0')}`,
+          label: new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        });
       }
     }
+    return months;
+  }, []);
+
+  const handlePrevWeek = () => {
+    if (!notesPeriod) return;
+    const currentIndex = weeklyPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex > 0) {
+      setNotesPeriod(weeklyPeriods[currentIndex - 1]);
+    }
   };
-  
+
+  const handleNextWeek = () => {
+    if (!notesPeriod) return;
+    const currentIndex = weeklyPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex < weeklyPeriods.length - 1) {
+      setNotesPeriod(weeklyPeriods[currentIndex + 1]);
+    }
+  };
+
+  const handleJumpToCurrentWeek = () => {
+    const currentWeek = getCurrentWeek();
+    if (currentWeek) {
+      setNotesPeriod(currentWeek);
+      const weekStart = new Date(currentWeek.startDate);
+      setSelectedMonth(`${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}`);
+    }
+  };
+
+  const handleMonthChange = (monthValue: string) => {
+    setSelectedMonth(monthValue);
+    // Jump to first week of selected month
+    const [year, month] = monthValue.split('-').map(Number);
+    const firstWeek = weeklyPeriods.find(p => {
+      const start = new Date(p.startDate);
+      return start.getFullYear() === year && start.getMonth() === month - 1;
+    });
+    if (firstWeek) {
+      setNotesPeriod(firstWeek);
+    }
+  };
+
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -226,21 +294,31 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
   };
 
+  const parseCheckboxes = (text: string) => {
+    // Parse markdown-style checkboxes: - [ ] or - [x]
+    const lines = text.split('\n');
+    return lines.map(line => {
+      const uncheckedMatch = line.match(/^- \[ \] (.+)$/);
+      const checkedMatch = line.match(/^- \[x\] (.+)$/);
+      if (uncheckedMatch) return { text: uncheckedMatch[1], checked: false };
+      if (checkedMatch) return { text: checkedMatch[1], checked: true };
+      return { text: line, checked: null }; // Regular text
+    });
+  };
+
   const handleAddNote = () => {
     if (!content.trim()) return;
 
-    // If showing all periods, use the initial monthly period for the note
-    const periodToUse = notesPeriod || initialMonthlyPeriod;
-
-    if (periodToUse) {
+    if (notesPeriod) {
       const scope = JSON.parse(selectedScope);
-      addNote(periodToUse.label, category, content, scope, stagedImage || undefined);
+      addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
       setContent('');
       setStagedImage(null);
+      setLastSaved(null);
       if(fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-  
+
   const handleStartEdit = (note: Note) => {
     setEditingNoteId(note.id);
     setEditContent(note.content);
@@ -279,77 +357,88 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     return options;
 }, [currentView]);
 
-
   const filteredNotes = useMemo(() => {
-    console.log('[NotesPanel] Filtering notes...');
-    console.log('[NotesPanel] Total notes received:', allNotes.length);
-    console.log('[NotesPanel] Current notesPeriod:', notesPeriod);
-    console.log('[NotesPanel] notesPeriod.label:', notesPeriod?.label);
-    console.log('[NotesPanel] showAllPeriods:', showAllPeriods);
-    console.log('[NotesPanel] selectedScope:', selectedScope);
-    console.log('[NotesPanel] filterCategory:', filterCategory);
-    console.log('[NotesPanel] searchTerm:', searchTerm);
-
     const scope = JSON.parse(selectedScope);
-    console.log('[NotesPanel] Parsed scope:', scope);
 
-    // If showAllPeriods or no period selected, don't filter by period
     let periodFiltered = allNotes;
-    if (!showAllPeriods && notesPeriod) {
-      periodFiltered = allNotes.filter((note: Note) => {
-        const matches = note.monthlyPeriodLabel === notesPeriod.label;
-        console.log(`[NotesPanel] Note "${note.content.substring(0, 30)}..." - Period: "${note.monthlyPeriodLabel}" vs "${notesPeriod.label}" - Matches: ${matches}`);
-        return matches;
-      });
-    } else {
-      console.log('[NotesPanel] Showing all periods - no period filter applied');
+    if (notesPeriod) {
+      periodFiltered = allNotes.filter((note: Note) => note.monthlyPeriodLabel === notesPeriod.label);
     }
-    console.log('[NotesPanel] After period filter:', periodFiltered.length);
 
     const scopeFiltered = periodFiltered.filter((note: Note) => {
-      // Handle both old format (view/storeId as top-level fields) and new format (nested in scope)
       let noteView: string;
       let noteStoreId: string | undefined;
 
       if (note.scope) {
-        // New format: scope object exists
         noteView = note.scope.view;
         noteStoreId = note.scope.storeId;
       } else if ((note as any).view) {
-        // Old format: view and storeId are top-level fields
-        console.warn('[NotesPanel] Note using legacy format (top-level view/storeId):', note.id);
         noteView = (note as any).view;
         noteStoreId = (note as any).storeId;
       } else {
-        // Note has neither format - skip it
-        console.warn('[NotesPanel] Note missing scope and view properties:', note.id);
         return false;
       }
 
-      // Case-insensitive comparison to handle old notes with capitalized director names
       const viewMatches = noteView.toLowerCase() === scope.view.toLowerCase();
       const storeIdMatches = (noteStoreId || undefined) === scope.storeId;
-      const matches = viewMatches && storeIdMatches;
-
-      console.log(`[NotesPanel] Note scope check - view: "${noteView}" === "${scope.view}" (case-insensitive: ${viewMatches}), storeId: "${noteStoreId}" === "${scope.storeId}" (${storeIdMatches}) - Overall: ${matches}`);
-      return matches;
+      return viewMatches && storeIdMatches;
     });
-    console.log('[NotesPanel] After scope filter:', scopeFiltered.length);
 
     const categoryFiltered = scopeFiltered.filter((note: Note) =>
         filterCategory === 'All' || note.category === filterCategory
     );
-    console.log('[NotesPanel] After category filter:', categoryFiltered.length);
 
     const searchFiltered = categoryFiltered.filter((note: Note) =>
         note.content.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    console.log('[NotesPanel] After search filter:', searchFiltered.length);
-    console.log('[NotesPanel] Final filtered notes:', searchFiltered);
 
     return searchFiltered;
-  }, [allNotes, notesPeriod, showAllPeriods, selectedScope, filterCategory, searchTerm]);
-  
+  }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
+
+  // Get last week's notes for follow-up
+  const lastWeekNotes = useMemo(() => {
+    if (!notesPeriod) return [];
+    const currentIndex = weeklyPeriods.findIndex(p => p.label === notesPeriod.label);
+    if (currentIndex <= 0) return [];
+
+    const lastWeekPeriod = weeklyPeriods[currentIndex - 1];
+    const scope = JSON.parse(selectedScope);
+
+    return allNotes.filter((note: Note) => {
+      if (note.monthlyPeriodLabel !== lastWeekPeriod.label) return false;
+
+      let noteView: string;
+      let noteStoreId: string | undefined;
+      if (note.scope) {
+        noteView = note.scope.view;
+        noteStoreId = note.scope.storeId;
+      } else if ((note as any).view) {
+        noteView = (note as any).view;
+        noteStoreId = (note as any).storeId;
+      } else {
+        return false;
+      }
+
+      const viewMatches = noteView.toLowerCase() === scope.view.toLowerCase();
+      const storeIdMatches = (noteStoreId || undefined) === scope.storeId;
+      return viewMatches && storeIdMatches;
+    });
+  }, [notesPeriod, weeklyPeriods, allNotes, selectedScope]);
+
+  // Extract uncompleted action items from last week
+  const actionItemsFromLastWeek = useMemo(() => {
+    const items: string[] = [];
+    lastWeekNotes.forEach(note => {
+      const parsed = parseCheckboxes(note.content);
+      parsed.forEach(item => {
+        if (item.checked === false) {
+          items.push(item.text);
+        }
+      });
+    });
+    return items;
+  }, [lastWeekNotes]);
+
   const handleAnalyzeTrends = async () => {
     if (filteredNotes.length === 0) return;
     setIsTrendsLoading(true);
@@ -360,15 +449,47 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setTrendsResultHtml(html);
     setIsTrendsLoading(false);
   };
-  
+
   const openImagePreview = (url: string) => {
     setPreviewImageUrl(url);
     setPreviewModalOpen(true);
   }
 
+  // Quick Director Context
+  const directorContext = useMemo(() => {
+    const scope = JSON.parse(selectedScope);
+    const director = DIRECTORS.find(d => d.id === scope.view);
+    if (!director) return null;
+
+    // Get performance data for this director's stores
+    const storeData = director.stores.map(store => {
+      const data = performanceData.find(d => d.storeId === store);
+      return { store, data: data?.data };
+    });
+
+    return { director, storeData };
+  }, [selectedScope, performanceData]);
+
+  // Get date range for current week
+  const weekDateRange = useMemo(() => {
+    if (!notesPeriod) return '';
+    const start = new Date(notesPeriod.startDate);
+    const end = new Date(notesPeriod.endDate);
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  }, [notesPeriod]);
+
+  // Category badges for current notes
+  const categoryBadges = useMemo(() => {
+    const counts = filteredNotes.reduce((acc, note) => {
+      acc[note.category] = (acc[note.category] || 0) + 1;
+      return acc;
+    }, {} as Record<NoteCategory, number>);
+    return counts;
+  }, [filteredNotes]);
+
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
-    
+
     const isConnectionError = dbStatus.error?.includes('config');
     const title = isConnectionError ? "Database Connection Failed" : "Database Error";
 
@@ -390,7 +511,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         </div>
       );
     }
-    
+
     if (dbStatus.status === 'error') {
        return (
         <div className="flex items-center justify-center h-full p-4 text-center">
@@ -398,7 +519,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         </div>
       );
     }
-    
+
     return (
       <AnimatePresence>
         {filteredNotes.length === 0 ? (
@@ -408,8 +529,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
            </div>
         ) : (
           filteredNotes.map((note: Note) => (
-            <motion.div 
-              key={note.id} 
+            <motion.div
+              key={note.id}
               {...({ layout: true, initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, transition: { duration: 0.2 } } } as any)}
               className="bg-slate-700/50 p-3 rounded-md"
             >
@@ -457,13 +578,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       </AnimatePresence>
     );
   };
-  
+
   const getPlaceholderText = () => {
       if (isListening) return 'Listening... (Speak now)';
       switch (dbStatus.status) {
           case 'initializing': return 'Connecting...';
           case 'error': return 'Database not connected.';
-          case 'connected': 
+          case 'connected':
             if (filterCategory === 'All') return `Add new note (will be saved as ${NoteCategory.General})...`
             return `Add new note (will be saved as ${filterCategory})...`;
       }
@@ -474,37 +595,57 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   return (
     <>
       <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
-        <div className="p-4 border-b border-slate-700 space-y-2">
+        {/* Header with Navigation */}
+        <div className="p-4 border-b border-slate-700 space-y-3">
+            {/* Week Navigation */}
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <button
-                      onClick={handlePrevPeriod}
+                      onClick={handlePrevWeek}
                       disabled={!notesPeriod}
                       className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Previous Week"
                     >
                       <Icon name="chevronLeft" className="w-5 h-5" />
                     </button>
-                    <h3 className="text-lg font-bold text-cyan-400">
-                      Notes {showAllPeriods ? 'for All Periods' : `for ${notesPeriod?.label || 'All Periods'}`}
-                    </h3>
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-cyan-400">
+                        {notesPeriod?.label || 'Select a Week'}
+                      </h3>
+                      {weekDateRange && (
+                        <p className="text-xs text-slate-400">{weekDateRange}</p>
+                      )}
+                    </div>
                     <button
-                      onClick={handleNextPeriod}
+                      onClick={handleNextWeek}
                       disabled={!notesPeriod}
                       className="p-2 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Next Week"
                     >
                       <Icon name="chevronRight" className="w-5 h-5" />
                     </button>
                 </div>
-                <button 
-                  onClick={handleAnalyzeTrends}
-                  disabled={filteredNotes.length < 2 || dbStatus.status !== 'connected'}
-                  className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={filteredNotes.length < 2 ? "Need at least 2 notes to analyze trends" : "Analyze Note Trends with AI"}
-                >
-                  <Icon name="sparkles" className="w-4 h-4" />
-                  Analyze Trends
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleJumpToCurrentWeek}
+                    className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-3 rounded-md transition-colors"
+                    title="Jump to Current Week"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={handleAnalyzeTrends}
+                    disabled={filteredNotes.length < 2 || dbStatus.status !== 'connected'}
+                    className="flex items-center gap-2 text-xs bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={filteredNotes.length < 2 ? "Need at least 2 notes to analyze trends" : "Analyze Note Trends with AI"}
+                  >
+                    <Icon name="sparkles" className="w-4 h-4" />
+                    Analyze
+                  </button>
+                </div>
             </div>
+
+            {/* Scope & Month Picker */}
             <div className="grid grid-cols-2 gap-2">
               <select
                   value={selectedScope}
@@ -515,33 +656,61 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               </select>
 
               <select
-                  value={showAllPeriods ? 'ALL' : (notesPeriod?.label || 'ALL')}
-                  onChange={(e) => handlePeriodChange(e.target.value)}
+                  value={selectedMonth}
+                  onChange={(e) => handleMonthChange(e.target.value)}
                   className="bg-slate-700 text-white border border-slate-600 rounded-md p-2 text-sm focus:ring-cyan-500 focus:border-cyan-500"
                   >
-                  <option value="ALL">All Periods</option>
-                  <optgroup label="Monthly Periods (2025-2028)">
-                    {allAvailablePeriods
-                      .filter(p => p.type === 'monthly')
-                      .map(p => (
-                        <option key={p.label} value={p.label}>{p.label}</option>
-                      ))
-                    }
-                  </optgroup>
-                  <optgroup label="Weekly Periods (2025-2028)">
-                    {allAvailablePeriods
-                      .filter(p => p.type === 'weekly')
-                      .map(p => (
-                        <option key={p.label} value={p.label}>{p.label}</option>
-                      ))
-                    }
-                  </optgroup>
+                  {monthOptions.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
               </select>
             </div>
+
             <DiagnosticErrorPanel />
         </div>
-        
-         <div className="p-4 border-b border-slate-700 space-y-3">
+
+        {/* Quick Director Context */}
+        {directorContext && (
+          <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-700">
+            <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Quick Context</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {directorContext.storeData.slice(0, 3).map((store, i) => (
+                <div key={i} className="bg-slate-800 p-2 rounded">
+                  <p className="font-semibold text-slate-300 truncate">{store.store}</p>
+                  {store.data?.Sales && (
+                    <p className="text-cyan-400">${(store.data.Sales / 1000).toFixed(0)}k</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Action Items from Last Week */}
+        {actionItemsFromLastWeek.length > 0 && (
+          <div className="px-4 py-3 bg-amber-900/20 border-b border-amber-700/50">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs font-semibold text-amber-300 uppercase">Follow-ups from Last Week</p>
+              <button
+                onClick={() => setLastWeekModalOpen(true)}
+                className="text-xs text-amber-400 hover:text-amber-300"
+              >
+                View All
+              </button>
+            </div>
+            <div className="space-y-1">
+              {actionItemsFromLastWeek.slice(0, 3).map((item, i) => (
+                <p key={i} className="text-xs text-slate-300">☐ {item}</p>
+              ))}
+              {actionItemsFromLastWeek.length > 3 && (
+                <p className="text-xs text-slate-500">+ {actionItemsFromLastWeek.length - 3} more</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Category Indicators & Search */}
+        <div className="p-4 border-b border-slate-700 space-y-3">
             <input
               type="search"
               placeholder="Search notes..."
@@ -551,6 +720,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             />
             <div className="flex flex-wrap items-center gap-2">
                 {allNoteCategories.map((cat) => {
+                    const count = cat === 'All' ? filteredNotes.length : categoryBadges[cat] || 0;
                     if (cat === 'All') {
                         return (
                             <button
@@ -560,7 +730,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                                 filterCategory === cat ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                 }`}
                             >
-                                {cat}
+                                {cat} ({count})
                             </button>
                         )
                     }
@@ -573,19 +743,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                             filterCategory === cat ? `${colors.active} text-white` : `${colors.base} ${colors.text}`
                             }`}
                         >
-                            {cat}
+                            {cat} {count > 0 && `(${count})`}
                         </button>
                     );
                 })}
             </div>
         </div>
 
+        {/* Notes List */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
-        
+
+        {/* Add Note Section */}
         <div className="p-4 border-t border-slate-700 space-y-3 bg-slate-800/50">
           <textarea
+            ref={contentRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={getPlaceholderText()}
@@ -608,8 +781,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                   <span className="hidden sm:inline">Photo</span>
                 </button>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
-                
-                <button 
+
+                <button
                     onClick={toggleListening}
                     className={`flex items-center gap-2 text-sm font-semibold py-2 px-2 rounded-md transition-all ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:text-white'}`}
                     disabled={dbStatus.status !== 'connected'}
@@ -618,15 +791,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                     <Icon name="microphone" className="w-5 h-5" />
                     <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Dictate'}</span>
                 </button>
+
+                {lastSaved && (
+                  <span className="text-xs text-slate-500">
+                    Saved {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s ago
+                  </span>
+                )}
             </div>
-            
+
             <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>
               Add Note
             </button>
           </div>
         </div>
       </div>
-      
+
+      {/* Modals */}
       <Modal isOpen={isTrendsModalOpen} onClose={() => setTrendsModalOpen(false)} title="AI Note Trend Analysis">
         <div className="min-h-[200px]">
           {isTrendsLoading ? (
@@ -644,6 +824,27 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
       <Modal isOpen={isPreviewModalOpen} onClose={() => setPreviewModalOpen(false)} title="Image Preview" size="large">
         <img src={previewImageUrl} alt="Note attachment preview" className="max-w-full max-h-[80vh] mx-auto rounded-md" />
+      </Modal>
+
+      <Modal isOpen={isLastWeekModalOpen} onClose={() => setLastWeekModalOpen(false)} title="Last Week's Notes" size="large">
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+          {lastWeekNotes.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">No notes from last week</p>
+          ) : (
+            lastWeekNotes.map((note: Note) => (
+              <div key={note.id} className="bg-slate-700/50 p-3 rounded-md">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryDisplayColors[note.category].bg} ${categoryDisplayColors[note.category].text}`}>{note.category}</span>
+                  <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
+                </div>
+                <p className="text-sm text-slate-200 whitespace-pre-wrap">{note.content}</p>
+                {note.imageUrl && (
+                  <img src={note.imageUrl} alt="Note attachment" className="mt-2 max-h-24 rounded-md border-2 border-slate-600" />
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </Modal>
     </>
   );

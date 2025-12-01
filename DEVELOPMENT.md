@@ -293,6 +293,22 @@ functions/
      - ✅ Still works when no historical data exists (falls back gracefully)
      - ✅ AI can reference actual week-to-week variation patterns
    - Files: [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx), [functions/src/routes/gemini.ts](functions/src/routes/gemini.ts)
+1. **Fixed Forecast Chart Display Issue** (2025-11-30)
+   - Issue: After deployment, chart was blank despite summary text displaying correctly
+   - Root cause: TypeScript build error (`CustomTooltip` declared but never used) prevented frontend rebuild
+   - Solution: Removed unused `CustomTooltip` component from LocationInsightsModal.tsx
+   - Result: Chart now displays correctly with 3-line sales forecast (low/mid/high)
+   - Files: [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
+1. **Reordered Forecast Tab Sections for Better UX** (2025-11-30)
+   - User request: "Move the 7 day weather up to the top above the 7 day forecast chart"
+   - Solution: Reorganized forecast display sections
+   - New order:
+     1. Overview Summary (week outlook and trends)
+     2. 7-Day Weather Outlook ☀️ (moved up from bottom)
+     3. 7-Day Sales Forecast Chart 📊
+     4. Daily Breakdown Cards (detailed day-by-day analysis)
+   - Result: Better information flow - users see weather context before sales forecast
+   - Files: [src/components/LocationInsightsModal.tsx](src/components/LocationInsightsModal.tsx)
 1. **Enhanced Local Market: Provide Specific Events or Clickable Links** (2025-11-30)
    - Issue: AI telling users to "check local listings" instead of providing actionable information
    - User requirement: Show specific events (TOP 3 in each category) OR provide clickable links to venues
