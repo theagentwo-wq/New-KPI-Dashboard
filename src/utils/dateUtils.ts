@@ -241,9 +241,17 @@ export const getInitialPeriod = (): Period => {
 }
 
 export const getPreviousPeriod = (currentPeriod: Period): Period => {
-    const allPeriods = getPeriodOptions();
-    const currentIndex = allPeriods.findIndex(p => p.label === currentPeriod.label);
-    return allPeriods[currentIndex + 1] || allPeriods[allPeriods.length - 1];
+    // Get all fiscal periods (P1-P12 for all years)
+    const allFiscalPeriods = generate445FiscalPeriods(2024, 2026);
+    const currentIndex = allFiscalPeriods.findIndex(p => p.label === currentPeriod.label);
+
+    // If found and not the first period, return the previous one
+    if (currentIndex > 0) {
+        return allFiscalPeriods[currentIndex - 1];
+    }
+
+    // Fallback: return current period if it's the first one or not found
+    return currentPeriod;
 }
 
 export const getYoYPeriod = (currentPeriod: Period): Period => {
