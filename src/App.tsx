@@ -9,13 +9,14 @@ import { GoalSetterPage } from './pages/GoalSetterPage';
 import { IndustryNewsPage } from './pages/IndustryNewsPage';
 import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, FirebaseStatus, PerformanceData, ActiveJob } from './types';
 import { getDefaultPeriod } from './utils/dateUtils';
-import { 
-    initializeFirebaseService, 
-    getNotes, 
+import {
+    initializeFirebaseService,
+    getNotes,
     addNote as fbAddNote,
     updateNoteContent,
     deleteNoteById,
     savePerformanceDataForPeriod,
+    checkExistingData,
     getDirectorProfiles,
     getPerformanceData,
     getBudgets,
@@ -24,6 +25,7 @@ import {
 import { DirectorProfileModal } from './components/DirectorProfileModal';
 import { ImportDataModal } from './components/ImportDataModal';
 import { StrategyHubModal } from './components/StrategyHubModal';
+import { Modal } from './components/Modal';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -45,6 +47,10 @@ const App = () => {
   const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
   const [isStrategyHubOpen, setStrategyHubOpen] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    duplicates: Array<{ store: string; date: string; existingKpis: string[] }>;
+    jobData: ActiveJob;
+  } | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -138,10 +144,175 @@ const App = () => {
     setIsDirectorProfileOpen(true);
   };
     
-  const handleConfirmImport = (job: ActiveJob) => {
-    console.log('Confirmed import:', job);
-    setImportModalOpen(false);
-  }
+  const handleConfirmImport = async (job: ActiveJob) => {
+    try {
+      // Step 1: Check for duplicates
+      const duplicates: Array<{ store: string; date: string; existingKpis: string[] }> = [];
+
+      const { ALL_PERIODS } = await import('./utils/dateUtils');
+
+      for (const source of job.extractedData) {
+        for (const row of source.data) {
+          const storeName = row['Store Name'];
+          const weekStartDate = row['Week Start Date'];
+
+          if (!storeName || !weekStartDate) continue;
+
+          // Parse the date and find matching period
+          const dateObj = new Date(weekStartDate);
+          const matchingPeriod = ALL_PERIODS.find(p =>
+            p.type === 'weekly' &&
+            p.startDate.getFullYear() === dateObj.getFullYear() &&
+            p.startDate.getMonth() === dateObj.getMonth() &&
+            p.startDate.getDate() === dateObj.getDate()
+          );
+
+          if (matchingPeriod) {
+            const existingData = await checkExistingData(storeName, matchingPeriod);
+            if (existingData && Object.keys(existingData).length > 0) {
+              duplicates.push({
+                store: storeName,
+                date: weekStartDate,
+                existingKpis: Object.keys(existingData)
+              });
+            }
+          }
+        }
+      }
+
+      // Step 2: If duplicates found, show warning
+      if (duplicates.length > 0) {
+        setDuplicateWarning({ duplicates, jobData: job });
+        return;
+      }
+
+      // Step 3: No duplicates, proceed with import
+      await performImport(job);
+    } catch (error) {
+      console.error('[App] Error in handleConfirmImport:', error);
+      alert(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const performImport = async (job: ActiveJob, skipDuplicates = false) => {
+    try {
+      let successCount = 0;
+      let skipCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      const { ALL_PERIODS } = await import('./utils/dateUtils');
+      const { Kpi } = await import('./types');
+
+      for (const source of job.extractedData) {
+        for (const row of source.data) {
+          try {
+            const storeName = row['Store Name'];
+            const weekStartDate = row['Week Start Date'];
+
+            if (!storeName || !weekStartDate) {
+              errors.push(`Missing store name or date in row`);
+              errorCount++;
+              continue;
+            }
+
+            // Parse date and find matching period
+            const dateObj = new Date(weekStartDate);
+            const matchingPeriod = ALL_PERIODS.find(p =>
+              p.type === 'weekly' &&
+              p.startDate.getFullYear() === dateObj.getFullYear() &&
+              p.startDate.getMonth() === dateObj.getMonth() &&
+              p.startDate.getDate() === dateObj.getDate()
+            );
+
+            if (!matchingPeriod) {
+              errors.push(`No matching period for ${storeName} on ${weekStartDate}`);
+              errorCount++;
+              continue;
+            }
+
+            // Check if should skip duplicate
+            if (skipDuplicates) {
+              const existingData = await checkExistingData(storeName, matchingPeriod);
+              if (existingData && Object.keys(existingData).length > 0) {
+                skipCount++;
+                continue;
+              }
+            }
+
+            // Extract KPI data
+            const kpiData: PerformanceData = {};
+            const kpiMapping: Record<string, typeof Kpi[keyof typeof Kpi]> = {
+              'Sales': Kpi.Sales,
+              'Guests': Kpi.Guests,
+              'Labor%': Kpi.Labor,
+              'SOP': Kpi.SOP,
+              'Avg Ticket': Kpi.AvgTicket,
+              'Prime Cost': Kpi.PrimeCost,
+              'Avg. Reviews': Kpi.AvgReviews,
+              'Food Cost': Kpi.FoodCost,
+              'Variable Labor': Kpi.VariableLabor,
+              'Culinary Audit Score': Kpi.CulinaryAuditScore
+            };
+
+            for (const [columnName, kpi] of Object.entries(kpiMapping)) {
+              const value = row[columnName];
+              if (value !== undefined && value !== null && value !== '') {
+                const numValue = typeof value === 'string' ? parseFloat(value) : value;
+                if (!isNaN(numValue)) {
+                  // Convert percentages from percentage form (28.5) to decimal (0.285)
+                  if (kpi === Kpi.Labor || kpi === Kpi.SOP) {
+                    kpiData[kpi] = numValue / 100;
+                  } else {
+                    kpiData[kpi] = numValue;
+                  }
+                }
+              }
+            }
+
+            // Extract P&L data if present
+            const pnlData = row['pnl'] || [];
+
+            // Save to Firestore
+            if (Object.keys(kpiData).length > 0) {
+              await savePerformanceDataForPeriod(storeName, matchingPeriod, kpiData, pnlData);
+              successCount++;
+            } else {
+              errors.push(`No valid KPI data for ${storeName} on ${weekStartDate}`);
+              errorCount++;
+            }
+          } catch (rowError) {
+            const msg = rowError instanceof Error ? rowError.message : 'Unknown error';
+            errors.push(`Error processing row: ${msg}`);
+            errorCount++;
+          }
+        }
+      }
+
+      // Show results
+      let message = `Import complete!\n✓ ${successCount} records saved`;
+      if (skipCount > 0) message += `\n⊘ ${skipCount} duplicates skipped`;
+      if (errorCount > 0) message += `\n✗ ${errorCount} errors`;
+      if (errors.length > 0) {
+        message += `\n\nErrors:\n${errors.slice(0, 5).join('\n')}`;
+        if (errors.length > 5) message += `\n... and ${errors.length - 5} more`;
+      }
+
+      alert(message);
+      setImportModalOpen(false);
+      setActiveJob(null);
+      setDuplicateWarning(null);
+
+      // Reload data to show new imports
+      if (successCount > 0) {
+        const performanceData = await getPerformanceData();
+        setLoadedData(performanceData);
+      }
+    } catch (error) {
+      console.error('[App] Error in performImport:', error);
+      alert(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   const renderPage = () => {
     switch (activePage) {
@@ -253,6 +424,71 @@ const App = () => {
         activePeriod={activePeriod}
         activeView={activeView}
       />
+
+      {/* Duplicate Warning Modal */}
+      {duplicateWarning && (
+        <Modal
+          isOpen={true}
+          onClose={() => setDuplicateWarning(null)}
+          title="⚠️ Duplicate Data Detected"
+          size="large"
+        >
+          <div className="space-y-4">
+            <div className="bg-yellow-900/30 border border-yellow-700 rounded-md p-4">
+              <p className="text-yellow-300 font-semibold mb-2">
+                The following records already have data in the system:
+              </p>
+              <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-2">
+                {duplicateWarning.duplicates.map((dup, idx) => (
+                  <div key={idx} className="bg-slate-800 rounded p-3 text-sm">
+                    <div className="text-cyan-400 font-semibold">{dup.store}</div>
+                    <div className="text-slate-400">Week: {dup.date}</div>
+                    <div className="text-slate-500 text-xs mt-1">
+                      Existing KPIs: {dup.existingKpis.join(', ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800 border border-slate-700 rounded-md p-4">
+              <p className="text-slate-300 text-sm mb-3">
+                <strong>Choose how to proceed:</strong>
+              </p>
+              <div className="space-y-2 text-sm text-slate-400">
+                <p>• <strong className="text-cyan-400">Skip Duplicates:</strong> Only import new records, preserve existing data</p>
+                <p>• <strong className="text-orange-400">Overwrite All:</strong> Update existing records with new values (KPIs will merge)</p>
+                <p>• <strong className="text-slate-400">Cancel:</strong> Go back and review the data</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+              <button
+                onClick={() => setDuplicateWarning(null)}
+                className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  performImport(duplicateWarning.jobData, true);
+                }}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md transition-colors shadow-lg shadow-cyan-900/20"
+              >
+                Skip Duplicates
+              </button>
+              <button
+                onClick={() => {
+                  performImport(duplicateWarning.jobData, false);
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-6 rounded-md transition-colors shadow-lg shadow-orange-900/20"
+              >
+                Overwrite All
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

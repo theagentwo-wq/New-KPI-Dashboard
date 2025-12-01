@@ -78,21 +78,117 @@ export const getDirectorPerformanceSnapshot = (directorId: string, period: Perio
     return callGeminiAPI('getDirectorPerformanceSnapshot', { directorId, period });
 };
 
-export const startImportJob = async (file: FileUploadResult, importType: 'document' | 'text'): Promise<{ jobId: string }> => {
+export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
       model: 'gemini-1.5-pro-latest',
       prompt: `
-        Analyze the provided ${importType} and extract financial data.
-        - You are a financial analyst reviewing a document.
-        - Your task is to extract all relevant information and structure it as JSON.
-        - The output should be a JSON object with a single key: "results".
-        - The "results" key should contain an array of objects, where each object represents a distinct data set (e.g., "Actuals" or "Budgets").
-        - Each data set object must have the following properties:
-          - "dataType": "Actuals" | "Budget"
-          - "sourceName": string (e.g., the original file name or sheet)
-          - "data": an array of objects, where each object is a row from the source.
-        - If you cannot determine the data type, classify it as "Actuals".
+You are a financial analyst extracting detailed P&L data from restaurant financial reports.
+
+## EXPECTED CSV FORMAT
+The CSV has this structure:
+- Row 1: "completed weeks/#weeks:" header
+- Row 2: Store numbers (4, then store count numbers)
+- Row 3: Store names with prefixes (e.g., "01 - Asheville Downtown", "02 - Asheville South", "27 - Columbia")
+- Row 4+: Line items with values for each store across columns
+- A row with "BUDGET:" separates actuals from budget data
+- After "BUDGET:" row, budget values appear for the same line items
+
+## YOUR TASK
+Extract data for EACH STORE and return in this EXACT JSON format:
+
+{
+  "results": [
+    {
+      "dataType": "Actuals",
+      "sourceName": "Weekly Financial Tracker",
+      "data": [
+        {
+          "Store Name": "Columbia, SC",
+          "Week Start Date": "2025-01-06",
+          "Sales": 342493,
+          "Prime Cost": 171851,
+          "Labor%": 27.9,
+          "SOP": 30.7,
+          "pnl": [
+            {"name": "Month To Date Total NET Sales", "category": "Revenue", "actual": 342493, "budget": 342460, "indent": 0},
+            {"name": "Month To Date Total NET BWL Sales", "category": "Revenue", "actual": 55129, "budget": 79108, "indent": 1},
+            {"name": "Total COGS", "category": "COGS", "actual": 76250, "budget": 78379, "indent": 0},
+            {"name": "Food & N/A Bev COGS", "category": "COGS", "actual": 68254, "budget": 65380, "indent": 1},
+            {"name": "Beverage COGS", "category": "COGS", "actual": 7981, "budget": 13165, "indent": 1},
+            {"name": "Total Labor", "category": "Labor", "actual": 95601, "budget": 117064, "indent": 0},
+            {"name": "Variable Labor", "category": "Labor", "actual": 65940, "budget": 81349, "indent": 1},
+            {"name": "FOH Hourly Labor Expenses", "category": "Labor", "actual": 20764, "budget": 22046, "indent": 2},
+            {"name": "BOH Hourly Labor Expenses", "category": "Labor", "actual": 34805, "budget": 46903, "indent": 2},
+            {"name": "Salary Labor", "category": "Labor", "actual": 29662, "budget": 35715, "indent": 1},
+            {"name": "Prime Cost", "category": "Prime Cost", "actual": 171851, "budget": 195443, "indent": 0},
+            {"name": "Supplies Expenses", "category": "Operating Expenses", "actual": 12862, "budget": 0, "indent": 1},
+            {"name": "Total Store Operating Profit", "category": "Other", "actual": 83974, "budget": 0, "indent": 0}
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+## EXTRACTION STEPS
+
+### Step 1: Parse Store Names
+- Row 3 contains store names with prefixes like "01 - Columbia", "27 - Columbia"
+- Extract ONLY the store name WITHOUT prefix (e.g., "Columbia" not "01 - Columbia")
+- If store name doesn't include state, add ", SC" or appropriate state
+
+### Step 2: Identify Line Items
+Parse each row from Row 4 onward:
+- First column is the line item name
+- Remaining columns are values for each store
+- Stop when you reach "BUDGET:" row
+
+### Step 3: Categorize Line Items
+Assign category based on line item name:
+- **Revenue**: "NET Sales", "BWL Sales", "Gross Sales"
+- **COGS**: "COGS", "Food", "Beverage", "Wine", "Liquor", "Beer", "Merchandise"
+- **Labor**: "Labor", "FOH", "BOH", "Salary", "Hourly", "Payroll Tax", "Benefit"
+- **Prime Cost**: "Prime Cost"
+- **Operating Expenses**: "Supplies", "Small Wares", "Equipment", "Facility", "Utility", "Marketing", "Technology", "Rent", "CAM", "Property Tax", "Fee", "Administration", "Merchant"
+- **Other**: "Operating Profit", "SOP", "EBITDA"
+
+### Step 4: Determine Indent Level
+- **Indent 0** (Parent): "Total", "Month To Date", "Prime Cost", "Store Operating Profit"
+- **Indent 1** (Child): Line items that are components of a parent (e.g., "Food COGS" under "Total COGS", "Variable Labor" under "Total Labor")
+- **Indent 2** (Grandchild): Further breakdown (e.g., "FOH Hourly" under "Variable Labor", "Dairy" under "Food COGS")
+
+### Step 5: Extract Budget Data
+After the "BUDGET:" row marker:
+- Same line items appear with budget values
+- Match budget values to actuals by line item name
+- If no budget row found, set budget to 0
+
+### Step 6: Calculate Summary KPIs
+From the P&L data, extract these top-level KPIs for dashboard:
+- **Sales**: "Month To Date Total NET Sales" actual value
+- **Prime Cost**: "Prime Cost" actual value
+- **Labor%**: "Total Labor" / "Sales" * 100
+- **SOP**: "Total Store Operating Profit" / "Sales" * 100
+- **Food Cost**: "Food & N/A Bev COGS" actual value
+- **Variable Labor**: "Variable Labor" actual value
+
+### Step 7: Determine Week Start Date
+Look for a date in the filename or document. If found, convert to YYYY-MM-DD. If not found, use "2025-01-06" as default.
+
+## CRITICAL RULES
+1. **Store Names**: Clean prefixes (extract "Columbia, SC" from "27 - Columbia")
+2. **Numbers**: Remove $, %, commas (extract 342493 from "$342,493")
+3. **Percentages**: Convert to decimal (27.9% → 27.9)
+4. **Categories**: Assign based on line item name matching
+5. **Indent Levels**: Determine from line item name patterns
+6. **Budget Matching**: Match budget to actuals by line item name
+7. **All Stores**: Create a data object for EVERY store in row 3
+
+## OUTPUT FORMAT
+Return ONLY the JSON object. No markdown, no explanations.
+
+Respond with the complete results object containing data for ALL stores found in the CSV.
       `,
       files: [{
         filePath: file.filePath,

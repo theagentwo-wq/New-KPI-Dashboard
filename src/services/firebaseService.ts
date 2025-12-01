@@ -15,7 +15,8 @@ import {
     FileUploadResult,
     FirebaseStatus,
     NoteCategory,
-    Budget
+    Budget,
+    FinancialLineItem
 } from '../types';
 import { DIRECTORS, STORE_DETAILS } from '../constants';
 
@@ -233,14 +234,32 @@ export const deleteNoteById = async (noteId: string): Promise<void> => {
 
 // --- Performance Data Functions ---
 
-export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData): Promise<void> => {
+export const checkExistingData = async (storeId: string, period: Period): Promise<PerformanceData | null> => {
     const docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
     const docRef = doc(actualsCollection, docId);
-    await setDoc(docRef, {
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data().data as PerformanceData;
+    }
+    return null;
+};
+
+export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData, pnl?: FinancialLineItem[]): Promise<void> => {
+    const docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
+    const docRef = doc(actualsCollection, docId);
+    const docData: any = {
         storeId,
         workStartDate: period.startDate.toISOString(),
         data: data
-    }, { merge: true });
+    };
+
+    // Include pnl array if provided
+    if (pnl && pnl.length > 0) {
+        docData.pnl = pnl;
+    }
+
+    await setDoc(docRef, docData, { merge: true });
 };
 
 export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {

@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { startImportJob } from '../services/geminiService';
 import { uploadFile, uploadTextAsFile } from '../services/firebaseService';
+import { callGeminiAPI } from '../lib/ai-client';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
 import { resizeImage } from '../utils/imageUtils';
@@ -93,6 +94,58 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     }
     return () => { if (interval) clearInterval(interval); };
   }, [step]);
+
+  // Job polling mechanism - check AI job status every 3 seconds
+  useEffect(() => {
+    if (!activeJob || activeJob.step !== 'pending') return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await callGeminiAPI('checkTaskStatus', { jobId: activeJob.id });
+
+        if (status.status === 'completed' && status.results) {
+          // Job completed successfully - move to verification step
+          setActiveJob({
+            ...activeJob,
+            step: 'verify',
+            extractedData: status.results,
+            statusLog: [...activeJob.statusLog, '✓ SUCCESS: AI analysis complete, ready for verification'],
+            progress: { current: 1, total: 1 }
+          });
+          clearInterval(pollInterval);
+        } else if (status.status === 'failed') {
+          // Job failed
+          setActiveJob({
+            ...activeJob,
+            step: 'error',
+            errors: [...activeJob.errors, status.error || 'Unknown error occurred'],
+            statusLog: [...activeJob.statusLog, `✗ ERROR: ${status.error || 'Job failed'}`]
+          });
+          clearInterval(pollInterval);
+        } else if (status.status === 'running') {
+          // Still processing - update status log
+          const newLog = `Processing... (${Math.floor((Date.now() - new Date(activeJob.statusLog[0]).getTime()) / 1000)}s elapsed)`;
+          if (activeJob.statusLog[activeJob.statusLog.length - 1] !== newLog) {
+            setActiveJob({
+              ...activeJob,
+              statusLog: [...activeJob.statusLog.slice(0, -1), newLog]
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[ImportDataModal] Error polling job status:', error);
+        setActiveJob(prev => ({
+          ...prev!,
+          step: 'error',
+          errors: [...(prev?.errors || []), `Polling error: ${error instanceof Error ? error.message : 'Unknown error'}`],
+          statusLog: [...(prev?.statusLog || []), `✗ ERROR: Failed to check job status`]
+        }));
+        clearInterval(pollInterval);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [activeJob]);
 
   const processAndSetFiles = async (files: File[]) => {
       const excelFile = files.find(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.xlsm'));

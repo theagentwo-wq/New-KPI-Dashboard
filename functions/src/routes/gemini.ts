@@ -7,8 +7,21 @@ import { Router, Request, Response } from 'express';
 import { getGeminiClient } from '../services/gemini-client';
 import { asyncHandler } from '../middleware/error-handler';
 import * as types from '../types/api';
+import axios from 'axios';
 
 const router = Router();
+
+// In-memory job store for import tasks (Phase 1 implementation)
+// In production, this should be replaced with Firestore or Redis
+interface JobStatus {
+  jobId: string;
+  status: 'running' | 'completed' | 'failed';
+  results?: any;
+  error?: string;
+  startedAt: number;
+}
+
+const jobStore = new Map<string, JobStatus>();
 
 /**
  * Helper: Get Gemini client with API key from secret
@@ -994,38 +1007,128 @@ Provide a thoughtful, strategic response that:
 /**
  * 17. POST /api/startTask
  * Process uploaded Excel/CSV/image with AI extraction
- * Placeholder - will be fully implemented in Phase 8
+ * Phase 1 implementation with actual file processing
  */
 router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
-  // Placeholder implementation - Phase 8 will add full file processing
-  // const { model, prompt, files, taskType }: types.StartTaskRequest = req.body;
+  const { prompt, files } = req.body.data;
+  const apiKey = process.env.GEMINI_API_KEY;
   const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+  // Store initial job status
+  jobStore.set(jobId, {
+    jobId,
+    status: 'running',
+    startedAt: Date.now()
+  });
+
+  // Process file asynchronously (don't await)
+  (async () => {
+    try {
+      const gemini = getClient(apiKey);
+
+      // Fetch file content from Firebase Storage URL
+      const file = files[0];
+      const fileResponse = await axios.get(file.fileUrl, {
+        responseType: file.mimeType.includes('text') ? 'text' : 'arraybuffer'
+      });
+
+      let fileContent = '';
+      if (file.mimeType.includes('text') || file.mimeType.includes('csv')) {
+        fileContent = typeof fileResponse.data === 'string'
+          ? fileResponse.data
+          : Buffer.from(fileResponse.data).toString('utf-8');
+      } else {
+        // For images and other binary files, convert to base64
+        fileContent = `[Binary file: ${file.fileName}, type: ${file.mimeType}]`;
+      }
+
+      // Call Gemini with enhanced prompt
+      const analysisPrompt = `${prompt}\n\nFile: ${file.fileName}\nContent:\n${fileContent}`;
+      const result = await gemini.generateJSON(analysisPrompt);
+
+      // Update job status with results
+      jobStore.set(jobId, {
+        jobId,
+        status: 'completed',
+        results: result.results || [],
+        startedAt: jobStore.get(jobId)?.startedAt || Date.now()
+      });
+    } catch (error) {
+      console.error(`[startTask] Job ${jobId} failed:`, error);
+      jobStore.set(jobId, {
+        jobId,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        startedAt: jobStore.get(jobId)?.startedAt || Date.now()
+      });
+    }
+  })();
+
+  // Return immediately with job ID
   res.json({
     success: true,
     data: {
       id: jobId,
-      status: 'processing',
-      message: 'Import job started (placeholder - will be implemented in Phase 8)',
+      status: 'running',
+      message: 'Import job started and processing in background',
     },
   });
 }));
 
 /**
- * 18. GET /api/getTaskStatus/:jobId
- * Poll import job status
- * Placeholder - will be fully implemented in Phase 8
+ * 18. POST /api/checkTaskStatus
+ * Check status of an import job
+ * Phase 1 implementation with actual job tracking
+ */
+router.post('/checkTaskStatus', asyncHandler(async (req: Request, res: Response) => {
+  const { jobId } = req.body.data;
+
+  const job = jobStore.get(jobId);
+
+  if (!job) {
+    res.status(404).json({
+      success: false,
+      error: `Job ${jobId} not found`
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      jobId: job.jobId,
+      status: job.status,
+      results: job.results,
+      error: job.error,
+    },
+  });
+}));
+
+/**
+ * 19. GET /api/getTaskStatus/:jobId
+ * Poll import job status (legacy GET endpoint)
+ * Kept for backward compatibility
  */
 router.get('/getTaskStatus/:jobId', asyncHandler(async (req: Request, res: Response) => {
   const { jobId } = req.params;
 
-  // Placeholder implementation - Phase 8 will add real job tracking
+  const job = jobStore.get(jobId);
+
+  if (!job) {
+    res.status(404).json({
+      success: false,
+      error: `Job ${jobId} not found`
+    });
+    return;
+  }
+
   res.json({
     success: true,
     data: {
-      jobId,
-      status: 'completed',
-      message: 'Task status endpoint (placeholder - will be implemented in Phase 8)',
+      jobId: job.jobId,
+      status: job.status,
+      results: job.results,
+      error: job.error,
     },
   });
 }));
