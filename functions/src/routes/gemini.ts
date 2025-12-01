@@ -364,8 +364,6 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     const primeCost = extractValue('prime cost', 'mtdActual');
 
     // Extract percentages (already in percentage form like 32.5)
-    const cogsPercent = extractValue('cogs %', 'mtdActual');
-    const variableLaborPercent = extractValue('variable labor %', 'mtdActual');
     const totalLaborPercent = extractValue('total labor %', 'mtdActual');
     const sopPercent = extractValue('sop %', 'mtdActual') || extractValue('sop', 'mtdActual');
 
