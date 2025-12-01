@@ -10,134 +10,6 @@ const FISCAL_YEAR_STARTS: { [year: number]: Date } = {
   2027: new Date(2026, 11, 28), // Dec 28, 2026
 };
 
-export const getPeriodOptions = (): Period[] => {
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth(); // 0-11
-
-  const periods: Period[] = [];
-
-  // Current Quarter
-  const currentQuarter = Math.floor(currentMonth / 3) + 1;
-  periods.push({ 
-    label: `Q${currentQuarter} ${currentYear}`,
-    startDate: new Date(currentYear, (currentQuarter-1) * 3, 1),
-    endDate: new Date(currentYear, currentQuarter * 3, 0),
-    type: 'quarterly',
-    year: currentYear,
-    quarter: currentQuarter
-  });
-
-  // Previous Quarter
-  let prevQuarter = currentQuarter - 1;
-  let prevQuarterYear = currentYear;
-  if (prevQuarter === 0) {
-    prevQuarter = 4;
-    prevQuarterYear -= 1;
-  }
-  periods.push({ 
-    label: `Q${prevQuarter} ${prevQuarterYear}`,
-    startDate: new Date(prevQuarterYear, (prevQuarter-1) * 3, 1),
-    endDate: new Date(prevQuarterYear, prevQuarter * 3, 0),
-    type: 'quarterly',
-    year: prevQuarterYear,
-    quarter: prevQuarter
-  });
-
-  // Year-to-Date
-  periods.push({
-    label: `YTD ${currentYear}`,
-    startDate: new Date(currentYear, 0, 1),
-    endDate: today,
-    type: 'yearly',
-    year: currentYear,
-    quarter: currentQuarter
-  });
-
-  // Last 90 Days
-  const last90 = new Date();
-  last90.setDate(today.getDate() - 90);
-  periods.push({
-    label: 'Last 90 Days',
-    startDate: last90,
-    endDate: today,
-    type: 'daily',
-    year: currentYear,
-    quarter: currentQuarter
-  });
-
-  return periods;
-};
-
-export const getDefaultPeriod = (): Period => {
-    return getPeriodOptions()[0];
-}
-
-export const getInitialPeriod = (): Period => {
-    return getPeriodOptions()[0];
-}
-
-export const getPreviousPeriod = (currentPeriod: Period): Period => {
-    const allPeriods = getPeriodOptions();
-    const currentIndex = allPeriods.findIndex(p => p.label === currentPeriod.label);
-    return allPeriods[currentIndex + 1] || allPeriods[allPeriods.length - 1];
-}
-
-export const getYoYPeriod = (currentPeriod: Period): Period => {
-    const previousYear = currentPeriod.startDate.getFullYear() - 1;
-    const previousYearStartDate = new Date(currentPeriod.startDate);
-    previousYearStartDate.setFullYear(previousYear);
-    const previousYearEndDate = new Date(currentPeriod.endDate);
-    previousYearEndDate.setFullYear(previousYear);
-
-    return {
-        ...currentPeriod,
-        label: `${currentPeriod.label} (YoY)`,
-        startDate: previousYearStartDate,
-        endDate: previousYearEndDate,
-        year: previousYear
-    };
-}
-
-export const getMonthlyPeriodForDate = (date: Date): Period => {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0);
-
-  return {
-    label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
-    startDate,
-    endDate,
-    type: 'monthly',
-    year,
-    quarter: Math.floor(month / 3) + 1
-  };
-};
-
-// Generate monthly periods for a range of years
-export const generateMonthlyPeriods = (startYear: number, endYear: number): Period[] => {
-  const periods: Period[] = [];
-
-  for (let year = startYear; year <= endYear; year++) {
-    for (let month = 0; month < 12; month++) {
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0);
-
-      periods.push({
-        label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
-        startDate,
-        endDate,
-        type: 'monthly',
-        year,
-        quarter: Math.floor(month / 3) + 1
-      });
-    }
-  }
-
-  return periods;
-};
-
 // Generate 4-4-5 fiscal periods for a range of fiscal years
 export const generate445FiscalPeriods = (startFiscalYear: number, endFiscalYear: number): Period[] => {
   const periods: Period[] = [];
@@ -215,6 +87,29 @@ export const generateWeeklyPeriods = (startYear: number, endYear: number): Perio
   return periods;
 };
 
+// Generate monthly periods for a range of years
+export const generateMonthlyPeriods = (startYear: number, endYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    for (let month = 0; month < 12; month++) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      periods.push({
+        label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
+        startDate,
+        endDate,
+        type: 'monthly',
+        year,
+        quarter: Math.floor(month / 3) + 1
+      });
+    }
+  }
+
+  return periods;
+};
+
 // Generate quarterly periods for a range of years
 export const generateQuarterlyPeriods = (startYear: number, endYear: number): Period[] => {
   const periods: Period[] = [];
@@ -277,3 +172,99 @@ export const ALL_PERIODS = [
   ...generateQuarterlyPeriods(2023, 2025),
   ...generateYearlyPeriods(2023, 2025)
 ];
+
+// Get current fiscal period for today's date
+export const getPeriodOptions = (): Period[] => {
+  const today = new Date();
+  const currentPeriod = findFiscalPeriodForDate(today);
+
+  if (!currentPeriod) {
+    // Fallback if no period found
+    return generate445FiscalPeriods(2024, 2026).slice(0, 3);
+  }
+
+  const periods: Period[] = [];
+  const allFiscalPeriods = generate445FiscalPeriods(2024, 2026);
+  const currentIndex = allFiscalPeriods.findIndex(p => p.label === currentPeriod.label);
+
+  // Current Period
+  periods.push(currentPeriod);
+
+  // Previous Period (if exists)
+  if (currentIndex > 0) {
+    periods.push(allFiscalPeriods[currentIndex - 1]);
+  }
+
+  // Fiscal Year-to-Date (from fiscal year start to today)
+  const fiscalYearStart = FISCAL_YEAR_STARTS[currentPeriod.year];
+  if (fiscalYearStart) {
+    periods.push({
+      label: `FY${currentPeriod.year} YTD`,
+      startDate: fiscalYearStart,
+      endDate: today,
+      type: 'yearly',
+      year: currentPeriod.year,
+      quarter: currentPeriod.quarter
+    });
+  }
+
+  // Last 90 Days
+  const last90 = new Date();
+  last90.setDate(today.getDate() - 90);
+  periods.push({
+    label: 'Last 90 Days',
+    startDate: last90,
+    endDate: today,
+    type: 'daily',
+    year: currentPeriod.year,
+    quarter: currentPeriod.quarter
+  });
+
+  return periods;
+};
+
+export const getDefaultPeriod = (): Period => {
+    return getPeriodOptions()[0];
+}
+
+export const getInitialPeriod = (): Period => {
+    return getPeriodOptions()[0];
+}
+
+export const getPreviousPeriod = (currentPeriod: Period): Period => {
+    const allPeriods = getPeriodOptions();
+    const currentIndex = allPeriods.findIndex(p => p.label === currentPeriod.label);
+    return allPeriods[currentIndex + 1] || allPeriods[allPeriods.length - 1];
+}
+
+export const getYoYPeriod = (currentPeriod: Period): Period => {
+    const previousYear = currentPeriod.startDate.getFullYear() - 1;
+    const previousYearStartDate = new Date(currentPeriod.startDate);
+    previousYearStartDate.setFullYear(previousYear);
+    const previousYearEndDate = new Date(currentPeriod.endDate);
+    previousYearEndDate.setFullYear(previousYear);
+
+    return {
+        ...currentPeriod,
+        label: `${currentPeriod.label} (YoY)`,
+        startDate: previousYearStartDate,
+        endDate: previousYearEndDate,
+        year: previousYear
+    };
+}
+
+export const getMonthlyPeriodForDate = (date: Date): Period => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  return {
+    label: `${startDate.toLocaleString('default', { month: 'long' })} ${year}`,
+    startDate,
+    endDate,
+    type: 'monthly',
+    year,
+    quarter: Math.floor(month / 3) + 1
+  };
+};

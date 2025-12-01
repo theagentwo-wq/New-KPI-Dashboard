@@ -398,8 +398,6 @@ const App = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header
           activeView={activeView}
-          activePeriod={activePeriod}
-          setActivePeriod={setActivePeriod}
         />
         <main className="flex-1 overflow-y-auto">
           {renderPage()}

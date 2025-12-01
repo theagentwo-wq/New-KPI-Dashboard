@@ -56,21 +56,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const isListeningRef = useRef(false);
   const recognitionRef = useRef<any>(null);
 
-  // Get current week number (Monday-start)
+  // Get current fiscal week for today's date
   const getCurrentWeek = () => {
     const now = new Date();
-    const monday = new Date(now);
-    const day = monday.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
-    monday.setDate(monday.getDate() + diff);
-    monday.setHours(0, 0, 0, 0);
 
-    // Find matching weekly period
+    // Find matching fiscal weekly period that contains today
     const weeklyPeriods = ALL_PERIODS.filter((p: Period) => p.type === 'weekly');
     const matchingWeek = weeklyPeriods.find(p => {
-      const start = new Date(p.startDate);
-      start.setHours(0, 0, 0, 0);
-      return start.getTime() === monday.getTime();
+      return now >= p.startDate && now <= p.endDate;
     });
 
     return matchingWeek || null;
