@@ -287,27 +287,46 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     throw new Error('Horizontal CSV does not have enough rows (expected at least 3)');
   }
 
-  // Find the header row dynamically (look for row with "Actual Sales", "COGS", "Variable Labor", etc.)
-  let headerRowIdx = -1;
+  // Find the metric row (row with "Actual Sales", "COGS", "Variable Labor")
+  let metricRowIdx = -1;
   for (let i = 0; i < records.length; i++) {
     const row = records[i];
     const rowText = row.join(' ').toLowerCase();
-    if (rowText.includes('actual sales') || rowText.includes('cogs') || rowText.includes('variable labor')) {
+    if (rowText.includes('actual sales') || (rowText.includes('cogs') && rowText.includes('variable labor'))) {
+      metricRowIdx = i;
+      console.log(`[parsePnLCsvHorizontal] Found metric row at index ${i}`);
+      break;
+    }
+  }
+
+  if (metricRowIdx === -1) {
+    throw new Error('Could not find metric row in CSV (looking for "Actual Sales", "COGS", "Variable Labor")');
+  }
+
+  // Now find the actual column header row (row with "MTD Actual", "Plan", "O/U")
+  // This is usually a few rows after the metric row
+  let headerRowIdx = -1;
+  for (let i = metricRowIdx; i < Math.min(metricRowIdx + 10, records.length); i++) {
+    const row = records[i];
+    const rowText = row.join(' ').toLowerCase();
+    if (rowText.includes('mtd actual') && rowText.includes('plan')) {
       headerRowIdx = i;
-      console.log(`[parsePnLCsvHorizontal] Found header row at index ${i}`);
+      console.log(`[parsePnLCsvHorizontal] Found column header row at index ${i}`);
       break;
     }
   }
 
   if (headerRowIdx === -1) {
-    throw new Error('Could not find header row in CSV (looking for "Actual Sales", "COGS", "Variable Labor")');
+    throw new Error('Could not find column header row in CSV (looking for "MTD Actual", "Plan")');
   }
 
+  const metricRow = records[metricRowIdx];
   const headerRow = records[headerRowIdx];
-  console.log(`[parsePnLCsvHorizontal] Headers:`, headerRow.slice(0, 10));
+  console.log(`[parsePnLCsvHorizontal] Metric row:`, metricRow.slice(0, 10));
+  console.log(`[parsePnLCsvHorizontal] Header row:`, headerRow.slice(0, 10));
 
   // Find column indices for key metrics
-  // Look for "MTD Actual" or "Plan" or "O/U" columns for each metric
+  // Look for "MTD Actual" or "Plan" columns for each metric
   interface MetricColumns {
     mtdActual?: number;
     plan?: number;
@@ -315,27 +334,31 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
 
   const metrics: { [key: string]: MetricColumns } = {};
 
-  // Scan headers to find metric columns
+  // Scan both rows to map metric names to their MTD Actual / Plan columns
   let currentMetric = '';
-  for (let i = 1; i < headerRow.length; i++) {
-    const header = headerRow[i]?.trim().toLowerCase();
 
-    // Detect metric name (headers like "COGS", "Variable Labor", "Total Labor", etc.)
-    if (header && !header.includes('week') && !header.includes('mtd') && !header.includes('plan') && !header.includes('o/u') && header.length > 2) {
-      currentMetric = header;
+  for (let i = 1; i < metricRow.length; i++) {
+    const metricName = metricRow[i]?.trim().toLowerCase();
+
+    // Detect metric name changes (non-empty cells in metric row)
+    if (metricName && metricName.length > 2 && !metricName.includes('week')) {
+      currentMetric = metricName;
       if (!metrics[currentMetric]) {
         metrics[currentMetric] = {};
       }
     }
 
-    // Detect MTD Actual column
-    if (header && header.includes('mtd') && currentMetric) {
-      metrics[currentMetric].mtdActual = i;
-    }
+    // Check if this column has "MTD Actual" or "Plan" in the header row
+    if (currentMetric && i < headerRow.length) {
+      const colHeader = headerRow[i]?.trim().toLowerCase();
 
-    // Detect Plan column
-    if (header && header.includes('plan') && currentMetric) {
-      metrics[currentMetric].plan = i;
+      if (colHeader && colHeader.includes('mtd')) {
+        metrics[currentMetric].mtdActual = i;
+      }
+
+      if (colHeader && colHeader.includes('plan')) {
+        metrics[currentMetric].plan = i;
+      }
     }
   }
 
