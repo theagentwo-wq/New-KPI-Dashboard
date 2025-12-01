@@ -62,6 +62,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [stagedText, setStagedText] = useState<string>('');
   const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const [selectedWeekStartDate, setSelectedWeekStartDate] = useState<string>('');
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +74,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStagedText('');
     setStagedWorkbook(null);
     setSelectedSheets([]);
+    setSelectedWeekStartDate('');
   };
   
   useEffect(() => {
@@ -184,6 +186,18 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const handleToggleSheet = (sheetName: string) => setSelectedSheets(prev => prev.includes(sheetName) ? prev.filter(s => s !== sheetName) : [...prev, sheetName]);
 
   const handleAnalyze = () => {
+    console.log('[ImportDataModal] handleAnalyze called', {
+      filesCount: stagedFiles.length,
+      hasText: !!stagedText,
+      hasWorkbook: !!stagedWorkbook,
+      selectedDate: selectedWeekStartDate
+    });
+
+    if (!selectedWeekStartDate) {
+      alert('Please select a week start date before analyzing.');
+      return;
+    }
+
     let jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[] = [];
     if (stagedFiles.length > 0) jobs = stagedFiles.map(file => ({ type: 'file', content: file, name: file.name }));
     else if (stagedText.trim().length > 0) jobs.push({ type: 'text-chunk', content: stagedText, name: 'Pasted text' });
@@ -202,9 +216,13 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
 
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     if (jobs.length === 0) return;
-    
+
+    console.log('[ImportDataModal] Starting analysis jobs', { count: jobs.length, selectedDate: selectedWeekStartDate });
+
     try {
         const job = jobs[0];
+
+        console.log('[ImportDataModal] Uploading file...', job.name);
         const uploadResult: FileUploadResult = await (async () => {
             if (job.type === 'file') {
                 return await uploadFile(job.content as File, () => {});
@@ -213,11 +231,33 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             }
         })();
 
-        const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text');
-        setActiveJob({ id: jobId, step: 'pending', statusLog: [`[1/1] Submitting job for '${job.name}'...`], progress: { current: 0, total: 1 }, errors: [], extractedData: [] });
+        console.log('[ImportDataModal] File uploaded, starting AI job with date:', selectedWeekStartDate);
+        const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text', selectedWeekStartDate);
+
+        console.log('[ImportDataModal] AI job started, jobId:', jobId);
+        setActiveJob({
+          id: jobId,
+          step: 'pending',
+          statusLog: [
+            `📁 File uploaded: ${job.name}`,
+            `📅 Week start date: ${selectedWeekStartDate}`,
+            `🤖 AI analysis started...`
+          ],
+          progress: { current: 0, total: 1 },
+          errors: [],
+          extractedData: []
+        });
     } catch (err) {
+        console.error('[ImportDataModal] Error in runAnalysisJobs:', err);
         const errorMsg = err instanceof Error ? err.message : 'Failed to submit job.';
-        setActiveJob(prev => ({ ...prev!, step: 'error', errors: [...(prev?.errors || []), errorMsg] }));
+        setActiveJob({
+          id: '',
+          step: 'error',
+          statusLog: ['❌ Analysis failed'],
+          progress: { current: 0, total: 1 },
+          errors: [errorMsg],
+          extractedData: []
+        });
     }
   };
 
@@ -273,6 +313,26 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                 </>
               )}
             </div>
+
+            {/* Date Picker - Show when files are staged */}
+            {(stagedFiles.length > 0 || stagedWorkbook || stagedText) && (
+              <div className="mt-4 p-4 bg-slate-900/50 border border-slate-700 rounded-lg">
+                <label htmlFor="week-start-date" className="block text-sm font-medium text-slate-300 mb-2">
+                  📅 Week Start Date for this data:
+                </label>
+                <input
+                  id="week-start-date"
+                  type="date"
+                  value={selectedWeekStartDate}
+                  onChange={(e) => setSelectedWeekStartDate(e.target.value)}
+                  className="w-full max-w-xs bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  placeholder="YYYY-MM-DD"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Select the Monday of the week this data represents. For monthly data, use the 1st of the month.
+                </p>
+              </div>
+            )}
           </>
         );
       case 'guided-paste': return <p>Guided paste not implemented in this view.</p>;
@@ -324,11 +384,14 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   };
 
   const renderFooter = () => {
-      const isAnalyzeDisabled = stagedFiles.length === 0 && !stagedText.trim() && (!stagedWorkbook || selectedSheets.length === 0);
+      const hasData = stagedFiles.length > 0 || stagedText.trim().length > 0 || (stagedWorkbook && selectedSheets.length > 0);
+      const isAnalyzeDisabled = !hasData || !selectedWeekStartDate;
       switch(step) {
           case 'upload': return (<>
               <button onClick={handleFullClose} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Cancel</button>
-              <button onClick={handleAnalyze} disabled={isAnalyzeDisabled} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">Analyze</button>
+              <button onClick={handleAnalyze} disabled={isAnalyzeDisabled} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed shadow-lg shadow-cyan-900/20">
+                Analyze {!selectedWeekStartDate && hasData ? '(Select date first)' : ''}
+              </button>
           </>);
           case 'verify': return (<>
               <button onClick={() => setActiveJob(null)} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-md">Back</button>

@@ -78,7 +78,7 @@ export const getDirectorPerformanceSnapshot = (directorId: string, period: Perio
     return callGeminiAPI('getDirectorPerformanceSnapshot', { directorId, period });
 };
 
-export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text'): Promise<{ jobId: string }> => {
+export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text', weekStartDate?: string): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
       model: 'gemini-1.5-pro-latest',
@@ -173,8 +173,10 @@ From the P&L data, extract these top-level KPIs for dashboard:
 - **Food Cost**: "Food & N/A Bev COGS" actual value
 - **Variable Labor**: "Variable Labor" actual value
 
-### Step 7: Determine Week Start Date
-Look for a date in the filename or document. If found, convert to YYYY-MM-DD. If not found, use "2025-01-06" as default.
+### Step 7: Use Provided Week Start Date
+Use this exact week start date for ALL stores: ${weekStartDate || '2025-01-06'}
+- This is the Monday of the week (or 1st of month for monthly data)
+- Set "Week Start Date" field to this exact value for every store
 
 ## CRITICAL RULES
 1. **Store Names**: Clean prefixes (extract "Columbia, SC" from "27 - Columbia")
