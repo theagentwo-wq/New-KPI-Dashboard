@@ -287,8 +287,23 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     throw new Error('Horizontal CSV does not have enough rows (expected at least 3)');
   }
 
-  // Row 2 (index 1) contains column headers
-  const headerRow = records[1];
+  // Find the header row dynamically (look for row with "Actual Sales", "COGS", "Variable Labor", etc.)
+  let headerRowIdx = -1;
+  for (let i = 0; i < records.length; i++) {
+    const row = records[i];
+    const rowText = row.join(' ').toLowerCase();
+    if (rowText.includes('actual sales') || rowText.includes('cogs') || rowText.includes('variable labor')) {
+      headerRowIdx = i;
+      console.log(`[parsePnLCsvHorizontal] Found header row at index ${i}`);
+      break;
+    }
+  }
+
+  if (headerRowIdx === -1) {
+    throw new Error('Could not find header row in CSV (looking for "Actual Sales", "COGS", "Variable Labor")');
+  }
+
+  const headerRow = records[headerRowIdx];
   console.log(`[parsePnLCsvHorizontal] Headers:`, headerRow.slice(0, 10));
 
   // Find column indices for key metrics
@@ -326,10 +341,12 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
 
   console.log(`[parsePnLCsvHorizontal] Found metrics:`, Object.keys(metrics));
 
-  // Process each store row (starting from row 3)
+  // Process each store row (starting from row after header)
   const results: any[] = [];
+  const dataStartIdx = headerRowIdx + 1;
+  console.log(`[parsePnLCsvHorizontal] Starting data extraction from row index ${dataStartIdx}`);
 
-  for (let rowIdx = 2; rowIdx < records.length; rowIdx++) {
+  for (let rowIdx = dataStartIdx; rowIdx < records.length; rowIdx++) {
     const row = records[rowIdx];
     const storeName = row[0]?.trim();
 
