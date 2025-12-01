@@ -245,6 +245,40 @@ export const checkExistingData = async (storeId: string, period: Period): Promis
     return null;
 };
 
+export const clearPeriodData = async (period: Period, storeId?: string): Promise<number> => {
+    try {
+        const startDateStr = period.startDate.toISOString();
+        const endDateStr = period.endDate.toISOString();
+
+        // Query all documents within this period's date range
+        const q = query(
+            actualsCollection,
+            where('workStartDate', '>=', startDateStr),
+            where('workStartDate', '<=', endDateStr)
+        );
+
+        const snapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        let deleteCount = 0;
+
+        snapshot.docs.forEach(docSnap => {
+            const docData = docSnap.data();
+            // If storeId specified, only delete that store's data
+            if (!storeId || docData.storeId === storeId) {
+                batch.delete(docSnap.ref);
+                deleteCount++;
+            }
+        });
+
+        await batch.commit();
+        console.log(`Cleared ${deleteCount} documents for period ${period.label}${storeId ? ` (store: ${storeId})` : ''}`);
+        return deleteCount;
+    } catch (error) {
+        console.error('Error clearing period data:', error);
+        throw error;
+    }
+};
+
 export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData, pnl?: FinancialLineItem[]): Promise<void> => {
     const docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
     const docRef = doc(actualsCollection, docId);

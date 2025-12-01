@@ -189,15 +189,32 @@ const App = () => {
     }
   };
 
-  const performImport = async (job: ActiveJob, skipDuplicates = false) => {
+  const performImport = async (job: ActiveJob, skipDuplicates = false, clearFirst = false) => {
     try {
       let successCount = 0;
       let skipCount = 0;
       let errorCount = 0;
+      let clearedCount = 0;
       const errors: string[] = [];
 
       const { findFiscalMonthForDate } = await import('./utils/dateUtils');
       const { Kpi } = await import('./types');
+      const { clearPeriodData } = await import('./services/firebaseService');
+
+      // Step 1: Clear existing data for the period if requested
+      if (clearFirst && job.extractedData.length > 0 && job.extractedData[0].data.length > 0) {
+        const firstRow = job.extractedData[0].data[0];
+        const weekStartDate = firstRow['Week Start Date'];
+        if (weekStartDate) {
+          const dateObj = new Date(weekStartDate);
+          const matchingPeriod = findFiscalMonthForDate(dateObj);
+          if (matchingPeriod) {
+            console.log(`[App] Clearing all data for period: ${matchingPeriod.label}`);
+            clearedCount = await clearPeriodData(matchingPeriod);
+            console.log(`[App] Cleared ${clearedCount} existing records`);
+          }
+        }
+      }
 
       for (const source of job.extractedData) {
         for (const row of source.data) {
@@ -282,7 +299,9 @@ const App = () => {
       }
 
       // Show results
-      let message = `Import complete!\n✓ ${successCount} records saved`;
+      let message = `Import complete!`;
+      if (clearedCount > 0) message += `\n🗑️ ${clearedCount} old records cleared`;
+      message += `\n✓ ${successCount} records saved`;
       if (skipCount > 0) message += `\n⊘ ${skipCount} duplicates skipped`;
       if (errorCount > 0) message += `\n✗ ${errorCount} errors`;
       if (errors.length > 0) {
@@ -447,7 +466,7 @@ const App = () => {
               </p>
               <div className="space-y-2 text-sm text-slate-400">
                 <p>• <strong className="text-cyan-400">Skip Duplicates:</strong> Only import new records, preserve existing data</p>
-                <p>• <strong className="text-orange-400">Overwrite All:</strong> Update existing records with new values (KPIs will merge)</p>
+                <p>• <strong className="text-red-400">Clear Period & Replace:</strong> Delete ALL data for this fiscal period (including weekly data), then import fresh data</p>
                 <p>• <strong className="text-slate-400">Cancel:</strong> Go back and review the data</p>
               </div>
             </div>
@@ -461,7 +480,7 @@ const App = () => {
               </button>
               <button
                 onClick={() => {
-                  performImport(duplicateWarning.jobData, true);
+                  performImport(duplicateWarning.jobData, true, false);
                 }}
                 className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-md transition-colors shadow-lg shadow-cyan-900/20"
               >
@@ -469,11 +488,13 @@ const App = () => {
               </button>
               <button
                 onClick={() => {
-                  performImport(duplicateWarning.jobData, false);
+                  if (confirm('⚠️ This will DELETE ALL data for this fiscal period before importing.\n\nThis includes weekly data that may exist.\n\nAre you sure?')) {
+                    performImport(duplicateWarning.jobData, false, true);
+                  }
                 }}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-6 rounded-md transition-colors shadow-lg shadow-orange-900/20"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md transition-colors shadow-lg shadow-red-900/20"
               >
-                Overwrite All
+                🗑️ Clear Period & Replace
               </button>
             </div>
           </div>
