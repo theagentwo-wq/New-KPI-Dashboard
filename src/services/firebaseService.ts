@@ -323,9 +323,14 @@ export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
 
 export const getAggregatedPerformanceDataForPeriod = async (period: Period, storeId?: string): Promise<PerformanceData> => {
     try {
+        // Import KPI_CONFIG to determine aggregation method
+        const { KPI_CONFIG } = await import('../constants');
+
         // Convert dates to ISO strings for querying
         const startDateStr = period.startDate.toISOString();
         const endDateStr = period.endDate.toISOString();
+
+        console.log(`[getAggregatedPerformanceDataForPeriod] Querying period ${period.label} (${startDateStr} to ${endDateStr})${storeId ? ` for store: ${storeId}` : ''}`);
 
         // Build query
         const q = query(
@@ -336,8 +341,15 @@ export const getAggregatedPerformanceDataForPeriod = async (period: Period, stor
 
         const snapshot = await getDocs(q);
 
+        console.log(`[getAggregatedPerformanceDataForPeriod] Found ${snapshot.size} total documents in date range`);
+
+        // Log all document IDs found
+        const docIds = snapshot.docs.map(d => d.id);
+        console.log(`[getAggregatedPerformanceDataForPeriod] Document IDs:`, docIds);
+
         // Filter and aggregate
         const aggregated: PerformanceData = {};
+        const kpiCounts: { [key: string]: number } = {}; // Track count for averaging
         let docCount = 0;
 
         snapshot.docs.forEach(docSnap => {
@@ -345,30 +357,56 @@ export const getAggregatedPerformanceDataForPeriod = async (period: Period, stor
 
             // Apply storeId filter if specified
             if (storeId && docData.storeId !== storeId) {
+                console.log(`[getAggregatedPerformanceDataForPeriod] Skipping ${docSnap.id} - different store (${docData.storeId})`);
                 return;
             }
 
             docCount++;
+            console.log(`[getAggregatedPerformanceDataForPeriod] Processing document ${docCount}: ${docSnap.id}`);
             const data = docData.data as PerformanceData;
 
-            // Aggregate each KPI
+            // Log the data from this document
+            if (data) {
+                console.log(`[getAggregatedPerformanceDataForPeriod]   Data:`, data);
+            }
+
+            // Aggregate each KPI based on its aggregation type
             if (data) {
                 Object.keys(data).forEach(kpi => {
                     const value = data[kpi as Kpi];
                     if (typeof value === 'number') {
                         if (!aggregated[kpi as Kpi]) {
                             aggregated[kpi as Kpi] = 0;
+                            kpiCounts[kpi] = 0;
                         }
+
+                        // Always sum first (we'll divide later for averages)
                         aggregated[kpi as Kpi]! += value;
+                        kpiCounts[kpi]++;
                     }
                 });
             }
         });
 
-        console.log(`Aggregated ${docCount} documents for period ${period.label}${storeId ? ` (store: ${storeId})` : ''}`);
+        // Now apply averaging for KPIs that need it
+        Object.keys(aggregated).forEach(kpi => {
+            const config = KPI_CONFIG[kpi as Kpi];
+            const aggregationType = config?.aggregation || 'sum';
+
+            if (aggregationType === 'avg' && kpiCounts[kpi] > 0) {
+                const originalSum = aggregated[kpi as Kpi]!;
+                aggregated[kpi as Kpi]! = originalSum / kpiCounts[kpi];
+                console.log(`[getAggregatedPerformanceDataForPeriod] ${kpi}: Averaged ${originalSum} / ${kpiCounts[kpi]} = ${aggregated[kpi as Kpi]}`);
+            } else {
+                console.log(`[getAggregatedPerformanceDataForPeriod] ${kpi}: Summed = ${aggregated[kpi as Kpi]}`);
+            }
+        });
+
+        console.log(`[getAggregatedPerformanceDataForPeriod] ✅ Aggregated ${docCount} documents for period ${period.label}${storeId ? ` (store: ${storeId})` : ''}`);
+        console.log(`[getAggregatedPerformanceDataForPeriod] Final aggregated data:`, aggregated);
         return aggregated;
     } catch (error) {
-        console.error('Error fetching aggregated performance data:', error);
+        console.error('[getAggregatedPerformanceDataForPeriod] Error fetching aggregated performance data:', error);
         return {};
     }
 }
