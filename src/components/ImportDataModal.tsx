@@ -410,12 +410,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
         return (
           <div className="space-y-4">
             <p className="text-slate-300 text-sm">AI analysis is complete. Please review the extracted data below for accuracy. You can click on any cell to make corrections before importing.</p>
-            {hasHorizontalFormat && (
-              <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3">
-                <p className="text-amber-300 text-sm font-semibold mb-1">📝 Manual Sales Entry Required</p>
-                <p className="text-amber-200/80 text-xs">This CSV format doesn't include sales data. Please click on each <span className="bg-amber-900/50 text-amber-200 px-1 rounded">Sales cell (showing 0)</span> to enter the actual sales amount for each store.</p>
-              </div>
-            )}
             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar border border-slate-700 rounded-lg">
                 {activeJob.extractedData.map((item, sourceIndex) => {
                     if (item.data.length === 0) return null;

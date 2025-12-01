@@ -408,9 +408,16 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     const totalLabor = extractValue('total labor', 'mtdActual');
     const primeCost = extractValue('prime cost', 'mtdActual');
 
-    // Extract percentages (already in percentage form like 32.5)
-    const totalLaborPercent = extractValue('total labor %', 'mtdActual');
-    const sopPercent = extractValue('sop %', 'mtdActual') || extractValue('sop', 'mtdActual');
+    // Extract SOP from "SOP w/ Budget Mix" or "SOP w/Budget Mix" column
+    const sopPercent = extractValue('sop w/ budget mix', 'mtdActual') ||
+                       extractValue('sop w/budget mix', 'mtdActual') ||
+                       extractValue('sop', 'mtdActual');
+
+    // Extract Reviews from "Open Table" column (rating like 4.4)
+    const reviews = extractValue('open table', 'mtdActual');
+
+    // Extract Culinary Audit from "Steritech" column (score like 92.2)
+    const culinaryAudit = extractValue('steritech', 'mtdActual');
 
     // Build minimal pnl array (since we don't have full line item breakdown)
     const pnl: any[] = [
@@ -420,8 +427,10 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
       { name: 'Prime Cost', category: 'Prime Cost', actual: primeCost, budget: extractValue('prime cost', 'plan'), indent: 0 },
     ];
 
-    // Convert percentages to decimals if they're > 1
-    const laborPercent = totalLaborPercent > 1 ? totalLaborPercent / 100 : totalLaborPercent;
+    // Calculate Labor% from Total Labor dollars: (Total Labor / Sales) * 100
+    const laborPercent = sales > 0 ? (totalLabor / sales) * 100 : 0;
+
+    // SOP is already in percentage form in the CSV (e.g., 32.5 means 32.5%)
     const sopPercentDecimal = sopPercent > 1 ? sopPercent / 100 : sopPercent;
 
     results.push({
@@ -429,10 +438,12 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
       'Week Start Date': weekStartDate,
       Sales: sales,
       'Prime Cost': primeCost,
-      'Labor%': Math.round(laborPercent * 10000) / 10000,
+      'Labor%': Math.round(laborPercent) / 100, // Convert to decimal (e.g., 27.9% -> 0.279)
       SOP: Math.round(sopPercentDecimal * 10000) / 10000,
       'Food Cost': cogs, // Using total COGS as proxy
       'Variable Labor': variableLabor,
+      Reviews: reviews || 0, // Open Table rating
+      'Culinary Audit': culinaryAudit || 0, // Steritech score
       pnl,
     });
   }
@@ -464,16 +475,19 @@ const detectCsvFormat = (csvContent: string): 'vertical' | 'horizontal' => {
 
   if (records.length < 3) return 'vertical'; // Default to vertical
 
-  // Check row 2 for metric-like headers (horizontal format)
-  const row2 = records[1];
-  const hasMetricHeaders = row2.some((cell: string) => {
-    const lower = cell.toLowerCase().trim();
-    return lower.includes('cogs') || lower.includes('labor') || lower.includes('prime cost') || lower.includes('sop');
-  });
+  // Check first 15 rows for metric-like headers (horizontal format)
+  // Scan multiple rows because some CSVs have title rows before the actual headers
+  for (let i = 0; i < Math.min(15, records.length); i++) {
+    const row = records[i];
+    const rowText = row.join(' ').toLowerCase();
 
-  if (hasMetricHeaders) {
-    console.log('[detectCsvFormat] Detected HORIZONTAL format (metrics in headers)');
-    return 'horizontal';
+    // Look for combinations of metrics that indicate horizontal format
+    if ((rowText.includes('actual sales') && rowText.includes('cogs')) ||
+        (rowText.includes('variable labor') && rowText.includes('total labor')) ||
+        (rowText.includes('actual sales') && rowText.includes('variable labor'))) {
+      console.log(`[detectCsvFormat] Detected HORIZONTAL format (found metrics in row ${i})`);
+      return 'horizontal';
+    }
   }
 
   // Check row 3 for store names with prefixes (vertical format)
