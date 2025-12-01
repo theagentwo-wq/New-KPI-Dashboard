@@ -645,23 +645,82 @@ User Location: ${JSON.stringify(userLocation)}`;
  * Analyze note trends - CRITICAL for Notes feature
  */
 router.post('/getNoteTrends', asyncHandler(async (req: Request, res: Response) => {
-  const { notes }: types.GetNoteTrendsRequest = req.body;
+  const { notes }: types.GetNoteTrendsRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are analyzing operational notes from restaurant managers.
+  // Extract metadata from notes for context
+  const timePeriods = [...new Set(notes.map(n => n.monthlyPeriodLabel))];
+  const scopeInfo = notes[0]?.scope;
+  const scopeDescription = scopeInfo?.storeId
+    ? `Location: ${scopeInfo.storeId}`
+    : scopeInfo?.view === 'totalCompany'
+      ? 'Scope: Total Company'
+      : `Region: ${scopeInfo?.view}`;
+  const categoryCounts = notes.reduce((acc, n) => {
+    acc[n.category] = (acc[n.category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-Notes:
-${JSON.stringify(notes, null, 2)}
+  const prompt = `You are analyzing operational notes from restaurant director calls and management meetings.
 
-Analyze these notes and identify:
-1. Recurring themes and patterns
-2. Emerging issues that need attention
-3. Positive trends worth celebrating
-4. Recommended action items for leadership
+## CONTEXT
 
-Be specific and prioritize by impact.`;
+${scopeDescription}
+Time Period(s): ${timePeriods.join(', ')}
+Total Notes: ${notes.length}
+Categories: ${Object.entries(categoryCounts).map(([cat, count]) => `${cat} (${count})`).join(', ')}
 
-  const result = await client.generateFromData(prompt, notes);
+## NOTES DATA
+
+${JSON.stringify(notes.map(n => ({
+  week: n.monthlyPeriodLabel,
+  category: n.category,
+  content: n.content,
+  date: n.createdAt
+})), null, 2)}
+
+## YOUR TASK
+
+Analyze these notes as if you're preparing a **weekly summary for a director**. Focus on actionable insights for leadership.
+
+### 1. Executive Summary (2-3 sentences)
+What's the overall story these notes tell? What should leadership know?
+
+### 2. Recurring Themes & Patterns (Prioritized by Impact)
+
+For each theme:
+- **Theme**: [Name of the pattern]
+- **Frequency**: How often it appears across weeks
+- **Impact**: HIGH / MEDIUM / LOW (on business operations)
+- **Evidence**: Specific quotes/examples from notes
+- **Trend Direction**: ↑ Increasing / → Stable / ↓ Decreasing
+
+### 3. Critical Action Items
+
+List 3-5 **specific, actionable** tasks for leadership:
+- What needs to be done
+- Why it's important (tie to business impact)
+- Suggested owner or team (FOH/BOH/Operations/HR)
+- Priority level (URGENT / HIGH / MEDIUM)
+
+### 4. Wins & Positive Trends
+
+Celebrate what's going well:
+- Operational improvements
+- Team achievements
+- Guest feedback highlights
+
+### 5. Early Warning Signals
+
+Issues that aren't critical yet but need monitoring:
+- What to watch for in next week's notes
+- Potential risks if unaddressed
+
+## OUTPUT FORMAT
+
+Use markdown formatting with clear headers and bullet points. Be concise but specific. Use actual quotes from notes as evidence.`;
+
+  const result = await client.generateContent(prompt);
 
   res.json({
     success: true,
