@@ -5,6 +5,7 @@ import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
+import { RichTextEditor, RichTextEditorHandle } from './RichTextEditor';
 import { getNoteTrends } from '../services/geminiService';
 import { marked } from 'marked';
 import { FirebaseStatus } from '../types';
@@ -45,9 +46,8 @@ const categoryDisplayColors: { [key in NoteCategory]: { bg: string, text: string
 export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updateNote, deleteNote, currentView, heightClass = 'max-h-[600px]', dbStatus }) => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<NoteCategory>(NoteCategory.General);
-  const [stagedImage, setStagedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isListening, setIsListening] = useState(false);
@@ -154,12 +154,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             }
         }
 
-        if (finalTranscript) {
-            setContent(prev => {
-                const trimmedPrev = prev.trim();
-                const spacer = trimmedPrev.length > 0 ? ' ' : '';
-                return trimmedPrev + spacer + finalTranscript;
-            });
+        if (finalTranscript && editorRef.current) {
+            editorRef.current.insertText(' ' + finalTranscript);
         }
     };
 
@@ -274,27 +270,20 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => setStagedImage(e.target?.result as string);
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        // Insert image directly into editor instead of staging
+        if (editorRef.current) {
+          editorRef.current.insertImage(dataUrl);
+        }
+      };
       reader.readAsDataURL(file);
     }
   };
 
   const insertCheckbox = () => {
-    if (contentRef.current) {
-      const textarea = contentRef.current;
-      const cursorPos = textarea.selectionStart;
-      const textBefore = content.substring(0, cursorPos);
-      const textAfter = content.substring(cursorPos);
-
-      // Insert checkbox at cursor position
-      const newContent = textBefore + '- [ ] ' + textAfter;
-      setContent(newContent);
-
-      // Move cursor after the inserted checkbox
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos + 6, cursorPos + 6);
-      }, 0);
+    if (editorRef.current) {
+      editorRef.current.insertCheckbox();
     }
   };
 
@@ -315,9 +304,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
     if (notesPeriod) {
       const scope = JSON.parse(selectedScope);
-      addNote(notesPeriod.label, category, content, scope, stagedImage || undefined);
+      // Note: images are now embedded in the HTML content, not separate
+      addNote(notesPeriod.label, category, content, scope, undefined);
       setContent('');
-      setStagedImage(null);
       setLastSaved(null);
       if(fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -606,7 +595,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             >
               {editingNoteId === note.id ? (
                 <div className="space-y-2">
-                    <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full bg-slate-800 border border-slate-600 rounded-md p-2 text-white text-sm" />
+                    <RichTextEditor
+                      content={editContent}
+                      onChange={setEditContent}
+                      placeholder="Edit your note..."
+                      disabled={false}
+                    />
                     <div className="flex justify-between items-center">
                         <select value={editCategory} onChange={e => setEditCategory(e.target.value as NoteCategory)} className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs focus:ring-cyan-500 focus:border-cyan-500">
                             {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -634,7 +628,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                           <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-200 whitespace-pre-wrap my-3 pl-11">{note.content}</p>
+                    <div
+                      className="prose prose-sm prose-invert max-w-none my-3 pl-11"
+                      dangerouslySetInnerHTML={{ __html: note.content }}
+                    />
                     {note.imageUrl && (
                       <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2 ml-11">
                         <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
@@ -827,23 +824,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
         {/* Add Note Section */}
         <div className="p-4 border-t border-slate-700 space-y-3 bg-slate-800/50">
-          <textarea
-            ref={contentRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
+          <RichTextEditor
+            ref={editorRef}
+            content={content}
+            onChange={setContent}
             placeholder={getPlaceholderText()}
-            rows={3}
-            className={`w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500 ${isListening ? 'ring-2 ring-red-500 border-red-500' : ''}`}
             disabled={dbStatus.status !== 'connected'}
+            className={isListening ? 'ring-2 ring-red-500 border-red-500' : ''}
           />
-          {stagedImage && (
-            <div className="relative w-fit">
-              <img src={stagedImage} alt="Preview" className="max-h-24 rounded border-2 border-slate-500" />
-              <button onClick={() => { setStagedImage(null); if(fileInputRef.current) fileInputRef.current.value = ""; }} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5">
-                <Icon name="x" className="w-4 h-4" />
-              </button>
-            </div>
-          )}
           <div className="flex justify-between items-center pt-2">
              <div className="flex items-center gap-2">
                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
@@ -917,7 +905,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                   <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${categoryDisplayColors[note.category].bg} ${categoryDisplayColors[note.category].text}`}>{note.category}</span>
                   <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
                 </div>
-                <p className="text-sm text-slate-200 whitespace-pre-wrap">{note.content}</p>
+                <div
+                  className="prose prose-sm prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: note.content }}
+                />
                 {note.imageUrl && (
                   <img src={note.imageUrl} alt="Note attachment" className="mt-2 max-h-24 rounded-md border-2 border-slate-600" />
                 )}
@@ -980,7 +971,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                             })}
                           </p>
                         </div>
-                        <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                        <div
+                          className="prose prose-sm prose-invert max-w-none leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: note.content }}
+                        />
                         {note.imageUrl && (
                           <img
                             src={note.imageUrl}

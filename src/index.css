@@ -149,3 +149,85 @@
         display: none;
     }
 }
+
+/* TipTap Rich Text Editor Styles */
+@layer components {
+  /* Editor content base styles */
+  .ProseMirror {
+    @apply text-slate-200 outline-none;
+  }
+
+  /* Placeholder text */
+  .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-slate-500;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Task list styles (checkboxes) */
+  .ProseMirror ul[data-type="taskList"] {
+    @apply list-none pl-0;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li {
+    @apply flex items-start gap-2 mb-2;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li > label {
+    @apply flex items-center gap-2 cursor-pointer flex-1;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+    @apply w-4 h-4 rounded border-2 border-slate-500 bg-slate-800 cursor-pointer;
+    @apply checked:bg-cyan-600 checked:border-cyan-600;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li > label > div {
+    @apply flex-1;
+  }
+
+  /* Paragraph spacing */
+  .ProseMirror p {
+    @apply mb-2;
+  }
+
+  /* List styles */
+  .ProseMirror ul:not([data-type="taskList"]),
+  .ProseMirror ol {
+    @apply pl-6 mb-2;
+  }
+
+  .ProseMirror ul:not([data-type="taskList"]) {
+    @apply list-disc;
+  }
+
+  .ProseMirror ol {
+    @apply list-decimal;
+  }
+
+  /* Headings */
+  .ProseMirror h1 {
+    @apply text-2xl font-bold mb-3 mt-4 text-slate-100;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl font-bold mb-2 mt-3 text-slate-100;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg font-bold mb-2 mt-2 text-slate-100;
+  }
+
+  /* Strong and emphasis */
+  .ProseMirror strong {
+    @apply font-bold text-slate-100;
+  }
+
+  .ProseMirror em {
+    @apply italic;
+  }
+
+  /* Image styles are handled via HTMLAttributes in the Image extension config */
+}
