@@ -62,6 +62,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [stagedText, setStagedText] = useState<string>('');
   const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const [periodType, setPeriodType] = useState<'weekly' | 'monthly'>('weekly');
   const [selectedWeekStartDate, setSelectedWeekStartDate] = useState<string>('');
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
@@ -74,6 +75,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStagedText('');
     setStagedWorkbook(null);
     setSelectedSheets([]);
+    setPeriodType('weekly');
     setSelectedWeekStartDate('');
   };
   
@@ -217,7 +219,17 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     if (jobs.length === 0) return;
 
-    console.log('[ImportDataModal] Starting analysis jobs', { count: jobs.length, selectedDate: selectedWeekStartDate });
+    // Convert month format (YYYY-MM) to full date (YYYY-MM-01) if monthly
+    const dateToUse = periodType === 'monthly' && selectedWeekStartDate.length === 7
+      ? `${selectedWeekStartDate}-01`
+      : selectedWeekStartDate;
+
+    console.log('[ImportDataModal] Starting analysis jobs', {
+      count: jobs.length,
+      periodType,
+      selectedDate: selectedWeekStartDate,
+      dateToUse
+    });
 
     try {
         const job = jobs[0];
@@ -231,8 +243,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             }
         })();
 
-        console.log('[ImportDataModal] File uploaded, starting AI job with date:', selectedWeekStartDate);
-        const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text', selectedWeekStartDate);
+        console.log('[ImportDataModal] File uploaded, starting AI job with date:', dateToUse, 'periodType:', periodType);
+        const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text', dateToUse, periodType);
 
         console.log('[ImportDataModal] AI job started, jobId:', jobId);
         setActiveJob({
@@ -240,7 +252,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
           step: 'pending',
           statusLog: [
             `📁 File uploaded: ${job.name}`,
-            `📅 Week start date: ${selectedWeekStartDate}`,
+            `📊 Period type: ${periodType === 'weekly' ? 'Weekly' : 'Monthly'}`,
+            `📅 Date: ${periodType === 'weekly' ? dateToUse : selectedWeekStartDate}`,
             `🤖 AI analysis started...`
           ],
           progress: { current: 0, total: 1 },
@@ -314,23 +327,64 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
               )}
             </div>
 
-            {/* Date Picker - Show when files are staged */}
+            {/* Period Type & Date Picker - Show when files are staged */}
             {(stagedFiles.length > 0 || stagedWorkbook || stagedText) && (
-              <div className="mt-4 p-4 bg-slate-900/50 border border-slate-700 rounded-lg">
-                <label htmlFor="week-start-date" className="block text-sm font-medium text-slate-300 mb-2">
-                  📅 Week Start Date for this data:
-                </label>
-                <input
-                  id="week-start-date"
-                  type="date"
-                  value={selectedWeekStartDate}
-                  onChange={(e) => setSelectedWeekStartDate(e.target.value)}
-                  className="w-full max-w-xs bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                  placeholder="YYYY-MM-DD"
-                />
-                <p className="text-xs text-slate-400 mt-1">
-                  Select the Monday of the week this data represents. For monthly data, use the 1st of the month.
-                </p>
+              <div className="mt-4 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-4">
+                {/* Period Type Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    📊 Data Period Type:
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="periodType"
+                        value="weekly"
+                        checked={periodType === 'weekly'}
+                        onChange={() => setPeriodType('weekly')}
+                        className="form-radio h-4 w-4 text-cyan-500 bg-slate-800 border-slate-600 focus:ring-cyan-500"
+                      />
+                      <span className="ml-2 text-slate-300">Weekly Data</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="periodType"
+                        value="monthly"
+                        checked={periodType === 'monthly'}
+                        onChange={() => setPeriodType('monthly')}
+                        className="form-radio h-4 w-4 text-cyan-500 bg-slate-800 border-slate-600 focus:ring-cyan-500"
+                      />
+                      <span className="ml-2 text-slate-300">Monthly Data (Full Month)</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {periodType === 'weekly'
+                      ? 'Select this for data from a single week (most common)'
+                      : 'Select this for month-to-date aggregates or full month totals'}
+                  </p>
+                </div>
+
+                {/* Date Picker */}
+                <div>
+                  <label htmlFor="week-start-date" className="block text-sm font-medium text-slate-300 mb-2">
+                    📅 {periodType === 'weekly' ? 'Week Start Date:' : 'Month:'}
+                  </label>
+                  <input
+                    id="week-start-date"
+                    type={periodType === 'weekly' ? 'date' : 'month'}
+                    value={selectedWeekStartDate}
+                    onChange={(e) => setSelectedWeekStartDate(e.target.value)}
+                    className="w-full max-w-xs bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    placeholder={periodType === 'weekly' ? 'YYYY-MM-DD' : 'YYYY-MM'}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {periodType === 'weekly'
+                      ? 'Select the Monday of the week this data represents'
+                      : 'Select the month (system will use the 1st of the month)'}
+                  </p>
+                </div>
               </div>
             )}
           </>

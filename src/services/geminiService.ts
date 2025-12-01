@@ -78,7 +78,7 @@ export const getDirectorPerformanceSnapshot = (directorId: string, period: Perio
     return callGeminiAPI('getDirectorPerformanceSnapshot', { directorId, period });
 };
 
-export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text', weekStartDate?: string): Promise<{ jobId: string }> => {
+export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text', weekStartDate?: string, periodType: 'weekly' | 'monthly' = 'weekly'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
       model: 'gemini-1.5-pro-latest',
@@ -173,10 +173,20 @@ From the P&L data, extract these top-level KPIs for dashboard:
 - **Food Cost**: "Food & N/A Bev COGS" actual value
 - **Variable Labor**: "Variable Labor" actual value
 
-### Step 7: Use Provided Week Start Date
-Use this exact week start date for ALL stores: ${weekStartDate || '2025-01-06'}
-- This is the Monday of the week (or 1st of month for monthly data)
-- Set "Week Start Date" field to this exact value for every store
+### Step 7: Use Provided Date and Period Type
+Period Type: ${periodType.toUpperCase()}
+Date: ${weekStartDate || '2025-01-06'}
+
+${periodType === 'monthly'
+  ? `- This is MONTHLY DATA (full month aggregate)
+- Use the provided date (1st of the month) for "Week Start Date" field
+- The values in the CSV are month-to-date or full month totals
+- Create ONE record per store for this month`
+  : `- This is WEEKLY DATA (single week)
+- Use the provided date (Monday of the week) for "Week Start Date" field
+- Create ONE record per store for this week`}
+
+Set "Week Start Date" field to this exact value for every store: ${weekStartDate || '2025-01-06'}
 
 ## CRITICAL RULES
 1. **Store Names**: Clean prefixes (extract "Columbia, SC" from "27 - Columbia")
