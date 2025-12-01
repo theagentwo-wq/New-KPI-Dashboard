@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Note, NoteCategory, View, Period, StorePerformanceData } from '../types';
+import { Note, NoteCategory, View, Period } from '../types';
 import { NOTE_CATEGORIES, DIRECTORS } from '../constants';
 import { ALL_PERIODS } from '../utils/dateUtils';
 import { Icon } from './Icon';
 import { Modal } from './Modal';
 import { getNoteTrends } from '../services/geminiService';
-import { getPerformanceData } from '../services/firebaseService';
 import { marked } from 'marked';
 import { FirebaseStatus } from '../types';
 
@@ -104,22 +103,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [summarySearchTerm, setSummarySearchTerm] = useState('');
 
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [performanceData, setPerformanceData] = useState<StorePerformanceData[]>([]);
-
-  // Fetch performance data for Quick Director Context
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getPerformanceData();
-        setPerformanceData(data);
-      } catch (error) {
-        console.error('Error fetching performance data:', error);
-      }
-    };
-    if (dbStatus.status === 'connected') {
-      fetchData();
-    }
-  }, [dbStatus.status]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -476,21 +459,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setPreviewModalOpen(true);
   }
 
-  // Quick Director Context
-  const directorContext = useMemo(() => {
-    const scope = JSON.parse(selectedScope);
-    const director = DIRECTORS.find(d => d.id === scope.view);
-    if (!director) return null;
-
-    // Get performance data for this director's stores
-    const storeData = director.stores.map(store => {
-      const data = performanceData.find(d => d.storeId === store);
-      return { store, data: data?.data };
-    });
-
-    return { director, storeData };
-  }, [selectedScope, performanceData]);
-
   // Get date range for current week
   const weekDateRange = useMemo(() => {
     if (!notesPeriod) return '';
@@ -779,23 +747,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             <DiagnosticErrorPanel />
         </div>
 
-        {/* Quick Director Context */}
-        {directorContext && (
-          <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-700">
-            <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Quick Context</p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {directorContext.storeData.slice(0, 3).map((store, i) => (
-                <div key={i} className="bg-slate-800 p-2 rounded">
-                  <p className="font-semibold text-slate-300 truncate">{store.store}</p>
-                  {store.data?.Sales && (
-                    <p className="text-cyan-400">${(store.data.Sales / 1000).toFixed(0)}k</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Action Items Help - Show on current week only */}
         {notesPeriod && actionItemsFromLastWeek.length === 0 && (
           <div className="px-4 py-2 bg-cyan-900/10 border-b border-cyan-700/30">
@@ -870,7 +821,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         </div>
 
         {/* Notes List */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3 custom-scrollbar">
+        <div className="flex-1 min-h-[400px] p-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
 
