@@ -98,6 +98,83 @@ functions/
 
 ### ✅ Completed
 
+1. **Comprehensive Notes Redesign for Weekly Director Calls** (2025-11-30)
+   - **Purpose**: Optimized notes section for weekly director call workflow, replacing period dropdown with intuitive navigation
+   - **User Request**: "I want to have the most recent notes populate when opening the app. I would rather have a right and left selector to scroll through the weeks and an option to change the month."
+
+   **Navigation Enhancements**:
+   - ✅ Replaced dropdown period selector with intuitive left/right arrow navigation
+   - ✅ Added month picker dropdown (2025-2028) for quick month jumps
+   - ✅ Auto-loads current week on app open using Monday-start logic
+   - ✅ Added "Today" button to instantly jump back to current week
+   - ✅ Displays date range for selected week (e.g., "Dec 16 - Dec 22")
+   - ✅ Week navigation with getCurrentWeek() function using Monday-based week calculation
+
+   **Quick Director Context**:
+   - ✅ Shows top 3 stores with real-time sales KPIs at a glance
+   - ✅ Fetches performance data from Firestore via getPerformanceData()
+   - ✅ Compact grid display at top of notes panel
+   - ✅ Director-specific context during calls
+   - ✅ Only displays when viewing director-specific notes (not Total Company)
+
+   **Action Items Tracking**:
+   - ✅ Auto-populates uncompleted checkboxes from previous week's notes
+   - ✅ Markdown checkbox syntax support: `- [ ]` (unchecked) and `- [x]` (checked)
+   - ✅ Highlighted follow-up section with amber background for visibility
+   - ✅ "View All" button opens modal with full last week's notes
+   - ✅ Displays up to 3 action items with count indicator (e.g., "+ 5 more")
+   - ✅ parseCheckboxes() function extracts action items from markdown
+
+   **Auto-save Indicator**:
+   - ✅ Debounced auto-save with 2-second delay after typing stops
+   - ✅ "Saved Xs ago" timestamp display for user feedback
+   - ✅ Resets when note is submitted
+   - ✅ Uses useEffect with cleanup to manage save timeout
+
+   **Category Indicators**:
+   - ✅ Badge display with note counts per category
+   - ✅ "All (X)" shows total filtered notes count
+   - ✅ Empty categories show no count (cleaner UI)
+   - ✅ Quick visual overview of note distribution
+   - ✅ categoryBadges memo for performance optimization
+
+   **Preserved Features**:
+   - ✅ Voice-to-text dictation (Web Speech API)
+   - ✅ Image upload and preview functionality
+   - ✅ Search functionality
+   - ✅ Category filtering
+   - ✅ Note editing and deletion
+   - ✅ Trends analysis via Gemini AI
+
+   **Technical Changes**:
+   - Removed unused props: mainDashboardPeriod, weeksInSelectedMonth
+   - Fixed type errors: Changed PerformanceData → StorePerformanceData
+   - Added getCurrentWeek() for Monday-start week calculation
+   - Implemented parseCheckboxes() for action item extraction
+   - Multiple useMemo optimizations: lastWeekNotes, actionItemsFromLastWeek, directorContext, weekDateRange, categoryBadges
+   - Enhanced modal system for last week's notes view
+   - Performance data fetching with useEffect (triggered on dbStatus.connected)
+
+   **Files Modified**:
+   - [src/components/NotesPanel.tsx](src/components/NotesPanel.tsx) - Complete rewrite (862 lines, +363/-146 changes)
+   - Added 6 new memos for performance
+   - Enhanced UI with 3 new sections (Quick Context, Action Items, Auto-save indicator)
+
+   **UX Improvements**:
+   - Weekly director calls now have contextualized notes with action item tracking
+   - Navigation is faster (arrows + month picker vs scrolling through dropdown)
+   - Auto-load current week reduces clicks needed to start taking notes
+   - Follow-ups automatically surface from last week (no manual searching)
+   - Real-time store performance context helps inform discussions
+   - Auto-save indicator builds user confidence
+
+   **Deployment**:
+   - ✅ Built successfully with Vite
+   - ✅ Deployed to Firebase Hosting: https://kpi-dashboardgit-9913298-66e65.web.app
+   - ✅ Committed to git with comprehensive commit message
+
+   **User Satisfaction**: All requested features implemented plus recommended enhancements accepted
+
 1. **Fixed Store Hub Street View & Details Location Accuracy** (2025-11-30)
    - Issue: Street View showing "Invalid 'location' parameter" error and wrong addresses (1924 Gregg St, 2179 Pickens St)
    - Root cause: Google Street View Embed API has severe limitations - rejects almost all location parameter formats
