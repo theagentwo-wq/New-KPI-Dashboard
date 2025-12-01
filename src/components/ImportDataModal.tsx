@@ -27,11 +27,16 @@ const processingMessages = [
     'Formatting results for verification...',
 ];
 
-const EditableCell: React.FC<{ value: string; onChange: (newValue: string) => void; isStore?: boolean; }> = ({ value, onChange, isStore = false }) => {
+const EditableCell: React.FC<{ value: any; onChange: (newValue: string) => void; isStore?: boolean; }> = ({ value, onChange, isStore = false }) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [currentValue, setCurrentValue] = useState(value);
+    // Convert value to string, handling numbers including 0
+    const initialStringValue = value === null || value === undefined || value === '' ? '' : String(value);
+    const [currentValue, setCurrentValue] = useState(initialStringValue);
 
-    useEffect(() => { setCurrentValue(value); }, [value]);
+    useEffect(() => {
+        const newStringValue = value === null || value === undefined || value === '' ? '' : String(value);
+        setCurrentValue(newStringValue);
+    }, [value]);
 
     const handleBlur = () => {
         setIsEditing(false);
@@ -50,9 +55,16 @@ const EditableCell: React.FC<{ value: string; onChange: (newValue: string) => vo
         return <input type="text" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} onBlur={handleBlur} onKeyDown={(e) => e.key === 'Enter' && handleBlur()} autoFocus className="w-full bg-slate-900 border border-cyan-500 rounded p-1 text-xs" />;
     }
 
+    // Check if value is truly missing (null, undefined, or empty string)
+    // Convert value to string for display, handling numbers including 0
+    const stringValue = value === null || value === undefined || value === '' ? '' : String(value);
+    const isMissing = value === null || value === undefined || value === '';
+    // Highlight cells with 0 in amber to indicate they need manual entry
+    const isZero = value === 0 || stringValue === '0';
+
     return (
-        <div onClick={() => setIsEditing(true)} className={`p-1 text-xs w-full h-full ${!value ? 'bg-yellow-900/50 text-yellow-300' : ''}`}>
-            {value || <span className="italic">Missing</span>}
+        <div onClick={() => setIsEditing(true)} className={`p-1 text-xs w-full h-full cursor-pointer ${isMissing ? 'bg-yellow-900/50 text-yellow-300' : isZero ? 'bg-amber-900/30 text-amber-200' : ''}`}>
+            {isMissing ? <span className="italic">Missing</span> : stringValue}
         </div>
     );
 };
@@ -392,13 +404,21 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       case 'guided-paste': return <p>Guided paste not implemented in this view.</p>;
       case 'verify':
         if (!activeJob) return null;
+        const hasHorizontalFormat = activeJob.extractedData.some(item => item.sourceName?.includes('Horizontal Format'));
         return (
           <div className="space-y-4">
             <p className="text-slate-300 text-sm">AI analysis is complete. Please review the extracted data below for accuracy. You can click on any cell to make corrections before importing.</p>
+            {hasHorizontalFormat && (
+              <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3">
+                <p className="text-amber-300 text-sm font-semibold mb-1">📝 Manual Sales Entry Required</p>
+                <p className="text-amber-200/80 text-xs">This CSV format doesn't include sales data. Please click on each <span className="bg-amber-900/50 text-amber-200 px-1 rounded">Sales cell (showing 0)</span> to enter the actual sales amount for each store.</p>
+              </div>
+            )}
             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar border border-slate-700 rounded-lg">
                 {activeJob.extractedData.map((item, sourceIndex) => {
                     if (item.data.length === 0) return null;
-                    const headers = Object.keys(item.data[0]);
+                    // Filter out 'pnl' field - it's nested data that will be stored separately
+                    const headers = Object.keys(item.data[0]).filter(key => key !== 'pnl');
                     return (
                         <div key={sourceIndex} className="mb-4">
                             <h3 className="text-md font-bold text-cyan-400 p-2 bg-slate-900/50">{item.sourceName} <span className="text-xs font-normal text-slate-400">({item.dataType})</span></h3>

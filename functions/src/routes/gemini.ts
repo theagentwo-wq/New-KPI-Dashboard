@@ -8,6 +8,7 @@ import { getGeminiClient } from '../services/gemini-client';
 import { asyncHandler } from '../middleware/error-handler';
 import * as types from '../types/api';
 import axios from 'axios';
+import { parse } from 'csv-parse/sync';
 
 const router = Router();
 
@@ -31,6 +32,422 @@ const getClient = (apiKey: string | undefined) => {
     throw new Error('GEMINI_API_KEY not configured');
   }
   return getGeminiClient(apiKey);
+};
+
+/**
+ * Helper: Parse P&L CSV directly without AI
+ * CSV Format:
+ * - Row 1: "completed weeks/#weeks:" header
+ * - Row 2: Store numbers
+ * - Row 3: Store names with prefixes (e.g., "01 - Columbia")
+ * - Row 4+: Line items with values for each store
+ * - "BUDGET:" row separates actuals from budget data
+ */
+const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'weekly' | 'monthly' = 'weekly'): any => {
+  // Parse CSV into 2D array
+  const records: string[][] = parse(csvContent, {
+    skip_empty_lines: true,
+    relax_column_count: true,
+    trim: true,
+  });
+
+  console.log(`[parsePnLCsv] Parsed ${records.length} rows`);
+
+  if (records.length < 4) {
+    throw new Error('CSV does not have enough rows (expected at least 4)');
+  }
+
+  // Row 3 (index 2) contains store names
+  const storeRow = records[2];
+  const storeNames = storeRow.slice(1).map((name: string) => {
+    // Remove prefix like "01 - " or "27 - "
+    const cleaned = name.replace(/^\d+\s*-\s*/, '').trim();
+    // Return store name as-is (state should already be in CSV if needed)
+    return cleaned;
+  }).filter((name: string) => name.length > 2); // Filter out empty or invalid names
+
+  console.log(`[parsePnLCsv] Found ${storeNames.length} stores:`, storeNames);
+
+  // Find where budget data starts
+  let budgetStartRow = -1;
+  for (let i = 3; i < records.length; i++) {
+    if (records[i][0]?.toLowerCase().includes('budget')) {
+      budgetStartRow = i;
+      break;
+    }
+  }
+
+  console.log(`[parsePnLCsv] Budget starts at row ${budgetStartRow}`);
+
+  // Extract actual line items (from row 4 to budget row)
+  const actualEndRow = budgetStartRow > 0 ? budgetStartRow : records.length;
+  const lineItemRows = records.slice(3, actualEndRow);
+
+  // Extract budget line items (after budget row)
+  const budgetRows = budgetStartRow > 0 ? records.slice(budgetStartRow + 1) : [];
+
+  // Build line item lookup
+  interface LineItemData {
+    name: string;
+    values: (number | null)[];
+    budgetValues: (number | null)[];
+  }
+
+  const lineItems: LineItemData[] = [];
+  const percentageRows: { [key: string]: (number | null)[] } = {};
+
+  // Process actual values
+  for (const row of lineItemRows) {
+    const itemName = row[0]?.trim();
+    if (!itemName || itemName.length === 0) continue;
+
+    const values = row.slice(1).map((val: string) => {
+      if (!val || val.trim() === '' || val.trim() === '-') return null;
+      // Remove $ , % and parse as number
+      const cleaned = val.replace(/[$,%]/g, '').trim();
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? null : num;
+    });
+
+    lineItems.push({
+      name: itemName,
+      values,
+      budgetValues: new Array(values.length).fill(null),
+    });
+  }
+
+  // Process budget values
+  for (const row of budgetRows) {
+    const itemName = row[0]?.trim();
+    if (!itemName || itemName.length === 0) continue;
+
+    // Check if this is a percentage row by examining the values
+    // Percentage rows have values with "%" or small numbers (< 100 typically)
+    const firstFewValues = row.slice(1, 4).filter((v: string) => v && v.trim() !== '' && v.trim() !== '-');
+    const hasPercentSymbol = firstFewValues.some((v: string) => v.includes('%'));
+    const hasSmallNumbers = firstFewValues.length > 0 && firstFewValues.every((v: string) => {
+      const cleaned = v.replace(/[$,%]/g, '').trim();
+      const num = parseFloat(cleaned);
+      return !isNaN(num) && num < 100; // Percentages are typically < 100
+    });
+    const isPercentageRow = hasPercentSymbol || (hasSmallNumbers && firstFewValues.length > 0);
+
+    if (isPercentageRow) {
+      // Store percentage row values
+      const percentValues = row.slice(1).map((val: string) => {
+        if (!val || val.trim() === '' || val.trim() === '-') return null;
+        const cleaned = val.replace(/[$,%]/g, '').trim();
+        const num = parseFloat(cleaned);
+        // If value has %, it's already a percentage like 32.5% → 32.5
+        // We need to convert to decimal: 32.5 → 0.325
+        return isNaN(num) ? null : (num > 1 ? num / 100 : num);
+      });
+
+      // Clean the name (remove % suffix)
+      const cleanName = itemName.replace(/\s*%\s*$/, '').trim().toLowerCase();
+      percentageRows[cleanName] = percentValues;
+      continue;
+    }
+
+    // Find matching line item
+    const lineItem = lineItems.find((item) => item.name === itemName);
+    if (!lineItem) continue;
+
+    const budgetValues = row.slice(1).map((val: string) => {
+      if (!val || val.trim() === '' || val.trim() === '-') return null;
+      const cleaned = val.replace(/[$,%]/g, '').trim();
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? null : num;
+    });
+
+    lineItem.budgetValues = budgetValues;
+  }
+
+  console.log(`[parsePnLCsv] Extracted ${lineItems.length} line items and ${Object.keys(percentageRows).length} percentage rows`);
+
+  // Helper: Categorize line item by name
+  const categorizeLineItem = (name: string): string => {
+    const lower = name.toLowerCase();
+    if (lower.includes('sales') || lower.includes('revenue') || lower.includes('gross')) return 'Revenue';
+    if (lower.includes('cogs') || lower.includes('food') || lower.includes('beverage') || lower.includes('wine') || lower.includes('liquor') || lower.includes('beer') || lower.includes('merchandise')) return 'COGS';
+    if (lower.includes('labor') || lower.includes('foh') || lower.includes('boh') || lower.includes('salary') || lower.includes('hourly') || lower.includes('payroll') || lower.includes('benefit')) return 'Labor';
+    if (lower.includes('prime cost')) return 'Prime Cost';
+    if (lower.includes('supplies') || lower.includes('small wares') || lower.includes('equipment') || lower.includes('facility') || lower.includes('utility') || lower.includes('marketing') || lower.includes('technology') || lower.includes('rent') || lower.includes('cam') || lower.includes('property tax') || lower.includes('fee') || lower.includes('administration') || lower.includes('merchant')) return 'Operating Expenses';
+    return 'Other';
+  };
+
+  // Helper: Determine indent level by name pattern
+  const getIndentLevel = (name: string): number => {
+    const lower = name.toLowerCase();
+    // Indent 0: Total, Month To Date, Prime Cost, Operating Profit
+    if (lower.includes('total') || lower.includes('month to date') || lower.includes('prime cost') || lower.includes('operating profit')) return 0;
+    // Indent 2: FOH, BOH, specific subcategories
+    if (lower.includes('foh ') || lower.includes('boh ') || lower.includes('dairy') || lower.includes('protein') || lower.includes('produce')) return 2;
+    // Indent 1: Everything else (Variable Labor, Food COGS, etc.)
+    return 1;
+  };
+
+  // Build results for each store
+  const results: any[] = [];
+
+  for (let storeIdx = 0; storeIdx < storeNames.length; storeIdx++) {
+    const storeName = storeNames[storeIdx];
+
+    // Build pnl array
+    const pnl: any[] = [];
+    for (const lineItem of lineItems) {
+      const actual = lineItem.values[storeIdx] ?? 0;
+      const budget = lineItem.budgetValues[storeIdx] ?? 0;
+
+      pnl.push({
+        name: lineItem.name,
+        category: categorizeLineItem(lineItem.name),
+        actual,
+        budget,
+        indent: getIndentLevel(lineItem.name),
+      });
+    }
+
+    // Extract summary KPIs
+    const salesItem = lineItems.find((item) => item.name.toLowerCase().includes('month to date') && item.name.toLowerCase().includes('net sales'));
+    const primeCostItem = lineItems.find((item) => item.name.toLowerCase().includes('prime cost'));
+    const totalLaborItem = lineItems.find((item) => item.name.toLowerCase().includes('total labor'));
+    const sopItem = lineItems.find((item) => item.name.toLowerCase().includes('store operating profit'));
+    const foodCostItem = lineItems.find((item) => item.name.toLowerCase().includes('food') && item.name.toLowerCase().includes('cogs'));
+    const variableLaborItem = lineItems.find((item) => item.name.toLowerCase().includes('variable labor'));
+
+    const sales = salesItem?.values[storeIdx] ?? 0;
+    const primeCost = primeCostItem?.values[storeIdx] ?? 0;
+    const totalLabor = totalLaborItem?.values[storeIdx] ?? 0;
+    const sop = sopItem?.values[storeIdx] ?? 0;
+
+    // Use percentage rows from CSV if available, otherwise calculate
+    let laborPercent = 0;
+    let sopPercent = 0;
+
+    // Try to find Labor% from percentage rows
+    const laborPercentRow = percentageRows['total labor'] || percentageRows['labor'];
+    if (laborPercentRow && laborPercentRow[storeIdx] !== null) {
+      laborPercent = laborPercentRow[storeIdx] ?? 0;
+    } else if (sales > 0) {
+      laborPercent = totalLabor / sales;
+    }
+
+    // Try to find SOP% from percentage rows
+    const sopPercentRow = percentageRows['sop'] || percentageRows['store operating profit'];
+    if (sopPercentRow && sopPercentRow[storeIdx] !== null) {
+      sopPercent = sopPercentRow[storeIdx] ?? 0;
+    } else if (sales > 0 && sop > 0) {
+      sopPercent = sop / sales;
+    }
+
+    results.push({
+      'Store Name': storeName,
+      'Week Start Date': weekStartDate,
+      Sales: sales,
+      'Prime Cost': primeCost,
+      'Labor%': Math.round(laborPercent * 10000) / 10000, // Round to 4 decimals
+      SOP: Math.round(sopPercent * 10000) / 10000,
+      'Food Cost': foodCostItem?.values[storeIdx] ?? 0,
+      'Variable Labor': variableLaborItem?.values[storeIdx] ?? 0,
+      pnl,
+    });
+  }
+
+  return {
+    results: [
+      {
+        dataType: 'Actuals',
+        sourceName: `${periodType === 'monthly' ? 'Monthly' : 'Weekly'} Financial Tracker`,
+        data: results,
+      },
+    ],
+  };
+};
+
+/**
+ * Helper: Parse Horizontal P&L CSV (stores as rows, metrics as columns)
+ * CSV Format:
+ * - Row 1: Title row
+ * - Row 2: Column headers (YOY Comp Sales, COGS, Variable Labor, Total Labor, Prime Cost, SOP, etc.)
+ * - Row 3+: Store data rows
+ *   - Column 1: Store name (e.g., "01 - Asheville Downtown")
+ *   - Remaining columns: Metric values (Week 1, Week 2, MTD Actual, Plan, O/U, etc.)
+ */
+const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, periodType: 'weekly' | 'monthly' = 'weekly'): any => {
+  const records: string[][] = parse(csvContent, {
+    skip_empty_lines: true,
+    relax_column_count: true,
+    trim: true,
+  });
+
+  console.log(`[parsePnLCsvHorizontal] Parsed ${records.length} rows`);
+
+  if (records.length < 3) {
+    throw new Error('Horizontal CSV does not have enough rows (expected at least 3)');
+  }
+
+  // Row 2 (index 1) contains column headers
+  const headerRow = records[1];
+  console.log(`[parsePnLCsvHorizontal] Headers:`, headerRow.slice(0, 10));
+
+  // Find column indices for key metrics
+  // Look for "MTD Actual" or "Plan" or "O/U" columns for each metric
+  interface MetricColumns {
+    mtdActual?: number;
+    plan?: number;
+  }
+
+  const metrics: { [key: string]: MetricColumns } = {};
+
+  // Scan headers to find metric columns
+  let currentMetric = '';
+  for (let i = 1; i < headerRow.length; i++) {
+    const header = headerRow[i]?.trim().toLowerCase();
+
+    // Detect metric name (headers like "COGS", "Variable Labor", "Total Labor", etc.)
+    if (header && !header.includes('week') && !header.includes('mtd') && !header.includes('plan') && !header.includes('o/u') && header.length > 2) {
+      currentMetric = header;
+      if (!metrics[currentMetric]) {
+        metrics[currentMetric] = {};
+      }
+    }
+
+    // Detect MTD Actual column
+    if (header && header.includes('mtd') && currentMetric) {
+      metrics[currentMetric].mtdActual = i;
+    }
+
+    // Detect Plan column
+    if (header && header.includes('plan') && currentMetric) {
+      metrics[currentMetric].plan = i;
+    }
+  }
+
+  console.log(`[parsePnLCsvHorizontal] Found metrics:`, Object.keys(metrics));
+
+  // Process each store row (starting from row 3)
+  const results: any[] = [];
+
+  for (let rowIdx = 2; rowIdx < records.length; rowIdx++) {
+    const row = records[rowIdx];
+    const storeName = row[0]?.trim();
+
+    if (!storeName || storeName.length < 2) continue;
+
+    // Clean store name (remove prefix like "01 - ")
+    const cleanStoreName = storeName.replace(/^\d+\s*-\s*/, '').trim();
+
+    // Extract metric values
+    const extractValue = (metricKey: string, colType: 'mtdActual' | 'plan'): number => {
+      const metric = metrics[metricKey];
+      if (!metric || !metric[colType]) return 0;
+
+      const colIdx = metric[colType]!;
+      const val = row[colIdx]?.trim();
+
+      if (!val || val === '' || val === '-') return 0;
+
+      // Remove $ , % and parse
+      const cleaned = val.replace(/[$,%]/g, '').trim();
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    };
+
+    // Extract values for key metrics
+    // Note: Sales is NOT in this CSV, will be set to 0 for manual entry
+    const sales = 0; // Will be filled manually
+
+    const cogs = extractValue('cogs', 'mtdActual');
+    const variableLabor = extractValue('variable labor', 'mtdActual');
+    const totalLabor = extractValue('total labor', 'mtdActual');
+    const primeCost = extractValue('prime cost', 'mtdActual');
+
+    // Extract percentages (already in percentage form like 32.5)
+    const cogsPercent = extractValue('cogs %', 'mtdActual');
+    const variableLaborPercent = extractValue('variable labor %', 'mtdActual');
+    const totalLaborPercent = extractValue('total labor %', 'mtdActual');
+    const sopPercent = extractValue('sop %', 'mtdActual') || extractValue('sop', 'mtdActual');
+
+    // Build minimal pnl array (since we don't have full line item breakdown)
+    const pnl: any[] = [
+      { name: 'Total COGS', category: 'COGS', actual: cogs, budget: extractValue('cogs', 'plan'), indent: 0 },
+      { name: 'Variable Labor', category: 'Labor', actual: variableLabor, budget: extractValue('variable labor', 'plan'), indent: 1 },
+      { name: 'Total Labor', category: 'Labor', actual: totalLabor, budget: extractValue('total labor', 'plan'), indent: 0 },
+      { name: 'Prime Cost', category: 'Prime Cost', actual: primeCost, budget: extractValue('prime cost', 'plan'), indent: 0 },
+    ];
+
+    // Convert percentages to decimals if they're > 1
+    const laborPercent = totalLaborPercent > 1 ? totalLaborPercent / 100 : totalLaborPercent;
+    const sopPercentDecimal = sopPercent > 1 ? sopPercent / 100 : sopPercent;
+
+    results.push({
+      'Store Name': cleanStoreName,
+      'Week Start Date': weekStartDate,
+      Sales: sales, // Will be 0, needs manual entry
+      'Prime Cost': primeCost,
+      'Labor%': Math.round(laborPercent * 10000) / 10000,
+      SOP: Math.round(sopPercentDecimal * 10000) / 10000,
+      'Food Cost': cogs, // Using total COGS as proxy
+      'Variable Labor': variableLabor,
+      pnl,
+    });
+  }
+
+  console.log(`[parsePnLCsvHorizontal] Extracted data for ${results.length} stores`);
+
+  return {
+    results: [
+      {
+        dataType: 'Actuals',
+        sourceName: `${periodType === 'monthly' ? 'Monthly' : 'Weekly'} Financial Tracker (Horizontal Format)`,
+        data: results,
+      },
+    ],
+  };
+};
+
+/**
+ * Helper: Detect CSV format (vertical vs horizontal)
+ * Vertical: Stores as columns, line items as rows (Row 3 has store names)
+ * Horizontal: Stores as rows, metrics as columns (Row 2 has metric names)
+ */
+const detectCsvFormat = (csvContent: string): 'vertical' | 'horizontal' => {
+  const records: string[][] = parse(csvContent, {
+    skip_empty_lines: true,
+    relax_column_count: true,
+    trim: true,
+  });
+
+  if (records.length < 3) return 'vertical'; // Default to vertical
+
+  // Check row 2 for metric-like headers (horizontal format)
+  const row2 = records[1];
+  const hasMetricHeaders = row2.some((cell: string) => {
+    const lower = cell.toLowerCase().trim();
+    return lower.includes('cogs') || lower.includes('labor') || lower.includes('prime cost') || lower.includes('sop');
+  });
+
+  if (hasMetricHeaders) {
+    console.log('[detectCsvFormat] Detected HORIZONTAL format (metrics in headers)');
+    return 'horizontal';
+  }
+
+  // Check row 3 for store names with prefixes (vertical format)
+  const row3 = records[2];
+  const hasStoreNames = row3.slice(1, 5).some((cell: string) => {
+    const cleaned = cell.trim();
+    return /^\d+\s*-\s*/.test(cleaned); // Matches "01 - Asheville"
+  });
+
+  if (hasStoreNames) {
+    console.log('[detectCsvFormat] Detected VERTICAL format (store names in row 3)');
+    return 'vertical';
+  }
+
+  // Default to vertical
+  console.log('[detectCsvFormat] Defaulting to VERTICAL format');
+  return 'vertical';
 };
 
 // ============================================================================
@@ -1010,9 +1427,10 @@ Provide a thoughtful, strategic response that:
  * Phase 1 implementation with actual file processing
  */
 router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
-  const { prompt, files } = req.body.data;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const { weekStartDate, periodType, files } = req.body.data;
   const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  console.log(`[startTask] Job ${jobId} started with:`, { weekStartDate, periodType });
 
   // Store initial job status
   jobStore.set(jobId, {
@@ -1024,13 +1442,16 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
   // Process file asynchronously (don't await)
   (async () => {
     try {
-      const gemini = getClient(apiKey);
-
       // Fetch file content from Firebase Storage URL
       const file = files[0];
+      console.log(`[startTask] Downloading file from URL:`, file.fileUrl);
+      console.log(`[startTask] File details:`, { fileName: file.fileName, mimeType: file.mimeType });
+
       const fileResponse = await axios.get(file.fileUrl, {
         responseType: file.mimeType.includes('text') ? 'text' : 'arraybuffer'
       });
+
+      console.log(`[startTask] File downloaded successfully, size:`, fileResponse.data.length);
 
       let fileContent = '';
       if (file.mimeType.includes('text') || file.mimeType.includes('csv')) {
@@ -1038,13 +1459,16 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
           ? fileResponse.data
           : Buffer.from(fileResponse.data).toString('utf-8');
       } else {
-        // For images and other binary files, convert to base64
-        fileContent = `[Binary file: ${file.fileName}, type: ${file.mimeType}]`;
+        throw new Error('Only CSV/text files are supported for P&L import');
       }
 
-      // Call Gemini with enhanced prompt
-      const analysisPrompt = `${prompt}\n\nFile: ${file.fileName}\nContent:\n${fileContent}`;
-      const result = await gemini.generateJSON(analysisPrompt);
+      // Detect CSV format and parse accordingly
+      const format = detectCsvFormat(fileContent);
+      console.log(`[startTask] Detected format: ${format}, parsing with date: ${weekStartDate}, period: ${periodType}`);
+
+      const result = format === 'horizontal'
+        ? parsePnLCsvHorizontal(fileContent, weekStartDate || '2025-01-06', periodType || 'weekly')
+        : parsePnLCsv(fileContent, weekStartDate || '2025-01-06', periodType || 'weekly');
 
       // Update job status with results
       jobStore.set(jobId, {
@@ -1055,10 +1479,27 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
       });
     } catch (error) {
       console.error(`[startTask] Job ${jobId} failed:`, error);
+
+      // Enhanced error logging
+      let errorMessage = 'Unknown error';
+      if (axios.isAxiosError(error)) {
+        errorMessage = `Axios error: ${error.message}`;
+        if (error.response) {
+          errorMessage += ` (Status: ${error.response.status})`;
+        }
+        console.error(`[startTask] Axios error details:`, {
+          message: error.message,
+          code: error.code,
+          response: error.response?.status
+        });
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       jobStore.set(jobId, {
         jobId,
         status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         startedAt: jobStore.get(jobId)?.startedAt || Date.now()
       });
     }
