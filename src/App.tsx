@@ -149,7 +149,7 @@ const App = () => {
       // Step 1: Check for duplicates
       const duplicates: Array<{ store: string; date: string; existingKpis: string[] }> = [];
 
-      const { ALL_PERIODS } = await import('./utils/dateUtils');
+      const { findFiscalPeriodForDate } = await import('./utils/dateUtils');
 
       for (const source of job.extractedData) {
         for (const row of source.data) {
@@ -158,14 +158,9 @@ const App = () => {
 
           if (!storeName || !weekStartDate) continue;
 
-          // Parse the date and find matching period
+          // Parse the date and find matching fiscal period
           const dateObj = new Date(weekStartDate);
-          const matchingPeriod = ALL_PERIODS.find(p =>
-            p.type === 'weekly' &&
-            p.startDate.getFullYear() === dateObj.getFullYear() &&
-            p.startDate.getMonth() === dateObj.getMonth() &&
-            p.startDate.getDate() === dateObj.getDate()
-          );
+          const matchingPeriod = findFiscalPeriodForDate(dateObj);
 
           if (matchingPeriod) {
             const existingData = await checkExistingData(storeName, matchingPeriod);
@@ -201,7 +196,7 @@ const App = () => {
       let errorCount = 0;
       const errors: string[] = [];
 
-      const { ALL_PERIODS } = await import('./utils/dateUtils');
+      const { findFiscalPeriodForDate } = await import('./utils/dateUtils');
       const { Kpi } = await import('./types');
 
       for (const source of job.extractedData) {
@@ -216,14 +211,9 @@ const App = () => {
               continue;
             }
 
-            // Parse date and find matching period
+            // Parse date and find matching fiscal period
             const dateObj = new Date(weekStartDate);
-            const matchingPeriod = ALL_PERIODS.find(p =>
-              p.type === 'weekly' &&
-              p.startDate.getFullYear() === dateObj.getFullYear() &&
-              p.startDate.getMonth() === dateObj.getMonth() &&
-              p.startDate.getDate() === dateObj.getDate()
-            );
+            const matchingPeriod = findFiscalPeriodForDate(dateObj);
 
             if (!matchingPeriod) {
               errors.push(`No matching period for ${storeName} on ${weekStartDate}`);
