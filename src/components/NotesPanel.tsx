@@ -9,6 +9,8 @@ import { RichTextEditor, RichTextEditorHandle } from './RichTextEditor';
 import { getNoteTrends } from '../services/geminiService';
 import { marked } from 'marked';
 import { FirebaseStatus } from '../types';
+import { storage } from '../services/firebaseService';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 
 interface NotesPanelProps {
   allNotes: Note[];
@@ -266,15 +268,26 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
   };
 
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        // Insert image directly into editor instead of staging
-        if (editorRef.current) {
-          editorRef.current.insertImage(dataUrl);
+
+        try {
+          // Upload to Firebase Storage
+          const imageRef = ref(storage, `notes_images/${new Date().toISOString()}.jpg`);
+          const snapshot = await uploadString(imageRef, dataUrl, 'data_url');
+          const storageUrl = await getDownloadURL(snapshot.ref);
+
+          // Insert Storage URL into editor (not base64 data URL)
+          if (editorRef.current) {
+            editorRef.current.insertImage(storageUrl);
+          }
+        } catch (error) {
+          console.error('[NotesPanel] Error uploading image to Firebase Storage:', error);
+          alert('Failed to upload image. Please try again.');
         }
       };
       reader.readAsDataURL(file);

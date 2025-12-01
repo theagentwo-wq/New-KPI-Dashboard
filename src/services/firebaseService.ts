@@ -529,3 +529,6 @@ export const uploadTextAsFile = async (text: string, fileName: string): Promise<
         fileUrl: downloadURL,
     };
 }
+
+// Export storage instance for use in components
+export { storage };
