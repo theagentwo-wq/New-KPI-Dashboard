@@ -1,5 +1,15 @@
 import { Period } from '../types';
 
+// 4-4-5 Fiscal Calendar Configuration
+// FY2025: Dec 30, 2024 - Dec 28, 2025
+// FY2026: Dec 29, 2025 - Dec 27, 2026
+const FISCAL_YEAR_STARTS: { [year: number]: Date } = {
+  2024: new Date(2023, 11, 31), // Dec 31, 2023
+  2025: new Date(2024, 11, 30), // Dec 30, 2024
+  2026: new Date(2025, 11, 29), // Dec 29, 2025
+  2027: new Date(2026, 11, 28), // Dec 28, 2026
+};
+
 export const getPeriodOptions = (): Period[] => {
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -128,46 +138,77 @@ export const generateMonthlyPeriods = (startYear: number, endYear: number): Peri
   return periods;
 };
 
-// Generate weekly periods for a range of years
+// Generate 4-4-5 fiscal periods for a range of fiscal years
+export const generate445FiscalPeriods = (startFiscalYear: number, endFiscalYear: number): Period[] => {
+  const periods: Period[] = [];
+
+  // 4-4-5 pattern: each quarter has 4 weeks, 4 weeks, 5 weeks
+  const periodWeekPattern = [4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4, 5];
+
+  for (let fiscalYear = startFiscalYear; fiscalYear <= endFiscalYear; fiscalYear++) {
+    const fyStart = FISCAL_YEAR_STARTS[fiscalYear];
+    if (!fyStart) continue;
+
+    let currentPeriodStart = new Date(fyStart);
+
+    for (let periodNum = 1; periodNum <= 12; periodNum++) {
+      const weeksInPeriod = periodWeekPattern[periodNum - 1];
+      const periodEnd = new Date(currentPeriodStart);
+      periodEnd.setDate(periodEnd.getDate() + (weeksInPeriod * 7) - 1);
+
+      const quarter = Math.ceil(periodNum / 3);
+
+      periods.push({
+        label: `FY${fiscalYear} P${periodNum}`,
+        startDate: new Date(currentPeriodStart),
+        endDate: periodEnd,
+        type: 'monthly', // Using monthly type for fiscal periods
+        year: fiscalYear,
+        quarter
+      });
+
+      // Move to next period
+      currentPeriodStart = new Date(periodEnd);
+      currentPeriodStart.setDate(currentPeriodStart.getDate() + 1);
+    }
+  }
+
+  return periods;
+};
+
+// Generate weekly periods within 4-4-5 fiscal structure
 export const generateWeeklyPeriods = (startYear: number, endYear: number): Period[] => {
   const periods: Period[] = [];
 
   for (let year = startYear; year <= endYear; year++) {
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31);
+    const fyStart = FISCAL_YEAR_STARTS[year];
+    if (!fyStart) continue;
 
-    // Find the first Monday of the year (or start of year if it's a Monday)
-    let currentWeekStart = new Date(startOfYear);
-    const dayOfWeek = currentWeekStart.getDay();
-    if (dayOfWeek !== 1) { // If not Monday
-      const daysUntilMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
-      currentWeekStart.setDate(currentWeekStart.getDate() + daysUntilMonday);
-    }
-
+    let currentWeekStart = new Date(fyStart);
     let weekNumber = 1;
 
-    while (currentWeekStart <= endOfYear) {
-      const weekEnd = new Date(currentWeekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6); // Sunday
+    // Generate 52 weeks (4-4-5 calendar always has 52 weeks, except leap years with 53)
+    const totalWeeks = 52;
 
-      // If week extends into next year, cap it at end of year
-      const actualWeekEnd = weekEnd > endOfYear ? endOfYear : weekEnd;
+    for (let w = 0; w < totalWeeks; w++) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6); // 7-day week (Mon-Sun)
+
+      const quarter = Math.ceil(weekNumber / 13); // 13 weeks per quarter
 
       periods.push({
-        label: `Week ${weekNumber} ${year}`,
+        label: `FY${year} W${weekNumber}`,
         startDate: new Date(currentWeekStart),
-        endDate: actualWeekEnd,
+        endDate: weekEnd,
         type: 'weekly',
         year,
-        quarter: Math.floor(currentWeekStart.getMonth() / 3) + 1
+        quarter
       });
 
       // Move to next week
-      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      currentWeekStart = new Date(weekEnd);
+      currentWeekStart.setDate(currentWeekStart.getDate() + 1);
       weekNumber++;
-
-      // Safety check: don't generate more than 53 weeks
-      if (weekNumber > 53) break;
     }
   }
 
@@ -218,9 +259,21 @@ export const generateYearlyPeriods = (startYear: number, endYear: number): Perio
   return periods;
 };
 
+// Find the fiscal period for a given date
+export const findFiscalPeriodForDate = (date: Date): Period | null => {
+  const allPeriods = [
+    ...generate445FiscalPeriods(2024, 2026),
+    ...generateWeeklyPeriods(2024, 2026)
+  ];
+
+  return allPeriods.find(period =>
+    date >= period.startDate && date <= period.endDate
+  ) || null;
+};
+
 export const ALL_PERIODS = [
-  ...generateWeeklyPeriods(2023, 2025),
-  ...generateMonthlyPeriods(2023, 2025),
+  ...generateWeeklyPeriods(2024, 2026),
+  ...generate445FiscalPeriods(2024, 2026),
   ...generateQuarterlyPeriods(2023, 2025),
   ...generateYearlyPeriods(2023, 2025)
 ];
