@@ -97,9 +97,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [previewImageUrl, setPreviewImageUrl] = useState('');
 
   const [isLastWeekModalOpen, setLastWeekModalOpen] = useState(false);
+  const [isSummaryViewOpen, setSummaryViewOpen] = useState(false);
 
   const [filterCategory, setFilterCategory] = useState<NoteCategory | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [summarySearchTerm, setSummarySearchTerm] = useState('');
 
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [performanceData, setPerformanceData] = useState<StorePerformanceData[]>([]);
@@ -291,6 +293,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
       const reader = new FileReader();
       reader.onload = (e) => setStagedImage(e.target?.result as string);
       reader.readAsDataURL(file);
+    }
+  };
+
+  const insertCheckbox = () => {
+    if (contentRef.current) {
+      const textarea = contentRef.current;
+      const cursorPos = textarea.selectionStart;
+      const textBefore = content.substring(0, cursorPos);
+      const textAfter = content.substring(cursorPos);
+
+      // Insert checkbox at cursor position
+      const newContent = textBefore + '- [ ] ' + textAfter;
+      setContent(newContent);
+
+      // Move cursor after the inserted checkbox
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(cursorPos + 6, cursorPos + 6);
+      }, 0);
     }
   };
 
@@ -487,6 +508,87 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     return counts;
   }, [filteredNotes]);
 
+  // Summary View - All notes for selected scope, searchable and grouped by week
+  const summaryNotes = useMemo(() => {
+    const scope = JSON.parse(selectedScope);
+    let notes = allNotes.filter((note: Note) => {
+      // Scope matching
+      let noteView = '';
+      let noteStoreId = '';
+
+      if (note.scope) {
+        noteView = note.scope.view || '';
+        noteStoreId = note.scope.storeId || '';
+      } else if ((note as any).view) {
+        noteView = (note as any).view || '';
+        noteStoreId = (note as any).storeId || '';
+      } else {
+        return false;
+      }
+
+      const viewMatches = noteView.toLowerCase() === scope.view.toLowerCase();
+      const storeMatches = scope.storeId === 'All' || noteStoreId === scope.storeId;
+
+      if (!viewMatches || !storeMatches) return false;
+
+      // Search term matching
+      if (summarySearchTerm.trim()) {
+        const term = summarySearchTerm.toLowerCase();
+        return note.content.toLowerCase().includes(term) ||
+               note.category.toLowerCase().includes(term);
+      }
+
+      return true;
+    });
+
+    // Group by week
+    const grouped: Record<string, Note[]> = {};
+    notes.forEach((note: Note) => {
+      const week = note.monthlyPeriodLabel || 'No Period';
+      if (!grouped[week]) grouped[week] = [];
+      grouped[week].push(note);
+    });
+
+    // Sort weeks descending (most recent first)
+    const sorted = Object.entries(grouped).sort(([weekA], [weekB]) => {
+      const periodA = ALL_PERIODS.find(p => p.label === weekA);
+      const periodB = ALL_PERIODS.find(p => p.label === weekB);
+      if (!periodA || !periodB) return 0;
+      return new Date(periodB.startDate).getTime() - new Date(periodA.startDate).getTime();
+    });
+
+    return sorted;
+  }, [allNotes, selectedScope, summarySearchTerm]);
+
+  const exportNotesToText = () => {
+    const scope = JSON.parse(selectedScope);
+    const scopeLabel = scope.view === 'totalCompany' ? 'Total Company' :
+                       DIRECTORS.find(d => d.id === scope.view)?.name || scope.view;
+    const storeLabel = scope.storeId === 'All' ? 'All Locations' : scope.storeId;
+
+    let text = `NOTES SUMMARY\n`;
+    text += `${scopeLabel} - ${storeLabel}\n`;
+    text += `Generated: ${new Date().toLocaleString()}\n`;
+    text += `\n${'='.repeat(80)}\n\n`;
+
+    summaryNotes.forEach(([week, notes]) => {
+      text += `\n${week}\n${'-'.repeat(week.length)}\n\n`;
+      notes.forEach((note: Note) => {
+        text += `[${note.category}] - ${new Date(note.createdAt).toLocaleString()}\n`;
+        text += `${note.content}\n\n`;
+      });
+    });
+
+    // Create download
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes-${scopeLabel.replace(/\s/g, '-')}-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const DiagnosticErrorPanel = () => {
     if (dbStatus.status !== 'error') return null;
 
@@ -634,6 +736,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                     Today
                   </button>
                   <button
+                    onClick={() => setSummaryViewOpen(true)}
+                    className="flex items-center gap-2 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-md transition-colors"
+                    title="View all notes timeline and export"
+                  >
+                    <Icon name="calendar" className="w-4 h-4" />
+                    Summary
+                  </button>
+                  <button
                     onClick={handleAnalyzeTrends}
                     disabled={filteredNotes.length < 2 || dbStatus.status !== 'connected'}
                     className="flex items-center gap-2 text-xs bg-slate-700 hover:bg-cyan-600 text-white font-semibold py-2 px-3 rounded-md transition-colors disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -683,6 +793,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Action Items Help - Show on current week only */}
+        {notesPeriod && actionItemsFromLastWeek.length === 0 && (
+          <div className="px-4 py-2 bg-cyan-900/10 border-b border-cyan-700/30">
+            <p className="text-xs text-cyan-300">
+              💡 <span className="font-semibold">Tip:</span> Click the <span className="font-bold">☐ Action Item</span> button to add follow-up tasks. Uncompleted items will automatically appear next week!
+            </p>
           </div>
         )}
 
@@ -792,6 +911,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                     <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Dictate'}</span>
                 </button>
 
+                <button
+                    onClick={insertCheckbox}
+                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors"
+                    disabled={dbStatus.status !== 'connected'}
+                    title="Insert Action Item Checkbox"
+                >
+                    <span className="text-base">☐</span>
+                    <span className="hidden sm:inline">Action Item</span>
+                </button>
+
                 {lastSaved && (
                   <span className="text-xs text-slate-500">
                     Saved {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s ago
@@ -844,6 +973,87 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               </div>
             ))
           )}
+        </div>
+      </Modal>
+
+      {/* Summary View Modal - Timeline of all notes with search and export */}
+      <Modal isOpen={isSummaryViewOpen} onClose={() => setSummaryViewOpen(false)} title="Notes Summary & Timeline" size="large">
+        <div className="space-y-4">
+          {/* Search and Export Header */}
+          <div className="flex gap-3">
+            <input
+              type="search"
+              placeholder="Search all notes..."
+              value={summarySearchTerm}
+              onChange={(e) => setSummarySearchTerm(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400"
+            />
+            <button
+              onClick={exportNotesToText}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition-colors"
+            >
+              <Icon name="download" className="w-4 h-4" />
+              Export
+            </button>
+          </div>
+
+          {/* Timeline */}
+          <div className="max-h-[60vh] overflow-y-auto space-y-4">
+            {summaryNotes.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">
+                {summarySearchTerm ? 'No notes match your search' : 'No notes found for this selection'}
+              </p>
+            ) : (
+              summaryNotes.map(([week, notes]) => (
+                <div key={week} className="border-l-4 border-purple-500 pl-4">
+                  {/* Week Header */}
+                  <div className="mb-3">
+                    <h4 className="text-lg font-bold text-purple-400">{week}</h4>
+                    <p className="text-xs text-slate-400">{notes.length} note{notes.length !== 1 ? 's' : ''}</p>
+                  </div>
+
+                  {/* Notes for this week */}
+                  <div className="space-y-2">
+                    {notes.map((note: Note) => (
+                      <div key={note.id} className="bg-slate-800/50 p-3 rounded-md hover:bg-slate-700/50 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${categoryDisplayColors[note.category].bg} ${categoryDisplayColors[note.category].text}`}>
+                            {note.category}
+                          </span>
+                          <p className="text-xs text-slate-400">
+                            {new Date(note.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                        {note.imageUrl && (
+                          <img
+                            src={note.imageUrl}
+                            alt="Note attachment"
+                            className="mt-2 max-h-20 rounded-md border border-slate-600 cursor-pointer hover:border-cyan-400 transition-colors"
+                            onClick={() => {
+                              setPreviewImageUrl(note.imageUrl!);
+                              setPreviewModalOpen(true);
+                            }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Summary Stats */}
+          <div className="pt-3 border-t border-slate-700 flex justify-between items-center text-xs text-slate-400">
+            <span>Total: {summaryNotes.reduce((sum, [, notes]) => sum + notes.length, 0)} notes across {summaryNotes.length} weeks</span>
+            <span className="text-slate-500">Tip: Use Export to save as text file</span>
+          </div>
         </div>
       </Modal>
     </>
