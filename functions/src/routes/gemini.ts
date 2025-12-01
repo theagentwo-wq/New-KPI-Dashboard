@@ -355,9 +355,7 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     };
 
     // Extract values for key metrics
-    // Note: Sales is NOT in this CSV, will be set to 0 for manual entry
-    const sales = 0; // Will be filled manually
-
+    const sales = extractValue('actual sales', 'mtdActual') || extractValue('sales', 'mtdActual') || 0;
     const cogs = extractValue('cogs', 'mtdActual');
     const variableLabor = extractValue('variable labor', 'mtdActual');
     const totalLabor = extractValue('total labor', 'mtdActual');
@@ -382,7 +380,7 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     results.push({
       'Store Name': cleanStoreName,
       'Week Start Date': weekStartDate,
-      Sales: sales, // Will be 0, needs manual entry
+      Sales: sales,
       'Prime Cost': primeCost,
       'Labor%': Math.round(laborPercent * 10000) / 10000,
       SOP: Math.round(sopPercentDecimal * 10000) / 10000,
