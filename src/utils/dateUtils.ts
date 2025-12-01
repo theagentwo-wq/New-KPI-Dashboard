@@ -154,7 +154,7 @@ export const generateYearlyPeriods = (startYear: number, endYear: number): Perio
   return periods;
 };
 
-// Find the fiscal period for a given date
+// Find the fiscal period for a given date (searches both monthly and weekly)
 export const findFiscalPeriodForDate = (date: Date): Period | null => {
   const allPeriods = [
     ...generate445FiscalPeriods(2024, 2026),
@@ -162,6 +162,15 @@ export const findFiscalPeriodForDate = (date: Date): Period | null => {
   ];
 
   return allPeriods.find(period =>
+    date >= period.startDate && date <= period.endDate
+  ) || null;
+};
+
+// Find the fiscal MONTH (P1-P12) for a given date - use this for monthly CSV imports
+export const findFiscalMonthForDate = (date: Date): Period | null => {
+  const fiscalPeriods = generate445FiscalPeriods(2024, 2026);
+
+  return fiscalPeriods.find(period =>
     date >= period.startDate && date <= period.endDate
   ) || null;
 };

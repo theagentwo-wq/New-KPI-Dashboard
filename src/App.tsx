@@ -149,7 +149,7 @@ const App = () => {
       // Step 1: Check for duplicates
       const duplicates: Array<{ store: string; date: string; existingKpis: string[] }> = [];
 
-      const { findFiscalPeriodForDate } = await import('./utils/dateUtils');
+      const { findFiscalMonthForDate } = await import('./utils/dateUtils');
 
       for (const source of job.extractedData) {
         for (const row of source.data) {
@@ -158,9 +158,9 @@ const App = () => {
 
           if (!storeName || !weekStartDate) continue;
 
-          // Parse the date and find matching fiscal period
+          // Parse the date and find matching fiscal month (P1-P12)
           const dateObj = new Date(weekStartDate);
-          const matchingPeriod = findFiscalPeriodForDate(dateObj);
+          const matchingPeriod = findFiscalMonthForDate(dateObj);
 
           if (matchingPeriod) {
             const existingData = await checkExistingData(storeName, matchingPeriod);
@@ -196,7 +196,7 @@ const App = () => {
       let errorCount = 0;
       const errors: string[] = [];
 
-      const { findFiscalPeriodForDate } = await import('./utils/dateUtils');
+      const { findFiscalMonthForDate } = await import('./utils/dateUtils');
       const { Kpi } = await import('./types');
 
       for (const source of job.extractedData) {
@@ -211,9 +211,9 @@ const App = () => {
               continue;
             }
 
-            // Parse date and find matching fiscal period
+            // Parse date and find matching fiscal month (P1-P12)
             const dateObj = new Date(weekStartDate);
-            const matchingPeriod = findFiscalPeriodForDate(dateObj);
+            const matchingPeriod = findFiscalMonthForDate(dateObj);
 
             if (!matchingPeriod) {
               errors.push(`No matching period for ${storeName} on ${weekStartDate}`);
