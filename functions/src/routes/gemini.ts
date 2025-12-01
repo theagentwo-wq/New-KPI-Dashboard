@@ -405,8 +405,12 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     const sales = extractValue('actual sales', 'mtdActual') || extractValue('sales', 'mtdActual') || 0;
     const cogs = extractValue('cogs', 'mtdActual');
     const variableLabor = extractValue('variable labor', 'mtdActual');
-    const totalLabor = extractValue('total labor', 'mtdActual');
+    const totalLaborDollars = extractValue('total labor', 'mtdActual');
     const primeCost = extractValue('prime cost', 'mtdActual');
+
+    // Extract Total Labor % directly from the sheet (already a percentage)
+    const totalLaborPercent = extractValue('total labor %', 'mtdActual') ||
+                              extractValue('total labor', 'mtdActual');
 
     // Extract SOP from "SOP w/ Budget Mix" or "SOP w/Budget Mix" column
     const sopPercent = extractValue('sop w/ budget mix', 'mtdActual') ||
@@ -423,12 +427,12 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     const pnl: any[] = [
       { name: 'Total COGS', category: 'COGS', actual: cogs, budget: extractValue('cogs', 'plan'), indent: 0 },
       { name: 'Variable Labor', category: 'Labor', actual: variableLabor, budget: extractValue('variable labor', 'plan'), indent: 1 },
-      { name: 'Total Labor', category: 'Labor', actual: totalLabor, budget: extractValue('total labor', 'plan'), indent: 0 },
+      { name: 'Total Labor', category: 'Labor', actual: totalLaborDollars, budget: extractValue('total labor', 'plan'), indent: 0 },
       { name: 'Prime Cost', category: 'Prime Cost', actual: primeCost, budget: extractValue('prime cost', 'plan'), indent: 0 },
     ];
 
-    // Calculate Labor% from Total Labor dollars: (Total Labor / Sales) * 100
-    const laborPercent = sales > 0 ? (totalLabor / sales) * 100 : 0;
+    // Labor% comes directly from the sheet as a percentage (e.g., 27.9 means 27.9%)
+    const laborPercentDecimal = totalLaborPercent > 1 ? totalLaborPercent / 100 : totalLaborPercent;
 
     // SOP is already in percentage form in the CSV (e.g., 32.5 means 32.5%)
     const sopPercentDecimal = sopPercent > 1 ? sopPercent / 100 : sopPercent;
@@ -438,9 +442,9 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
       'Week Start Date': weekStartDate,
       Sales: sales,
       'Prime Cost': primeCost,
-      'Labor%': Math.round(laborPercent) / 100, // Convert to decimal (e.g., 27.9% -> 0.279)
+      'Labor%': Math.round(laborPercentDecimal * 10000) / 10000, // Use percentage from sheet
       SOP: Math.round(sopPercentDecimal * 10000) / 10000,
-      'Food Cost': cogs, // Using total COGS as proxy
+      COGS: cogs, // Renamed from "Food Cost" to "COGS"
       'Variable Labor': variableLabor,
       Reviews: reviews || 0, // Open Table rating
       'Culinary Audit': culinaryAudit || 0, // Steritech score
