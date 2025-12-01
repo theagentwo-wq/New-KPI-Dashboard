@@ -335,6 +335,13 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
 
     if (!storeName || storeName.length < 2) continue;
 
+    // Only process rows that match store name pattern: "01 - Store Name" or "1 - Store Name"
+    // Skip title/header rows like "Month to Date Tracking" or "All Stores"
+    if (!storeName.match(/^\d{1,2}\s*-\s*.+/)) {
+      console.log(`[parsePnLCsvHorizontal] Skipping non-store row: "${storeName}"`);
+      continue;
+    }
+
     // Clean store name (remove prefix like "01 - ")
     const cleanStoreName = storeName.replace(/^\d+\s*-\s*/, '').trim();
 
