@@ -29,8 +29,9 @@ const AVAILABLE_KPIS: Kpi[] = [
     Kpi.Sales,
     Kpi.SOP,
     Kpi.PrimeCost,
-    Kpi.FoodCost,
+    Kpi.COGS,
     Kpi.VariableLabor,
+    Kpi.TotalLabor,
     Kpi.AvgReviews,
     Kpi.CulinaryAuditScore
 ];

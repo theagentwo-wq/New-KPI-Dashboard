@@ -7,8 +7,9 @@ export enum Kpi {
   AvgTicket = 'Avg Ticket',
   PrimeCost = 'Prime Cost',
   AvgReviews = 'Avg. Reviews',  // Changed from 'Avg Reviews' to match Firebase (with dot)
-  FoodCost = 'Food Cost',
+  COGS = 'COGS',  // Changed from 'Food Cost' to match horizontal CSV parser
   VariableLabor = 'Variable Labor',
+  TotalLabor = 'Total Labor',  // New KPI for Total Labor percentage
   CulinaryAuditScore = 'Culinary Audit Score',
 }
 

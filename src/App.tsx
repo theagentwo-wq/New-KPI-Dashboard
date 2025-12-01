@@ -250,9 +250,11 @@ const App = () => {
               'Avg Ticket': Kpi.AvgTicket,
               'Prime Cost': Kpi.PrimeCost,
               'Avg. Reviews': Kpi.AvgReviews,
-              'Food Cost': Kpi.FoodCost,
+              'COGS': Kpi.COGS,
               'Variable Labor': Kpi.VariableLabor,
-              'Culinary Audit Score': Kpi.CulinaryAuditScore
+              'Total Labor': Kpi.TotalLabor,
+              'Culinary Audit Score': Kpi.CulinaryAuditScore,
+              'Reviews': Kpi.AvgReviews
             };
 
             for (const [columnName, kpi] of Object.entries(kpiMapping)) {

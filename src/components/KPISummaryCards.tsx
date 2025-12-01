@@ -84,8 +84,9 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
         Kpi.Sales,
         Kpi.SOP,
         Kpi.PrimeCost,
-        Kpi.FoodCost,
+        Kpi.COGS,
         Kpi.VariableLabor,
+        Kpi.TotalLabor,
         Kpi.AvgReviews,
         Kpi.CulinaryAuditScore
     ];

@@ -172,7 +172,7 @@ From the P&L data, extract these top-level KPIs for dashboard:
 - **Prime Cost**: "Prime Cost" actual value
 - **Labor%**: "Total Labor" / "Sales" * 100
 - **SOP**: "Total Store Operating Profit" / "Sales" * 100
-- **Food Cost**: "Food & N/A Bev COGS" actual value
+- **COGS**: "Food & N/A Bev COGS" actual value (renamed from Food Cost)
 - **Variable Labor**: "Variable Labor" actual value
 
 ### Step 7: Use Provided Date and Period Type

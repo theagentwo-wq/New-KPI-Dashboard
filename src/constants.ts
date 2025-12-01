@@ -98,8 +98,9 @@ export const KPI_CONFIG: { [key in Kpi]: KpiConfig } = {
   [Kpi.AvgTicket]: { label: 'Avg Ticket', format: 'currency', higherIsBetter: true, aggregation: 'avg' },
   [Kpi.PrimeCost]: { label: 'Prime Cost', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
   [Kpi.AvgReviews]: { label: 'Avg Reviews', format: 'number', higherIsBetter: true, aggregation: 'avg' },
-  [Kpi.FoodCost]: { label: 'Food Cost', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.COGS]: { label: 'COGS', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
   [Kpi.VariableLabor]: { label: 'Variable Labor', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
+  [Kpi.TotalLabor]: { label: 'Total Labor', format: 'percent', higherIsBetter: false, aggregation: 'avg' },
   [Kpi.CulinaryAuditScore]: { label: 'Culinary Audit Score', format: 'percent', higherIsBetter: true, baseline: 0.90, aggregation: 'avg' },
 };
 
@@ -111,8 +112,9 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
   [Kpi.AvgTicket]: 'ticket',
   [Kpi.PrimeCost]: 'prime',
   [Kpi.AvgReviews]: 'reviews',
-  [Kpi.FoodCost]: 'food',
+  [Kpi.COGS]: 'food',
   [Kpi.VariableLabor]: 'labor',
+  [Kpi.TotalLabor]: 'labor',
   [Kpi.CulinaryAuditScore]: 'audit',
 };
 

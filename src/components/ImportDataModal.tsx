@@ -406,7 +406,6 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
       case 'guided-paste': return <p>Guided paste not implemented in this view.</p>;
       case 'verify':
         if (!activeJob) return null;
-        const hasHorizontalFormat = activeJob.extractedData.some(item => item.sourceName?.includes('Horizontal Format'));
         return (
           <div className="space-y-4">
             <p className="text-slate-300 text-sm">AI analysis is complete. Please review the extracted data below for accuracy. You can click on any cell to make corrections before importing.</p>
