@@ -255,6 +255,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
             }
         })();
 
+        console.log('[ImportDataModal] Upload complete! Result:', JSON.stringify(uploadResult, null, 2));
+        console.log('[ImportDataModal] fileUrl present?', !!uploadResult.fileUrl);
         console.log('[ImportDataModal] File uploaded, starting AI job with date:', dateToUse, 'periodType:', periodType);
         const { jobId } = await startImportJob(uploadResult, job.type === 'file' ? 'document' : 'text', dateToUse, periodType);
 

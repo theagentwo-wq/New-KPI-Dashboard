@@ -81,6 +81,8 @@ export const getDirectorPerformanceSnapshot = (directorId: string, period: Perio
 export const startImportJob = async (file: FileUploadResult, _importType: 'document' | 'text', weekStartDate?: string, periodType: 'weekly' | 'monthly' = 'weekly'): Promise<{ jobId: string }> => {
   try {
     const result = await callGeminiAPI('startTask', {
+      weekStartDate: weekStartDate || '2025-01-06',
+      periodType: periodType,
       model: 'gemini-1.5-pro-latest',
       prompt: `
 You are a financial analyst extracting detailed P&L data from restaurant financial reports.
@@ -206,6 +208,8 @@ Respond with the complete results object containing data for ALL stores found in
         filePath: file.filePath,
         mimeType: file.mimeType,
         displayName: file.fileName,
+        fileUrl: file.fileUrl,
+        fileName: file.fileName,
       }],
       taskType: 'batch',
     });

@@ -1442,6 +1442,13 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
     try {
       // Fetch file content from Firebase Storage URL
       const file = files[0];
+      console.log(`[startTask] File object:`, JSON.stringify(file, null, 2));
+
+      // Validate fileUrl
+      if (!file || !file.fileUrl || file.fileUrl.trim() === '') {
+        throw new Error(`Invalid file URL. Received: ${JSON.stringify(file)}`);
+      }
+
       console.log(`[startTask] Downloading file from URL:`, file.fileUrl);
       console.log(`[startTask] File details:`, { fileName: file.fileName, mimeType: file.mimeType });
 
