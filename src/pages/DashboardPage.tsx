@@ -65,10 +65,30 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [periodsForType, activePeriod]);
     
     const dataForActivePeriod = useMemo(() => {
-        return loadedData.filter(d => {
+        console.log(`[DashboardPage] Filtering ${loadedData.length} records for period ${activePeriod.label}`);
+        console.log(`[DashboardPage] Period range: ${activePeriod.startDate.toISOString()} to ${activePeriod.endDate.toISOString()}`);
+        console.log(`[DashboardPage] Period timestamps: ${activePeriod.startDate.getTime()} to ${activePeriod.endDate.getTime()}`);
+
+        const filtered = loadedData.filter((d, index) => {
             const dataDate = new Date(d.year, d.month -1, d.day);
-            return dataDate >= activePeriod.startDate && dataDate <= activePeriod.endDate;
+            const matches = dataDate >= activePeriod.startDate && dataDate <= activePeriod.endDate;
+
+            // Log first 3 records for debugging
+            if (index < 3) {
+                console.log(`[DashboardPage] Record ${index}:`);
+                console.log(`  Store: ${d.storeId}`);
+                console.log(`  Raw values: year=${d.year}, month=${d.month}, day=${d.day}`);
+                console.log(`  Created date: ${dataDate.toISOString()} (timestamp: ${dataDate.getTime()})`);
+                console.log(`  Comparison 1: ${dataDate.getTime()} >= ${activePeriod.startDate.getTime()} = ${dataDate >= activePeriod.startDate}`);
+                console.log(`  Comparison 2: ${dataDate.getTime()} <= ${activePeriod.endDate.getTime()} = ${dataDate <= activePeriod.endDate}`);
+                console.log(`  Final match: ${matches}`);
+            }
+
+            return matches;
         });
+
+        console.log(`[DashboardPage] Filtered to ${filtered.length} records matching period`);
+        return filtered;
     }, [loadedData, activePeriod]);
 
     const dataForComparisonPeriod = useMemo(() => {
@@ -125,9 +145,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     ): { [storeId: string]: DataItem } => {
         
         const aggregate = (list: StorePerformanceData[]) => {
+            console.log(`[processDataForTable.aggregate] Processing ${list.length} items`);
+            console.log(`[processDataForTable.aggregate] Director stores:`, directorStores);
+
             const storeMap: { [id: string]: { sums: PerformanceData, counts: { [k in Kpi]?: number } } } = {};
-            list.forEach(item => {
-                if (!directorStores.includes(item.storeId)) return; 
+            let skippedCount = 0;
+            list.forEach((item, index) => {
+                if (!directorStores.includes(item.storeId)) {
+                    if (index < 3) {
+                        console.log(`[processDataForTable.aggregate] Skipping ${item.storeId} - not in directorStores`);
+                    }
+                    skippedCount++;
+                    return;
+                }
                 const { storeId, data } = item;
                 if (!storeMap[storeId]) storeMap[storeId] = { sums: {}, counts: {} };
                 (Object.keys(data) as Kpi[]).forEach(kpi => {
@@ -138,6 +168,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     }
                 });
             });
+            console.log(`[processDataForTable.aggregate] Skipped ${skippedCount} items not in directorStores`);
+            console.log(`[processDataForTable.aggregate] storeMap keys:`, Object.keys(storeMap));
+
             const result: { [id: string]: PerformanceData } = {};
             Object.keys(storeMap).forEach(storeId => {
                 const { sums, counts } = storeMap[storeId];
@@ -207,8 +240,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [dataForActivePeriod, dataForComparisonPeriod, budgets, comparisonMode, activePeriod, processDataForTable]);
     
     const summaryDataForCards = useMemo(() => {
+        console.log('[DashboardPage] processedDataForTable:', processedDataForTable);
+        console.log('[DashboardPage] processedDataForTable keys:', Object.keys(processedDataForTable));
+
         const dataToSummarize = Object.values(processedDataForTable).map(d => d.actual as PerformanceData);
-        if (dataToSummarize.length === 0) return {};
+        console.log('[DashboardPage] dataToSummarize length:', dataToSummarize.length);
+        console.log('[DashboardPage] dataToSummarize:', dataToSummarize);
+
+        if (dataToSummarize.length === 0) {
+            console.warn('[DashboardPage] No data to summarize - processedDataForTable is empty!');
+            return {};
+        }
 
         const aggregated: PerformanceData = {};
         // Use Object.values to get actual enum values, not keys

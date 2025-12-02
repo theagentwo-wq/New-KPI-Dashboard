@@ -269,8 +269,10 @@ const App = () => {
               if (value !== undefined && value !== null && value !== '') {
                 const numValue = typeof value === 'string' ? parseFloat(value) : value;
                 if (!isNaN(numValue)) {
-                  // Convert percentages from percentage form (28.5) to decimal (0.285)
-                  if (kpi === Kpi.Labor || kpi === Kpi.SOP) {
+                  // Convert ALL percentage KPIs from percentage form (28.5) to decimal (0.285)
+                  const { KPI_CONFIG } = await import('./constants');
+                  const kpiConfig = KPI_CONFIG[kpi];
+                  if (kpiConfig && kpiConfig.format === 'percent') {
                     kpiData[kpi] = numValue / 100;
                   } else {
                     kpiData[kpi] = numValue;

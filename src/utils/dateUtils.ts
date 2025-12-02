@@ -30,14 +30,23 @@ export const generate445FiscalPeriods = (startFiscalYear: number, endFiscalYear:
 
       const quarter = Math.ceil(periodNum / 3);
 
-      periods.push({
+      const period = {
         label: `FY${fiscalYear} P${periodNum}`,
         startDate: new Date(currentPeriodStart),
-        endDate: periodEnd,
-        type: 'monthly', // Using monthly type for fiscal periods
+        endDate: new Date(periodEnd), // Create NEW Date object to avoid mutation
+        type: 'monthly' as const, // Using monthly type for fiscal periods
         year: fiscalYear,
         quarter
-      });
+      };
+
+      // Log P11 specifically to debug
+      if (fiscalYear === 2025 && periodNum === 11) {
+        console.log(`[dateUtils] Creating FY2025 P11:`);
+        console.log(`  Start: ${period.startDate.toISOString()} (${period.startDate.getTime()})`);
+        console.log(`  End: ${period.endDate.toISOString()} (${period.endDate.getTime()})`);
+      }
+
+      periods.push(period);
 
       // Move to next period
       currentPeriodStart = new Date(periodEnd);
@@ -196,12 +205,21 @@ export const getPeriodOptions = (): Period[] => {
   const allFiscalPeriods = generate445FiscalPeriods(2024, 2026);
   const currentIndex = allFiscalPeriods.findIndex(p => p.label === currentPeriod.label);
 
-  // Current Period
-  periods.push(currentPeriod);
+  // Current Period - clone the dates to avoid mutation
+  periods.push({
+    ...currentPeriod,
+    startDate: new Date(currentPeriod.startDate),
+    endDate: new Date(currentPeriod.endDate)
+  });
 
-  // Previous Period (if exists)
+  // Previous Period (if exists) - clone the dates
   if (currentIndex > 0) {
-    periods.push(allFiscalPeriods[currentIndex - 1]);
+    const prevPeriod = allFiscalPeriods[currentIndex - 1];
+    periods.push({
+      ...prevPeriod,
+      startDate: new Date(prevPeriod.startDate),
+      endDate: new Date(prevPeriod.endDate)
+    });
   }
 
   // Fiscal Year-to-Date (from fiscal year start to today)
@@ -209,8 +227,8 @@ export const getPeriodOptions = (): Period[] => {
   if (fiscalYearStart) {
     periods.push({
       label: `FY${currentPeriod.year} YTD`,
-      startDate: fiscalYearStart,
-      endDate: today,
+      startDate: new Date(fiscalYearStart),
+      endDate: new Date(today),
       type: 'yearly',
       year: currentPeriod.year,
       quarter: currentPeriod.quarter
@@ -222,8 +240,8 @@ export const getPeriodOptions = (): Period[] => {
   last90.setDate(today.getDate() - 90);
   periods.push({
     label: 'Last 90 Days',
-    startDate: last90,
-    endDate: today,
+    startDate: new Date(last90),
+    endDate: new Date(today),
     type: 'daily',
     year: currentPeriod.year,
     quarter: currentPeriod.quarter

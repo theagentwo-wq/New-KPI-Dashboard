@@ -297,8 +297,20 @@ export const savePerformanceDataForPeriod = async (storeId: string, period: Peri
 };
 
 export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
+    console.log('[getPerformanceData] 🔍 Fetching all performance data from Firestore...');
     const snapshot = await getDocs(actualsCollection);
-    return snapshot.docs.map(docSnap => {
+    console.log(`[getPerformanceData] ✅ Retrieved ${snapshot.size} documents from performance_actuals collection`);
+
+    if (snapshot.size === 0) {
+        console.warn('[getPerformanceData] ⚠️ No documents found in performance_actuals collection!');
+        return [];
+    }
+
+    // Log first 3 document IDs to verify structure
+    const docIds = snapshot.docs.slice(0, 3).map(d => d.id);
+    console.log('[getPerformanceData] Sample document IDs:', docIds);
+
+    const results = snapshot.docs.map(docSnap => {
         const docData = docSnap.data();
         const docId = docSnap.id;
 
@@ -311,14 +323,30 @@ export const getPerformanceData = async (): Promise<StorePerformanceData[]> => {
         const month = dateParts[1];
         const day = dateParts[2];
 
-        return {
+        const result = {
             storeId: docData.storeId,
             year: year,
             month: month,
             day: day,
             data: docData.data as PerformanceData
         } as StorePerformanceData;
+
+        // Log first document in detail
+        if (docSnap.id === snapshot.docs[0].id) {
+            console.log(`[getPerformanceData] First document details:`);
+            console.log(`  Document ID: ${docId}`);
+            console.log(`  Parsed date: ${year}-${month}-${day}`);
+            console.log(`  Store ID: ${docData.storeId}`);
+            console.log(`  Data keys:`, Object.keys(docData.data || {}));
+            console.log(`  Sales value:`, docData.data?.['Sales']);
+            console.log(`  COGS value:`, docData.data?.['COGS']);
+        }
+
+        return result;
     });
+
+    console.log(`[getPerformanceData] ✅ Returning ${results.length} processed records`);
+    return results;
 };
 
 export const getAggregatedPerformanceDataForPeriod = async (period: Period, storeId?: string): Promise<PerformanceData> => {
