@@ -34,38 +34,17 @@ const mapStyles = [
 // Pin/marker icon path - teardrop shape pointing down
 const PIN_PATH = 'M12 0C7.31 0 3.5 3.81 3.5 8.5C3.5 14.88 12 24 12 24S20.5 14.88 20.5 8.5C20.5 3.81 16.69 0 12 0Z';
 
-const ICONS = {
-    HOME: {
-        path: PIN_PATH,
-        fillColor: '#06b6d4', // cyan-500 - home location
-        fillOpacity: 0.95,
-        strokeWeight: 2,
-        strokeColor: '#0e7490', // cyan-700 - darker border
-        rotation: 0,
-        scale: 1.3,
-        anchor: { x: 12, y: 24 }, // Bottom point of pin
-    },
-    DIRECTOR_DEPLOYMENT: {
-        path: PIN_PATH,
-        fillColor: '#0ea5e9', // sky-500 - director on deployment
-        fillOpacity: 0.95,
-        strokeWeight: 2,
-        strokeColor: '#0369a1', // sky-700 - darker border
-        rotation: 0,
-        scale: 1.3,
-        anchor: { x: 12, y: 24 },
-    },
-    TEAM_DEPLOYMENT: {
-        path: PIN_PATH,
-        fillColor: '#8b5cf6', // violet-500 - team member deployment
-        fillOpacity: 0.95,
-        strokeWeight: 2,
-        strokeColor: '#6d28d9', // violet-700 - darker border
-        rotation: 0,
-        scale: 1.2,
-        anchor: { x: 12, y: 24 },
-    }
-};
+// Helper function to create icon objects (must be called after Google Maps loads)
+const createIcon = (fillColor: string, strokeColor: string, scale: number) => ({
+    path: PIN_PATH,
+    fillColor,
+    fillOpacity: 0.95,
+    strokeWeight: 2,
+    strokeColor,
+    rotation: 0,
+    scale,
+    anchor: new window.google.maps.Point(12, 24), // Bottom point of pin
+});
 
 // --- Helper Functions ---
 
@@ -119,7 +98,7 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
           position: homePosition,
           map,
           title: `Home Base: ${director.homeLocation}`,
-          icon: ICONS.HOME,
+          icon: createIcon('#06b6d4', '#0e7490', 1.3), // cyan home icon
           label: {
             text: director.firstName || director.name.split(' ')[0],
             color: '#ffffff',
@@ -142,7 +121,9 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
             position,
             map,
             title: `${deployment.purpose} @ ${deployment.destination}`,
-            icon: isDirector ? ICONS.DIRECTOR_DEPLOYMENT : ICONS.TEAM_DEPLOYMENT,
+            icon: isDirector
+              ? createIcon('#0ea5e9', '#0369a1', 1.3) // sky blue for director
+              : createIcon('#8b5cf6', '#6d28d9', 1.2), // violet for team
             label: {
                 text: deployment.deployedPerson.split(' ')[0], // First name
                 color: '#ffffff',
