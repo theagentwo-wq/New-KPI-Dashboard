@@ -3,7 +3,7 @@ import { PerformanceData, Period, ComparisonMode, View, StorePerformanceData, Bu
 import { KPI_CONFIG, DIRECTORS, ALL_STORES } from '../constants';
 import { getPreviousPeriod, getYoYPeriod, ALL_PERIODS } from '../utils/dateUtils';
 import { getWeatherForLocation } from '../services/weatherService';
-import { AIAssistant } from '../components/AIAssistant';
+// import { AIAssistant } from '../components/AIAssistant'; // DISABLED - was causing 500 errors on page load
 import { NotesPanel } from '../components/NotesPanel';
 import { LocationInsightsModal } from '../components/LocationInsightsModal';
 import { CompanyStoreRankings } from '../components/CompanyStoreRankings';
@@ -414,7 +414,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 </div>
                 <div className="xl:col-span-1 space-y-6 xl:sticky top-8">
                     <PerformanceMatrix periodLabel={activePeriod.label} currentView={activeView} allStoresData={processedDataForTable} directorAggregates={directorAggregates} />
-                    <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={activeView} period={activePeriod} userLocation={userLocation} />
+                    {/* <AIAssistant data={processedDataForTable} historicalData={historicalDataForAI} view={activeView} period={activePeriod} userLocation={userLocation} /> */}
                 </div>
             </div>
              <LocationInsightsModal 
