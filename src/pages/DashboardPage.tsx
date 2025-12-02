@@ -360,7 +360,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         fetchAllWeather();
     }, [processedDataForTable, weatherData]);
 
-    const historicalDataForAI = useMemo(() => { return []; }, []);
+    // const historicalDataForAI = useMemo(() => { return []; }, []); // DISABLED - only used by AI Assistant
 
     const kpiSummaryCardsProps: KPISummaryCardsProps = {
         data: summaryDataForCards,
