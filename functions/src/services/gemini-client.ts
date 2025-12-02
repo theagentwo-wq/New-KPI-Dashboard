@@ -11,9 +11,9 @@ export class GeminiClient {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-1.5-flash (stable model with higher quota limits)
+    // Use gemini-1.5-flash-latest (stable model with higher quota limits, v1beta compatible)
     this.defaultModel = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-flash-latest',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
@@ -65,7 +65,7 @@ export class GeminiClient {
 
   /**
    * Generate JSON response
-   * For CSV import tasks, use: generateJSON(prompt, data, 'gemini-1.5-flash', 0.2)
+   * For CSV import tasks, use: generateJSON(prompt, data, 'gemini-1.5-flash-latest', 0.2)
    */
   async generateJSON(prompt: string, data?: any, modelName?: string, temperature?: number): Promise<any> {
     const jsonPrompt = `${prompt}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no explanations, just JSON.`;
