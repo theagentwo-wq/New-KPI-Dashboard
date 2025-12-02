@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Deployment, DirectorProfile } from '../types';
-import { STORE_DETAILS } from '../constants';
+import { getStoreInfo } from '../constants';
 
 interface GoogleWindow extends Window {
   google: any;
@@ -112,7 +112,8 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
 
       // Add markers for ACTIVE deployments only
       activeDeployments.forEach(deployment => {
-        const storeInfo = STORE_DETAILS[deployment.destination];
+        // Get store info - supports both "Columbus" and "Columbus, OH" formats
+        const storeInfo = getStoreInfo(deployment.destination);
         if (storeInfo) {
           const position = { lat: storeInfo.lat, lng: storeInfo.lon };
           const isDirector = deployment.deployedPerson === director.name;

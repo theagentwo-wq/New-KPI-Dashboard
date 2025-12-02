@@ -181,3 +181,23 @@ export const normalizeStoreName = (storeName: string): string => {
   }
   return storeName;
 };
+
+/**
+ * Get store details by name, supporting both short ("Columbia") and full ("Columbia, SC") formats.
+ * This allows the map and other components to work with deployment data that may use either format.
+ *
+ * @param storeName - Store name in either short or full format
+ * @returns Store details object or undefined if not found
+ */
+export const getStoreInfo = (storeName: string): typeof STORE_DETAILS[keyof typeof STORE_DETAILS] | undefined => {
+  // First try direct lookup
+  let storeInfo = STORE_DETAILS[storeName as keyof typeof STORE_DETAILS];
+
+  // If not found and name includes comma (full format), try normalized short name
+  if (!storeInfo && storeName.includes(',')) {
+    const normalized = storeName.split(',')[0].trim();
+    storeInfo = STORE_DETAILS[normalized as keyof typeof STORE_DETAILS];
+  }
+
+  return storeInfo;
+};
