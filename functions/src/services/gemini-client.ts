@@ -11,9 +11,9 @@ export class GeminiClient {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-pro (stable model with v1beta compatibility and higher quota)
+    // REVERT: Use gemini-2.0-flash-exp - this was working all day before
     this.defaultModel = this.genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash-exp',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
@@ -65,7 +65,7 @@ export class GeminiClient {
 
   /**
    * Generate JSON response
-   * For CSV import tasks, use: generateJSON(prompt, data, 'gemini-pro', 0.2)
+   * For CSV import tasks, use: generateJSON(prompt, data, 'gemini-2.0-flash-exp', 0.2)
    */
   async generateJSON(prompt: string, data?: any, modelName?: string, temperature?: number): Promise<any> {
     const jsonPrompt = `${prompt}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no explanations, just JSON.`;
