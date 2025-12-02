@@ -133,3 +133,51 @@ export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {
   [NoteCategory.Facilities]: 'border-orange-500',
   [NoteCategory.Reviews]: 'border-green-500',
 };
+
+/**
+ * Get the full location name with state code (e.g., "Columbia, SC") for AI prompts and external APIs.
+ * Accepts either short name ("Columbia") or full name ("Columbia, SC") and always returns full name.
+ *
+ * @param storeName - Store name in short format ("Columbia") or full format ("Columbia, SC")
+ * @returns Full location name with state code (e.g., "Columbia, SC")
+ */
+export const getFullLocationName = (storeName: string): string => {
+  // If already has state code format (contains comma), return as-is
+  if (storeName.includes(',')) {
+    return storeName;
+  }
+
+  // Extract state from STORE_DETAILS address
+  const storeDetails = STORE_DETAILS[storeName];
+  if (!storeDetails) {
+    console.warn(`[getFullLocationName] No details found for store: ${storeName}`);
+    return storeName; // Fallback to input if not found
+  }
+
+  // Extract state code from address (e.g., "Columbia, SC 29201" -> "SC")
+  // Address format: "street, city, STATE zipcode"
+  const addressParts = storeDetails.address.split(',');
+  if (addressParts.length >= 3) {
+    // Last part is "STATE zipcode"
+    const stateAndZip = addressParts[addressParts.length - 1].trim();
+    const stateCode = stateAndZip.split(' ')[0]; // Extract just the state code
+    return `${storeName}, ${stateCode}`;
+  }
+
+  return storeName; // Fallback
+};
+
+/**
+ * Normalize a store name to the short format used in Firestore.
+ * Accepts either "Columbia" or "Columbia, SC" and returns "Columbia".
+ *
+ * @param storeName - Store name in any format
+ * @returns Normalized short store name
+ */
+export const normalizeStoreName = (storeName: string): string => {
+  // If has state code, strip it
+  if (storeName.includes(',')) {
+    return storeName.split(',')[0].trim();
+  }
+  return storeName;
+};

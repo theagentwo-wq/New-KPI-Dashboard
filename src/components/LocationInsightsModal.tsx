@@ -9,7 +9,7 @@ import { PerformanceData, Kpi, DailyForecast } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { WeatherIcon } from './WeatherIcon';
 import { Icon } from './Icon';
-import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP } from '../constants';
+import { DIRECTORS, KPI_CONFIG, KPI_ICON_MAP, getFullLocationName } from '../constants';
 
 interface PlaceDetails {
   name: string;
@@ -88,8 +88,9 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
                 try {
                     setIsPlaceDetailsLoading(true); setPlaceDetailsError(null);
                     // Use business name search for consistent, accurate results
-                    // Same format as Street View: "Tupelo Honey Southern Kitchen and Bar [City, State]"
-                    const searchQuery = `Tupelo Honey Southern Kitchen and Bar ${location}`;
+                    // Convert short name to full name with state (e.g., "Columbia" -> "Columbia, SC")
+                    const fullLocation = getFullLocationName(location);
+                    const searchQuery = `Tupelo Honey Southern Kitchen and Bar ${fullLocation}`;
                     const details = await getPlaceDetails(searchQuery);
                     setPlaceDetails(details);
                 } catch (error) {
@@ -110,8 +111,10 @@ export const LocationInsightsModal: React.FC<LocationInsightsModalProps> = ({ is
         setIsLoadingAnalysis(prev => ({ ...prev, [type]: true }));
         if (type === 'brief' && audience) setLoadingAudience(audience);
 
-        // Use full restaurant name + location for all API calls
-        const fullLocationName = `Tupelo Honey Southern Kitchen and Bar ${location}`;
+        // Use full restaurant name + location with state for all AI API calls
+        // Convert short name to full name (e.g., "Columbia" -> "Columbia, SC")
+        const fullLocation = getFullLocationName(location);
+        const fullLocationName = `Tupelo Honey Southern Kitchen and Bar ${fullLocation}`;
 
         let result: any = null;
         try {
