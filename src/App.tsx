@@ -252,14 +252,14 @@ const App = () => {
             const kpiMapping: Record<string, typeof Kpi[keyof typeof Kpi]> = {
               'Sales': Kpi.Sales,
               'Guests': Kpi.Guests,
-              'Labor%': Kpi.Labor,
+              'Labor%': Kpi.TotalLabor, // AI extracts "Labor%" but it's actually Total Labor data
               'SOP': Kpi.SOP,
               'Avg Ticket': Kpi.AvgTicket,
               'Prime Cost': Kpi.PrimeCost,
               'Avg. Reviews': Kpi.AvgReviews,
               'COGS': Kpi.COGS,
               'Variable Labor': Kpi.VariableLabor,
-              'Total Labor': Kpi.TotalLabor,
+              'Total Labor': Kpi.TotalLabor, // Keep this in case AI extracts it correctly
               'Culinary Audit Score': Kpi.CulinaryAuditScore,
               'Reviews': Kpi.AvgReviews
             };
