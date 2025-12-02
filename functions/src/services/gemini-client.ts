@@ -11,9 +11,10 @@ export class GeminiClient {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // REVERT: Use gemini-2.0-flash-exp - this was working all day before
+    // Use gemini-1.5-flash (stable) - much higher quotas than experimental models
+    // Paid Tier 1 limits: 1,000 RPM, 4M TPM, 50,000 RPD (vs exp: 10 RPM, 250K TPM, 500 RPD)
     this.defaultModel = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
