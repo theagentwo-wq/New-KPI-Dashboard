@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ALL_STORES, ALL_KPIS, KPI_CONFIG } from '../constants';
+import { ALL_STORES, DASHBOARD_KPIS, KPI_CONFIG } from '../constants';
 import { Kpi, PerformanceData, Period, PeriodType } from '../types';
 import { ALL_PERIODS } from '../utils/dateUtils';
 import { getAggregatedPerformanceDataForPeriod } from '../services/firebaseService';
@@ -101,7 +101,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
 
     try {
       const dataToSave: PerformanceData = {};
-      for (const kpi of ALL_KPIS) {
+      for (const kpi of DASHBOARD_KPIS) {
         const rawValue = kpiValues[kpi];
         const value = typeof rawValue === 'string' ? parseFloat(rawValue) : rawValue;
 
@@ -186,7 +186,7 @@ export const DataEntryPage: React.FC<DataEntryPageProps> = ({ onSave }) => {
                 {isFetching ? 'Loading Existing Data...' : 'Enter KPI Values'}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ALL_KPIS.map((kpi: Kpi) => (
+                {DASHBOARD_KPIS.map((kpi: Kpi) => (
                   <div key={kpi}>
                     <label htmlFor={`kpi-${kpi}`} className="block text-sm font-medium text-slate-400">{kpi}</label>
                     <input
