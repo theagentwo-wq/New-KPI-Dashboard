@@ -545,7 +545,7 @@ Analyze the data and provide actionable insights.`;
  * Executive summary for period
  */
 router.post('/getExecutiveSummary', asyncHandler(async (req: Request, res: Response) => {
-  const { data, view, period }: types.GetExecutiveSummaryRequest = req.body;
+  const { data, view, period }: types.GetExecutiveSummaryRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
   const prompt = `You are the Chief Operating Officer of a restaurant company reviewing ${period.label} performance.
