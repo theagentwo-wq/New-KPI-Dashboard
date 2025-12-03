@@ -47,6 +47,7 @@ const createPinIcon = (fillColor: string, strokeColor: string, scale: number) =>
     rotation: 0,
     scale,
     anchor: new window.google.maps.Point(12, 24), // Bottom point of pin
+    optimized: false, // Use true SVG rendering, prevents transparent.png loading
 });
 
 // Helper function to create home icon (for directors at home)
@@ -59,6 +60,7 @@ const createHomeIcon = (fillColor: string, strokeColor: string, scale: number) =
     rotation: 0,
     scale: scale * 1.5, // Make home icons slightly larger
     anchor: new window.google.maps.Point(12, 12), // Center of house
+    optimized: false, // Use true SVG rendering, prevents transparent.png loading
 });
 
 // --- Helper Functions ---
