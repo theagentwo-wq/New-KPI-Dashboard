@@ -34,8 +34,11 @@ const mapStyles = [
 // Pin/marker icon path - teardrop shape pointing down
 const PIN_PATH = 'M12 0C7.31 0 3.5 3.81 3.5 8.5C3.5 14.88 12 24 12 24S20.5 14.88 20.5 8.5C20.5 3.81 16.69 0 12 0Z';
 
-// Helper function to create icon objects (must be called after Google Maps loads)
-const createIcon = (fillColor: string, strokeColor: string, scale: number) => ({
+// Home icon path - house shape
+const HOME_PATH = 'M12 3L2 12h3v8h5v-6h4v6h5v-8h3L12 3z';
+
+// Helper function to create pin icon (for deployments)
+const createPinIcon = (fillColor: string, strokeColor: string, scale: number) => ({
     path: PIN_PATH,
     fillColor,
     fillOpacity: 0.95,
@@ -44,6 +47,18 @@ const createIcon = (fillColor: string, strokeColor: string, scale: number) => ({
     rotation: 0,
     scale,
     anchor: new window.google.maps.Point(12, 24), // Bottom point of pin
+});
+
+// Helper function to create home icon (for directors at home)
+const createHomeIcon = (fillColor: string, strokeColor: string, scale: number) => ({
+    path: HOME_PATH,
+    fillColor,
+    fillOpacity: 0.95,
+    strokeWeight: 2,
+    strokeColor,
+    rotation: 0,
+    scale: scale * 1.5, // Make home icons slightly larger
+    anchor: new window.google.maps.Point(12, 12), // Center of house
 });
 
 // --- Helper Functions ---
@@ -98,7 +113,7 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
           position: homePosition,
           map,
           title: `Home Base: ${director.homeLocation}`,
-          icon: createIcon('#06b6d4', '#0e7490', 1.3), // cyan home icon
+          icon: createHomeIcon('#10b981', '#059669', 1.0), // green home icon
           label: {
             text: director.firstName || director.name.split(' ')[0],
             color: '#ffffff',
@@ -123,8 +138,8 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
             map,
             title: `${deployment.purpose} @ ${deployment.destination}`,
             icon: isDirector
-              ? createIcon('#0ea5e9', '#0369a1', 1.3) // sky blue for director
-              : createIcon('#8b5cf6', '#6d28d9', 1.2), // violet for team
+              ? createPinIcon('#0ea5e9', '#0369a1', 1.3) // sky blue pin for director
+              : createPinIcon('#8b5cf6', '#6d28d9', 1.2), // violet pin for team
             label: {
                 text: deployment.deployedPerson.split(' ')[0], // First name
                 color: '#ffffff',
