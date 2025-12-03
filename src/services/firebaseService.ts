@@ -499,6 +499,11 @@ export const updateGoal = async (goalId: string, newTarget: number, newStatus: s
     await updateDoc(goalRef, { target: newTarget, status: newStatus });
 };
 
+export const deleteGoal = async (goalId: string): Promise<void> => {
+    const goalRef = doc(goalsCollection, goalId);
+    await deleteDoc(goalRef);
+};
+
 // --- Deployments ---
 export const getDeploymentsForDirector = async (directorId: string): Promise<Deployment[]> => {
     console.log('[Firebase] getDeploymentsForDirector called for:', directorId);

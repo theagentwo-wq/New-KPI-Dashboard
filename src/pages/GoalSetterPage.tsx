@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoalSetter } from '../components/GoalSetter';
 import { Goal, DirectorProfile, Kpi } from '../types';
-import { addGoal, getGoals, getDirectorProfiles } from '../services/firebaseService';
+import { addGoal, getGoals, getDirectorProfiles, deleteGoal } from '../services/firebaseService';
 import { Target, Trash2 } from 'lucide-react';
 import { KPI_CONFIG } from '../constants';
 
@@ -61,9 +61,15 @@ export const GoalSetterPage: React.FC = () => {
 
     const handleDeleteGoal = async (goalId: string) => {
         if (!confirm('Are you sure you want to delete this goal?')) return;
-        // Note: Delete function needs to be added to firebaseService
-        // For now, just remove from local state
-        setGoals(prev => prev.filter(g => g.id !== goalId));
+        try {
+            // Delete from Firebase
+            await deleteGoal(goalId);
+            // Remove from local state
+            setGoals(prev => prev.filter(g => g.id !== goalId));
+        } catch (error) {
+            console.error('Error deleting goal:', error);
+            alert('Failed to delete goal. Please try again.');
+        }
     };
 
     const filteredGoals = goals.filter(goal => {
