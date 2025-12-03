@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GoalSetter } from '../components/GoalSetter';
-import { Goal, DirectorProfile, Period, Kpi } from '../types';
-import { getDefaultPeriod } from '../utils/dateUtils';
+import { Goal, DirectorProfile, Kpi } from '../types';
 import { addGoal, getGoals, getDirectorProfiles } from '../services/firebaseService';
 import { Target, Trash2 } from 'lucide-react';
 import { KPI_CONFIG } from '../constants';
@@ -11,7 +10,6 @@ export const GoalSetterPage: React.FC = () => {
     const [directors, setDirectors] = useState<DirectorProfile[]>([]);
     const [isGoalSetterOpen, setIsGoalSetterOpen] = useState(false);
     const [selectedDirector, setSelectedDirector] = useState<DirectorProfile | null>(null);
-    const [activePeriod] = useState<Period>(getDefaultPeriod());
     const [isLoading, setIsLoading] = useState(true);
     const [filterDirector, setFilterDirector] = useState<string>('all');
     const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
@@ -224,7 +222,6 @@ export const GoalSetterPage: React.FC = () => {
             {isGoalSetterOpen && selectedDirector && (
                 <GoalSetter
                     director={selectedDirector}
-                    activePeriod={activePeriod}
                     onClose={() => setIsGoalSetterOpen(false)}
                     onSave={handleSaveGoal}
                 />
