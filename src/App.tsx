@@ -4,7 +4,6 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { DataEntryPage } from './pages/DataEntryPage';
-import { FinancialsPage } from './pages/FinancialsPage';
 import { GoalSetterPage } from './pages/GoalSetterPage';
 import { IndustryNewsPage } from './pages/IndustryNewsPage';
 import { View, Period, Note, NoteCategory, StorePerformanceData, Budget, DirectorProfile, FirebaseStatus, PerformanceData, ActiveJob } from './types';
@@ -29,7 +28,7 @@ import { Modal } from './components/Modal';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activePage, setActivePage] = useState<'Dashboard' | 'Financials' | 'Data Entry' | 'Goal Setter' | 'News'>('Dashboard');
+  const [activePage, setActivePage] = useState<'Dashboard' | 'Data Entry' | 'Goal Setter' | 'News'>('Dashboard');
   
   const [activeView, setActiveView] = useState<View>(View.TotalCompany);
   const [activePeriod, setActivePeriod] = useState<Period>(getDefaultPeriod());
@@ -349,8 +348,6 @@ const App = () => {
                 />;
       case 'Data Entry':
         return <DataEntryPage onSave={handleSaveData} />;
-      case 'Financials':
-        return <FinancialsPage />;
       case 'Goal Setter':
         return <GoalSetterPage />;
       case 'News':
