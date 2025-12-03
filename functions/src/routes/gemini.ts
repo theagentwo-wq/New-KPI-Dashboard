@@ -152,9 +152,9 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
         if (!val || val.trim() === '' || val.trim() === '-') return null;
         const cleaned = val.replace(/[$,%]/g, '').trim();
         const num = parseFloat(cleaned);
-        // If value has %, it's already a percentage like 32.5% → 32.5
-        // We need to convert to decimal: 32.5 → 0.325
-        return isNaN(num) ? null : (num > 1 ? num / 100 : num);
+        // Store as whole percentages: 10.0, 32.5, etc.
+        // If value is decimal (< 1), convert to whole: 0.10 → 10.0
+        return isNaN(num) ? null : (num < 1 ? num * 100 : num);
       });
 
       // Clean the name (remove % suffix)
@@ -239,20 +239,22 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
     let laborPercent = 0;
     let sopPercent = 0;
 
-    // Try to find Labor% from percentage rows
+    // Try to find Labor% from percentage rows (now stored as whole percentages)
     const laborPercentRow = percentageRows['total labor'] || percentageRows['labor'];
     if (laborPercentRow && laborPercentRow[storeIdx] !== null) {
       laborPercent = laborPercentRow[storeIdx] ?? 0;
     } else if (sales > 0) {
-      laborPercent = totalLabor / sales;
+      // Calculate and convert to whole percentage (0.279 → 27.9)
+      laborPercent = (totalLabor / sales) * 100;
     }
 
-    // Try to find SOP% from percentage rows
+    // Try to find SOP% from percentage rows (now stored as whole percentages)
     const sopPercentRow = percentageRows['sop'] || percentageRows['store operating profit'];
     if (sopPercentRow && sopPercentRow[storeIdx] !== null) {
       sopPercent = sopPercentRow[storeIdx] ?? 0;
     } else if (sales > 0 && sop > 0) {
-      sopPercent = sop / sales;
+      // Calculate and convert to whole percentage (0.10 → 10.0)
+      sopPercent = (sop / sales) * 100;
     }
 
     results.push({
@@ -260,8 +262,8 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
       'Week Start Date': weekStartDate,
       Sales: sales,
       'Prime Cost': primeCost,
-      'Labor%': Math.round(laborPercent * 10000) / 10000, // Round to 4 decimals
-      SOP: Math.round(sopPercent * 10000) / 10000,
+      'Labor%': Math.round(laborPercent * 100) / 100, // Round to 2 decimal places
+      SOP: Math.round(sopPercent * 100) / 100, // Round to 2 decimal places
       'Food Cost': foodCostItem?.values[storeIdx] ?? 0,
       'Variable Labor': variableLaborItem?.values[storeIdx] ?? 0,
       pnl,
@@ -461,18 +463,20 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     ];
 
     // Labor% comes directly from the sheet as a percentage (e.g., 27.9 means 27.9%)
-    const laborPercentDecimal = totalLaborPercent > 1 ? totalLaborPercent / 100 : totalLaborPercent;
+    // Store as whole percentage: if decimal (< 1), convert to whole (0.279 → 27.9)
+    const laborPercent = totalLaborPercent < 1 ? totalLaborPercent * 100 : totalLaborPercent;
 
     // SOP is already in percentage form in the CSV (e.g., 32.5 means 32.5%)
-    const sopPercentDecimal = sopPercent > 1 ? sopPercent / 100 : sopPercent;
+    // Store as whole percentage: if decimal (< 1), convert to whole (0.10 → 10.0)
+    const sopPercentWhole = sopPercent < 1 ? sopPercent * 100 : sopPercent;
 
     results.push({
       'Store Name': cleanStoreName,
       'Week Start Date': weekStartDate,
       Sales: sales,
       'Prime Cost': primeCost,
-      'Labor%': Math.round(laborPercentDecimal * 10000) / 10000, // Use percentage from sheet
-      SOP: Math.round(sopPercentDecimal * 10000) / 10000,
+      'Labor%': Math.round(laborPercent * 100) / 100, // Round to 2 decimal places
+      SOP: Math.round(sopPercentWhole * 100) / 100, // Round to 2 decimal places
       COGS: cogs, // Renamed from "Food Cost" to "COGS"
       'Variable Labor': variableLabor,
       Reviews: reviews || 0, // Open Table rating
