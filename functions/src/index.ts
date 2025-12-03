@@ -62,12 +62,12 @@ app.use(errorHandler);
 
 /**
  * Main Cloud Function
- * Handles all API requests with proper secret management
+ * Handles all API requests with AI Studio API key from Secret Manager
  */
 export const api = onRequest(
   {
-    secrets: ['GEMINI_API_KEY'], // Declare secret from Google Secret Manager
-    timeoutSeconds: 540, // 9 minutes (max for 2nd gen is 60 min, but 9 min is safer)
+    secrets: ['GEMINI_API_KEY'], // AI Studio API key from Secret Manager
+    timeoutSeconds: 540, // 9 minutes
     memory: '512MiB',
     cors: true,
   },

@@ -22,7 +22,15 @@
       "Bash(node:*)",
       "Bash(npm --version:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout 5 bash:*)"
+      "Bash(timeout 5 bash:*)",
+      "Bash(gcloud secrets list:*)",
+      "Bash(echo:*)",
+      "Bash(gcloud functions logs read:*)",
+      "Bash(gcloud services list:*)",
+      "Bash(timeout 30 npx firebase-tools functions:log:*)",
+      "Bash(gcloud secrets versions access:*)",
+      "Bash(gcloud secrets versions list:*)",
+      "Bash(set GEMINI_API_KEY=AIzaSyCQX1x9rIQYXlUU07_9tDKNI9mktdIAnjU_Q)"
     ],
     "deny": [],
     "ask": []

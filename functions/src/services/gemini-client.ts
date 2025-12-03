@@ -1,6 +1,6 @@
 /**
  * Gemini AI Client Service
- * Wrapper for Google Generative AI SDK
+ * Uses AI Studio SDK with API key authentication
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -11,10 +11,11 @@ export class GeminiClient {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-1.5-flash (stable) - much higher quotas than experimental models
-    // Paid Tier 1 limits: 1,000 RPM, 4M TPM, 50,000 RPD (vs exp: 10 RPM, 250K TPM, 500 RPD)
+
+    // Use gemini-pro - most basic stable model for AI Studio
+    // Quotas: 15 RPM (free), 1,000 RPM (paid)
     this.defaultModel = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
