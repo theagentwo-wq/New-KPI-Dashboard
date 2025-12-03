@@ -59,11 +59,25 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
 
   // Row 3 (index 2) contains store names
   const storeRow = records[2];
+
+  // Store name normalization map - handles variations in CSV naming
+  const normalizeStoreName = (name: string): string => {
+    const normalized = name.toLowerCase().trim();
+
+    // Handle specific store name variations
+    if (normalized.includes('uptown') && normalized.includes('charlotte')) {
+      return 'Charlotte';
+    }
+
+    // Return original cleaned name
+    return name;
+  };
+
   const storeNames = storeRow.slice(1).map((name: string) => {
     // Remove prefix like "01 - " or "27 - "
     const cleaned = name.replace(/^\d+\s*-\s*/, '').trim();
-    // Return store name as-is (state should already be in CSV if needed)
-    return cleaned;
+    // Normalize store name to match expected format
+    return normalizeStoreName(cleaned);
   }).filter((name: string) => name.length > 2); // Filter out empty or invalid names
 
   console.log(`[parsePnLCsv] Found ${storeNames.length} stores:`, storeNames);
@@ -364,6 +378,19 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
 
   console.log(`[parsePnLCsvHorizontal] Found metrics:`, Object.keys(metrics));
 
+  // Store name normalization map - handles variations in CSV naming
+  const normalizeStoreName = (name: string): string => {
+    const normalized = name.toLowerCase().trim();
+
+    // Handle specific store name variations
+    if (normalized.includes('uptown') && normalized.includes('charlotte')) {
+      return 'Charlotte';
+    }
+
+    // Return original cleaned name
+    return name;
+  };
+
   // Process each store row (starting from row after header)
   const results: any[] = [];
   const dataStartIdx = headerRowIdx + 1;
@@ -383,7 +410,9 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     }
 
     // Clean store name (remove prefix like "01 - ")
-    const cleanStoreName = storeName.replace(/^\d+\s*-\s*/, '').trim();
+    const cleaned = storeName.replace(/^\d+\s*-\s*/, '').trim();
+    // Normalize store name to match expected format
+    const cleanStoreName = normalizeStoreName(cleaned);
 
     // Extract metric values
     const extractValue = (metricKey: string, colType: 'mtdActual' | 'plan'): number => {
