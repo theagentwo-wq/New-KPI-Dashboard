@@ -131,7 +131,7 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
     };
 
     fetchData();
-  }, [localDirector]);
+  }, [localDirector, isOpen]);
 
   if (!isOpen || !localDirector) return null;
 
