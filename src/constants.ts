@@ -121,6 +121,18 @@ export const KPI_ICON_MAP: { [key in Kpi]: string } = {
 
 export const ALL_KPIS = Object.values(Kpi);
 
+// KPIs that are displayed on the dashboard and available for goal setting
+export const DASHBOARD_KPIS: Kpi[] = [
+  Kpi.Sales,
+  Kpi.SOP,
+  Kpi.PrimeCost,
+  Kpi.COGS,
+  Kpi.VariableLabor,
+  Kpi.TotalLabor,
+  Kpi.AvgReviews,
+  Kpi.CulinaryAuditScore
+];
+
 export const NOTE_CATEGORIES: NoteCategory[] = Object.values(NoteCategory);
 
 export const NOTE_CATEGORY_COLORS: { [key in NoteCategory]: string } = {

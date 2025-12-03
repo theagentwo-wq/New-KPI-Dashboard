@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Kpi, KPISummaryCardsProps } from '../types';
-import { KPI_CONFIG, KPI_ICON_MAP } from '../constants';
+import { KPI_CONFIG, KPI_ICON_MAP, DASHBOARD_KPIS } from '../constants';
 import { Icon } from './Icon';
 import { AnimatedNumberDisplay } from './AnimatedNumberDisplay';
 
@@ -80,16 +80,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
 };
 
 export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selectedKpi, onKpiSelect }) => {
-    const kpisToShow: Kpi[] = [
-        Kpi.Sales,
-        Kpi.SOP,
-        Kpi.PrimeCost,
-        Kpi.COGS,
-        Kpi.VariableLabor,
-        Kpi.TotalLabor,
-        Kpi.AvgReviews,
-        Kpi.CulinaryAuditScore
-    ];
+    const kpisToShow = DASHBOARD_KPIS;
 
     const containerVariants = {
         hidden: { opacity: 0 },

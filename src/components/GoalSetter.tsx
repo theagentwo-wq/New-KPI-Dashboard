@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Kpi, Period, DirectorProfile, Goal } from '../types';
-import { KPI_CONFIG } from '../constants';
+import { KPI_CONFIG, DASHBOARD_KPIS } from '../constants';
 import { X, Target } from 'lucide-react';
 
 interface GoalSetterProps {
@@ -12,8 +12,8 @@ interface GoalSetterProps {
 }
 
 export const GoalSetter: React.FC<GoalSetterProps> = ({ director, activePeriod, onClose, onSave }) => {
-    // Get only KPIs that exist in KPI_CONFIG
-    const availableKpis = Object.values(Kpi).filter(kpi => KPI_CONFIG[kpi]);
+    // Use only the KPIs that are displayed on the dashboard
+    const availableKpis = DASHBOARD_KPIS;
     const [selectedKpi, setSelectedKpi] = useState<Kpi>(availableKpis[0]);
     const [targetValue, setTargetValue] = useState('');
 
