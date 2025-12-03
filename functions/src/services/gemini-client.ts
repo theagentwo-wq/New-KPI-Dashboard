@@ -12,10 +12,10 @@ export class GeminiClient {
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
 
-    // Use gemini-pro - most basic stable model for AI Studio
-    // Quotas: 15 RPM (free), 1,000 RPM (paid)
+    // Use gemini-2.0-flash-lite - fast model with high quotas (4K RPM)
+    // Best for AI Studio API keys
     this.defaultModel = this.genAI.getGenerativeModel({
-      model: 'gemini-pro',
+      model: 'gemini-2.0-flash-lite',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,

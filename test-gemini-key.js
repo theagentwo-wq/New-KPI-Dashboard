@@ -32,12 +32,12 @@ async function testGeminiKey() {
   console.log('');
 
   try {
-    console.log('📡 Testing gemini-1.5-pro-latest model...');
+    console.log('📡 Testing gemini-2.0-flash-lite model...');
     console.log('-'.repeat(80));
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro-latest',
+      model: 'gemini-2.0-flash-lite',
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
@@ -46,12 +46,12 @@ async function testGeminiKey() {
       }
     });
 
-    const result = await model.generateContent('Reply with exactly: "API key works with gemini-1.5-pro-latest!"');
+    const result = await model.generateContent('Reply with exactly: "API key works with gemini-2.0-flash-lite!"');
     const response = result.response;
     const text = response.text();
 
     console.log('');
-    console.log('✅ SUCCESS! gemini-1.5-pro-latest is working!');
+    console.log('✅ SUCCESS! gemini-2.0-flash-lite is working!');
     console.log('');
     console.log('Response:', text);
     console.log('');
