@@ -46,8 +46,7 @@ const createPinIcon = (fillColor: string, strokeColor: string, scale: number): g
     rotation: 0,
     scale,
     anchor: new window.google.maps.Point(12, 24), // Bottom point of pin
-    optimized: false, // Use true SVG rendering, prevents transparent.png loading
-});
+} as google.maps.Symbol);
 
 // --- Helper Functions ---
 
