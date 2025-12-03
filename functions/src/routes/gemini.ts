@@ -152,9 +152,9 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
         if (!val || val.trim() === '' || val.trim() === '-') return null;
         const cleaned = val.replace(/[$,%]/g, '').trim();
         const num = parseFloat(cleaned);
-        // Store as whole percentages: 10.0, 32.5, etc.
-        // If value is decimal (< 1), convert to whole: 0.10 → 10.0
-        return isNaN(num) ? null : (num < 1 ? num * 100 : num);
+        // Store as whole percentages: 10.0, 32.5, -0.8, etc.
+        // If absolute value is decimal (< 1), convert to whole: 0.10 → 10.0, -0.008 → -0.8
+        return isNaN(num) ? null : (Math.abs(num) < 1 ? num * 100 : num);
       });
 
       // Clean the name (remove % suffix)
@@ -244,7 +244,7 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
     if (laborPercentRow && laborPercentRow[storeIdx] !== null) {
       laborPercent = laborPercentRow[storeIdx] ?? 0;
     } else if (sales > 0) {
-      // Calculate and convert to whole percentage (0.279 → 27.9)
+      // Calculate and convert to whole percentage (0.279 → 27.9, -0.005 → -0.5)
       laborPercent = (totalLabor / sales) * 100;
     }
 
@@ -252,8 +252,9 @@ const parsePnLCsv = (csvContent: string, weekStartDate: string, periodType: 'wee
     const sopPercentRow = percentageRows['sop'] || percentageRows['store operating profit'];
     if (sopPercentRow && sopPercentRow[storeIdx] !== null) {
       sopPercent = sopPercentRow[storeIdx] ?? 0;
-    } else if (sales > 0 && sop > 0) {
-      // Calculate and convert to whole percentage (0.10 → 10.0)
+    } else if (sales > 0) {
+      // Calculate and convert to whole percentage (0.10 → 10.0, -0.008 → -0.8)
+      // Note: Removed sop > 0 check to allow negative SOP values
       sopPercent = (sop / sales) * 100;
     }
 
@@ -463,12 +464,12 @@ const parsePnLCsvHorizontal = (csvContent: string, weekStartDate: string, period
     ];
 
     // Labor% comes directly from the sheet as a percentage (e.g., 27.9 means 27.9%)
-    // Store as whole percentage: if decimal (< 1), convert to whole (0.279 → 27.9)
-    const laborPercent = totalLaborPercent < 1 ? totalLaborPercent * 100 : totalLaborPercent;
+    // Store as whole percentage: if absolute value is decimal (< 1), convert to whole (0.279 → 27.9)
+    const laborPercent = Math.abs(totalLaborPercent) < 1 ? totalLaborPercent * 100 : totalLaborPercent;
 
-    // SOP is already in percentage form in the CSV (e.g., 32.5 means 32.5%)
-    // Store as whole percentage: if decimal (< 1), convert to whole (0.10 → 10.0)
-    const sopPercentWhole = sopPercent < 1 ? sopPercent * 100 : sopPercent;
+    // SOP is already in percentage form in the CSV (e.g., 32.5 means 32.5%, -0.8 means -0.8%)
+    // Store as whole percentage: if absolute value is decimal (< 1), convert to whole (0.10 → 10.0, -0.008 → -0.8)
+    const sopPercentWhole = Math.abs(sopPercent) < 1 ? sopPercent * 100 : sopPercent;
 
     results.push({
       'Store Name': cleanStoreName,
