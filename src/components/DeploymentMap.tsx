@@ -34,11 +34,10 @@ const mapStyles = [
 // Pin/marker icon path - teardrop shape pointing down
 const PIN_PATH = 'M12 0C7.31 0 3.5 3.81 3.5 8.5C3.5 14.88 12 24 12 24S20.5 14.88 20.5 8.5C20.5 3.81 16.69 0 12 0Z';
 
-// Home icon path - house shape
-const HOME_PATH = 'M12 3L2 12h3v8h5v-6h4v6h5v-8h3L12 3z';
-
-// Helper function to create pin icon (for deployments)
-const createPinIcon = (fillColor: string, strokeColor: string, scale: number) => ({
+// Helper function to create pin icon
+// Used for both home location (green) and deployments (blue/violet)
+// Note: This must be called inside useEffect where window.google is available
+const createPinIcon = (fillColor: string, strokeColor: string, scale: number): google.maps.Symbol => ({
     path: PIN_PATH,
     fillColor,
     fillOpacity: 0.95,
@@ -47,19 +46,6 @@ const createPinIcon = (fillColor: string, strokeColor: string, scale: number) =>
     rotation: 0,
     scale,
     anchor: new window.google.maps.Point(12, 24), // Bottom point of pin
-    optimized: false, // Use true SVG rendering, prevents transparent.png loading
-});
-
-// Helper function to create home icon (for directors at home)
-const createHomeIcon = (fillColor: string, strokeColor: string, scale: number) => ({
-    path: HOME_PATH,
-    fillColor,
-    fillOpacity: 0.95,
-    strokeWeight: 2,
-    strokeColor,
-    rotation: 0,
-    scale: scale * 1.5, // Make home icons slightly larger
-    anchor: new window.google.maps.Point(12, 12), // Center of house
     optimized: false, // Use true SVG rendering, prevents transparent.png loading
 });
 
@@ -104,18 +90,31 @@ export const DeploymentMap: React.FC<DeploymentMapProps> = ({ deployments, direc
       const activeDeployments = deployments.filter(isDeploymentActive);
 
       // Check if director has an active deployment
-      const directorActiveDeployment = activeDeployments.find(
-        d => d.deployedPerson === director.name
-      );
+      // Match by exact name only - avoid false positives from partial matches
+      const directorActiveDeployment = activeDeployments.find(d => {
+        const deployed = d.deployedPerson;
+        const matches =
+          deployed === director.name ||
+          deployed === `${director.firstName} ${director.lastName}` ||
+          deployed === `${director.lastName}, ${director.firstName}`;
 
-      // Only show home icon if director is NOT currently deployed
+        console.log('[DeploymentMap] Checking deployment:', deployed, 'against director:', director.name, 'Match:', matches);
+        return matches;
+      });
+
+      console.log('[DeploymentMap] Director:', director.name, 'Active deployment:', directorActiveDeployment);
+      console.log('[DeploymentMap] Director coords:', director.homeLat, director.homeLon);
+
+      // Only show home pin if director is NOT currently deployed
       if (!directorActiveDeployment) {
         const homePosition = { lat: director.homeLat, lng: director.homeLon };
+        console.log('[DeploymentMap] Creating home pin at', homePosition);
+
         new window.google.maps.Marker({
           position: homePosition,
           map,
           title: `Home Base: ${director.homeLocation}`,
-          icon: createHomeIcon('#10b981', '#059669', 1.0), // green home icon
+          icon: createPinIcon('#10b981', '#059669', 1.2), // green pin for home
           label: {
             text: director.firstName || director.name.split(' ')[0],
             color: '#ffffff',

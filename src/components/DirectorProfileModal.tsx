@@ -9,6 +9,7 @@ import { DeploymentMap } from './DeploymentMap';
 import { DeploymentPlannerModal } from './DeploymentPlannerModal';
 import { getDeploymentsForDirector, createDeployment, updateDeployment, deleteDeployment, getPerformanceData, getGoals } from '../services/firebaseService';
 import { getDirectorPerformanceSnapshot } from '../services/geminiService';
+import { DIRECTORS } from '../constants';
 
 interface DirectorProfileModalProps {
   isOpen: boolean;
@@ -29,8 +30,28 @@ export const DirectorProfileModal: React.FC<DirectorProfileModalProps> = ({ isOp
   const [localDirector, setLocalDirector] = useState<DirectorProfile | null>(director);
 
   // Update local director when prop changes
+  // Merge with DIRECTORS constant to ensure we have homeLat/homeLon
   useEffect(() => {
-    setLocalDirector(director);
+    if (director) {
+      const constantDirector = DIRECTORS.find(d => d.id === director.id);
+      if (constantDirector) {
+        // Merge Firebase data with constant data
+        // IMPORTANT: Only override fields that are actually populated in Firebase
+        // Preserve homeLat, homeLon, homeLocation from constants
+        const merged = {
+          ...constantDirector, // Start with constant data (has correct coordinates)
+          email: director.email || constantDirector.email,
+          phone: director.phone || constantDirector.phone,
+          photo: director.photo || constantDirector.photo,
+        };
+        console.log('[DirectorProfileModal] Merged director:', merged.id, 'homeLat:', merged.homeLat, 'homeLon:', merged.homeLon);
+        setLocalDirector(merged);
+      } else {
+        setLocalDirector(director);
+      }
+    } else {
+      setLocalDirector(null);
+    }
   }, [director]);
 
   const handleDirectorUpdate = (updates: Partial<DirectorProfile>) => {
