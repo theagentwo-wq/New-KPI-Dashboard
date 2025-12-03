@@ -81,6 +81,12 @@ export const GoalSetterPage: React.FC = () => {
 
     const formatValue = (kpi: Kpi, value: number) => {
         const config = KPI_CONFIG[kpi];
+
+        // Safety check - if config doesn't exist, return raw value
+        if (!config) {
+            return value.toFixed(1);
+        }
+
         if (config.format === 'percent') {
             return `${(value * 100).toFixed(1)}%`;
         } else if (config.format === 'currency') {

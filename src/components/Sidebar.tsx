@@ -7,14 +7,12 @@ interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (isCollapsed: boolean) => void;
   currentPage: string;
-  setCurrentPage: (page: 'Dashboard' | 'Budget Planner' | 'Goal Setter' | 'News' | 'Data Entry' | 'Financials') => void;
+  setCurrentPage: (page: 'Dashboard' | 'Goal Setter' | 'News' | 'Data Entry' | 'Financials') => void;
   currentView: View;
   setCurrentView: (view: View) => void;
   directors: DirectorProfile[];
   onOpenProfile: (director: DirectorProfile) => void;
-  onOpenAlerts: () => void;
   onOpenDataEntry: () => void;
-  onOpenScenarioModeler: () => void;
   onOpenExecutiveSummary: () => void;
   onOpenStrategyHub: () => void;
 }
@@ -66,7 +64,7 @@ const DirectorLink: React.FC<{
 );
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenAlerts, onOpenDataEntry, onOpenScenarioModeler, onOpenExecutiveSummary, onOpenStrategyHub }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, currentPage, setCurrentPage, currentView, setCurrentView, directors, onOpenProfile, onOpenDataEntry, onOpenExecutiveSummary, onOpenStrategyHub }) => {
   return (
     <motion.aside 
       {...({
@@ -91,18 +89,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
         <div className="space-y-1">
             <NavLink icon="dashboard" label="Dashboard" isActive={currentPage === 'Dashboard'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Dashboard')} />
             <NavLink icon="table" label="Financial Statements" isActive={currentPage === 'Financials'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Financials')} />
-            <NavLink icon="budget" label="Budget Planner" isActive={currentPage === 'Budget Planner'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Budget Planner')} />
             <NavLink icon="goal" label="Goal Setter" isActive={currentPage === 'Goal Setter'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Goal Setter')} />
             <NavLink icon="edit" label="Data Entry" isActive={currentPage === 'Data Entry'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('Data Entry')} />
             <NavLink icon="news" label="Industry News" isActive={currentPage === 'News'} isCollapsed={isCollapsed} onClick={() => setCurrentPage('News')} />
 
             <div className="pt-2 mt-2 border-t border-slate-700" />
-            
+
             <NavLink icon="sparkles" label="Executive Summary" isActive={false} isCollapsed={isCollapsed} onClick={onOpenExecutiveSummary} />
-            <NavLink icon="bell" label="AI Alerts" isActive={false} isCollapsed={isCollapsed} onClick={onOpenAlerts} />
             <NavLink icon="plus" label="Import Report" isActive={false} isCollapsed={isCollapsed} onClick={onOpenDataEntry} />
             <NavLink icon="brain" label="Strategy Hub" isActive={false} isCollapsed={isCollapsed} onClick={onOpenStrategyHub} />
-            <NavLink icon="sparkles" label="Scenario Modeler" isActive={false} isCollapsed={isCollapsed} onClick={onOpenScenarioModeler} />
         </div>
         
         {/* Director Navigation */}

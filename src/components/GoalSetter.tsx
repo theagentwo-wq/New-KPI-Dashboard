@@ -12,8 +12,9 @@ interface GoalSetterProps {
 }
 
 export const GoalSetter: React.FC<GoalSetterProps> = ({ director, activePeriod, onClose, onSave }) => {
-    const kpiKeys = Object.keys(Kpi) as Kpi[];
-    const [selectedKpi, setSelectedKpi] = useState<Kpi>(kpiKeys[0]);
+    // Get only KPIs that exist in KPI_CONFIG
+    const availableKpis = Object.values(Kpi).filter(kpi => KPI_CONFIG[kpi]);
+    const [selectedKpi, setSelectedKpi] = useState<Kpi>(availableKpis[0]);
     const [targetValue, setTargetValue] = useState('');
 
     const handleSave = () => {
@@ -36,6 +37,10 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({ director, activePeriod, 
 
     const kpiConfig = KPI_CONFIG[selectedKpi];
 
+    // Safety check - if config doesn't exist, use defaults
+    const formatType = kpiConfig?.format || 'number';
+    const placeholder = formatType === 'percent' ? 'e.g., 0.25 for 25%' : 'e.g., 85000';
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-slate-900 rounded-lg shadow-2xl w-full max-w-sm border border-slate-700">
@@ -48,21 +53,21 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({ director, activePeriod, 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1">Select KPI</label>
                         <select value={selectedKpi} onChange={e => setSelectedKpi(e.target.value as Kpi)} className="w-full bg-slate-800 border-slate-700 rounded-md p-2">
-                            {kpiKeys.map(kpi => (
+                            {availableKpis.map(kpi => (
                                 <option key={kpi} value={kpi}>{kpi}</option>
                             ))}
                         </select>
                     </div>
                     <div>
                          <label className="block text-sm font-medium text-slate-300 mb-1">
-                            Target Value ({kpiConfig.format})
+                            Target Value ({formatType})
                         </label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             value={targetValue}
                             onChange={e => setTargetValue(e.target.value)}
                             className="w-full bg-slate-800 border-slate-700 rounded-md p-2"
-                            placeholder={kpiConfig.format === 'percent' ? 'e.g., 0.25 for 25%' : 'e.g., 85000'}
+                            placeholder={placeholder}
                         />
                     </div>
                 </div>

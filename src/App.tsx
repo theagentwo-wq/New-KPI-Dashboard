@@ -29,7 +29,7 @@ import { Modal } from './components/Modal';
 
 const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activePage, setActivePage] = useState<'Dashboard' | 'Financials' | 'Data Entry' | 'Budget Planner' | 'Goal Setter' | 'News'>('Dashboard');
+  const [activePage, setActivePage] = useState<'Dashboard' | 'Financials' | 'Data Entry' | 'Goal Setter' | 'News'>('Dashboard');
   
   const [activeView, setActiveView] = useState<View>(View.TotalCompany);
   const [activePeriod, setActivePeriod] = useState<Period>(getDefaultPeriod());
@@ -401,9 +401,7 @@ const App = () => {
         setCurrentView={setActiveView}
         directors={directors}
         onOpenProfile={handleOpenProfile}
-        onOpenAlerts={() => setIsAlertsModalOpen(true)}
         onOpenDataEntry={() => setImportModalOpen(true)}
-        onOpenScenarioModeler={() => {}}
         onOpenExecutiveSummary={() => setIsExecutiveSummaryOpen(true)}
         onOpenStrategyHub={() => setStrategyHubOpen(true)}
       />
