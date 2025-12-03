@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { DirectorProfile, Store, Goal } from '../types';
+import { DirectorProfile, Store, Goal, Kpi } from '../types';
 import { Trophy, TrendingUp, Edit2, Save, X, Upload } from 'lucide-react';
 import { updateDirectorProfile, uploadFile } from '../services/firebaseService';
+import { KPI_CONFIG } from '../constants';
 
 // Re-exporting DirectorProfileModalProps to avoid circular dependencies
 // A better long-term solution would be to define this in a shared types file.
@@ -194,51 +195,86 @@ export const RegionStores: React.FC<{ stores: {id: string, name: string}[] }> = 
     </div>
 );
 
-export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topStore, directorGoals, topStoreMetrics }) => (
-    <div className="bg-slate-900/50 p-4 rounded-lg w-full text-sm flex-grow">
-        <h3 className="font-semibold text-slate-300 text-base mb-3 border-b border-slate-700 pb-2">Goals & Performance</h3>
-        <div className="space-y-4">
-            <div>
-                <h4 className="font-semibold text-slate-400 mb-2 flex items-center"><Trophy size={16} className="mr-2 text-yellow-400"/>Top Performing Store (by Sales)</h4>
-                <div className="bg-slate-800 p-3 rounded-md">
-                    {topStore ? (
-                        <>
-                            <p className='font-bold text-cyan-400 text-center text-lg mb-2'>{topStore.name}</p>
-                            {topStoreMetrics && (
-                                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                                    <div>
-                                        <p className="text-slate-500">Sales</p>
-                                        <p className="text-green-400 font-semibold">${(topStoreMetrics.sales / 1000).toFixed(0)}k</p>
+export const GoalsAndPerformance: React.FC<DirectorProfileModalProps> = ({ topStore, directorGoals, topStoreMetrics }) => {
+    const formatGoalValue = (kpi: Kpi, value: number) => {
+        const config = KPI_CONFIG[kpi];
+        if (!config) return value.toFixed(1);
+
+        if (config.format === 'percent') {
+            return `${(value * 100).toFixed(1)}%`;
+        } else if (config.format === 'currency') {
+            return `$${(value / 1000).toFixed(0)}k`;
+        } else {
+            return value.toFixed(1);
+        }
+    };
+
+    // Group goals by quarter
+    const currentYear = new Date().getFullYear();
+    const goalsByQuarter = directorGoals.reduce((acc, goal) => {
+        if (goal.year === currentYear) {
+            const key = `Q${goal.quarter}`;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(goal);
+        }
+        return acc;
+    }, {} as Record<string, Goal[]>);
+
+    return (
+        <div className="bg-slate-900/50 p-4 rounded-lg w-full text-sm flex-grow">
+            <h3 className="font-semibold text-slate-300 text-base mb-3 border-b border-slate-700 pb-2">Goals & Performance</h3>
+            <div className="space-y-4">
+                <div>
+                    <h4 className="font-semibold text-slate-400 mb-2 flex items-center"><Trophy size={16} className="mr-2 text-yellow-400"/>Top Performing Store (by Sales)</h4>
+                    <div className="bg-slate-800 p-3 rounded-md">
+                        {topStore ? (
+                            <>
+                                <p className='font-bold text-cyan-400 text-center text-lg mb-2'>{topStore.name}</p>
+                                {topStoreMetrics && (
+                                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                        <div>
+                                            <p className="text-slate-500">Sales</p>
+                                            <p className="text-green-400 font-semibold">${(topStoreMetrics.sales / 1000).toFixed(0)}k</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500">Prime Cost</p>
+                                            <p className="text-blue-400 font-semibold">{(topStoreMetrics.primeCost * 100).toFixed(1)}%</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500">SOP%</p>
+                                            <p className="text-yellow-400 font-semibold">{(topStoreMetrics.sop * 100).toFixed(1)}%</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-slate-500">Prime Cost</p>
-                                        <p className="text-blue-400 font-semibold">{(topStoreMetrics.primeCost * 100).toFixed(1)}%</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500">SOP%</p>
-                                        <p className="text-yellow-400 font-semibold">{(topStoreMetrics.sop * 100).toFixed(1)}%</p>
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <p className='text-slate-500 text-center text-xs'>Data unavailable</p>
-                    )}
+                                )}
+                            </>
+                        ) : (
+                            <p className='text-slate-500 text-center text-xs'>Data unavailable</p>
+                        )}
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h4 className="font-semibold text-slate-400 mb-2">Active Q4 Goals</h4>
-                <div className="space-y-2">
-                    {directorGoals.length > 0 ? directorGoals.map(goal => (
-                       <div key={goal.id} className="text-xs text-slate-400">- {goal.kpi}: {goal.targetValue}</div>
-                    )) : (
-                       <div className="text-xs text-slate-500 p-3 bg-slate-800 rounded-md text-center">No goals set.</div>
-                    )}
+                <div>
+                    <h4 className="font-semibold text-slate-400 mb-2">Active {currentYear} Goals</h4>
+                    <div className="space-y-2">
+                        {Object.keys(goalsByQuarter).length > 0 ? (
+                            Object.keys(goalsByQuarter).sort().map(quarter => (
+                                <div key={quarter} className="bg-slate-800 p-2 rounded-md">
+                                    <p className="text-cyan-400 font-semibold text-xs mb-1">{quarter}</p>
+                                    {goalsByQuarter[quarter].map(goal => (
+                                        <div key={goal.id} className="text-xs text-slate-300 ml-2">
+                                            - {goal.kpi}: <span className="text-cyan-400 font-semibold">{formatGoalValue(goal.kpi, goal.target)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-xs text-slate-500 p-3 bg-slate-800 rounded-md text-center">No goals set for {currentYear}.</div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 interface AIPerformanceSnapshotProps extends DirectorProfileModalProps {
     onGenerate?: () => void;
