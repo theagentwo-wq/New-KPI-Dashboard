@@ -869,110 +869,69 @@ const getEventSourceURLs = (city: string): string[] => {
 };
 
 /**
- * Helper: Fetch local events by scraping city tourism and venue sites
- * Hybrid approach: scrapes multiple sources, AI extracts and organizes
+ * Helper: Fetch local events using AI knowledge base (same approach as Local Market)
+ * Provides 10-14 day forecast of major events
  */
 const fetchLocalEvents = async (client: any, locationName: string): Promise<string> => {
   try {
     const city = extractCity(locationName);
     const today = new Date();
+    const currentDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Generate date range for next 4 days
-    const dates = [];
-    for (let i = 0; i < 4; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
+    console.log(`[fetchLocalEvents] Fetching events for ${city} using AI knowledge base...`);
 
-    // Format date range for display
-    const dateRange = dates.map(d => {
-      const day = d.getDate();
-      const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                     day === 2 || day === 22 ? 'nd' :
-                     day === 3 || day === 23 ? 'rd' : 'th';
-      return `${day}${suffix}`;
-    }).join(', ');
-    const year = dates[0].getFullYear();
-    const month = dates[0].toLocaleDateString('en-US', { month: 'long' });
+    // Use the same AI knowledge-based approach as Local Market
+    const eventPrompt = `You are a restaurant operations assistant for ${locationName} in ${city}.
 
-    console.log(`[fetchLocalEvents] Scraping event sources for ${city} (${month} ${dateRange})...`);
+TODAY'S DATE: ${currentDate}
 
-    // Get event source URLs for this city
-    const sourceURLs = getEventSourceURLs(city);
+TASK: List upcoming local events for the NEXT 10-14 DAYS that could impact restaurant traffic.
 
-    // Scrape all event sources
-    let combinedHTML = '';
-    for (const url of sourceURLs) {
-      try {
-        console.log(`[fetchLocalEvents] Fetching ${url}...`);
-        const response = await axios.get(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-          },
-          timeout: 10000,
-          maxRedirects: 5
-        });
+Focus on TRAFFIC-DRIVING EVENTS that bring people to the area:
 
-        combinedHTML += `\n\n<!-- Events from ${url} -->\n${response.data}\n`;
-        console.log(`[fetchLocalEvents] Successfully fetched ${url} (${response.data.length} chars)`);
-      } catch (urlError) {
-        console.warn(`[fetchLocalEvents] Failed to fetch ${url}:`, urlError instanceof Error ? urlError.message : urlError);
-      }
-    }
+**Major Sporting Events:**
+- Professional sports (NBA, NFL, NHL, MLS, etc.)
+- College sports (basketball, football, etc.)
+- List specific games with dates, teams, venues, and game times
+- Example: "December 9, 2025: Charlotte Hornets vs. [Opponent] at Spectrum Center - 7:00 PM (Sports)"
 
-    if (!combinedHTML.trim()) {
-      console.warn('[fetchLocalEvents] No event data fetched from any source');
-      return `**Local Events - ${month} ${dateRange}, ${year}:**
+**Concerts & Music:**
+- Major concerts at arenas, theaters, or venues
+- List specific artists/bands with dates, venues, and showtimes
+- Example: "December 10, 2025: [Artist Name] at [Venue] - 8:00 PM (Concert)"
 
-Unable to fetch events for ${city}. Check local event listings manually.`;
-    }
+**Arts & Cultural Events:**
+- Theater performances, ballets, major exhibitions
+- List specific shows with dates and venues
+- Example: "December 5-8, 2025: The Nutcracker at [Theater] - Multiple showtimes (Arts)"
 
-    // Limit HTML to prevent token overflow (keep most recent 120k chars)
-    const htmlSample = combinedHTML.substring(0, 120000);
-    console.log(`[fetchLocalEvents] Analyzing ${htmlSample.length} chars of HTML from ${sourceURLs.length} sources...`);
+**Festivals & City Events:**
+- Holiday markets, parades, citywide celebrations
+- Street festivals, food festivals, cultural celebrations
+- Example: "December 7, 2025: Holiday Market at Main Street - 10:00 AM - 6:00 PM (Festival)"
 
-    // Use AI to extract and organize events from HTML
-    const extractionPrompt = `You are a restaurant manager's assistant. Extract LOCAL EVENTS from these event calendar websites for ${city} happening over the NEXT 4 DAYS (${month} ${dateRange}, ${year}).
+**Conventions & Conferences:**
+- Major conventions bringing visitors to the city
+- Business conferences at convention centers
 
-HTML from tourism boards and major venues:
-${htmlSample}
+CRITICAL INSTRUCTIONS:
+1. Use your knowledge of professional sports schedules (Hornets, Panthers, 49ers, etc.)
+2. Focus on events within a 5-mile radius of downtown ${city}
+3. Include SPECIFIC dates and times when known
+4. Categorize each event: (Sports), (Concert), (Arts), (Festival), (Conference), or (Other)
+5. List 5-10 most impactful events in chronological order
+6. If you don't know specific events, provide links to check:
+   - ${getEventSourceURLs(city).map(url => `[Event Calendar](${url})`).join(', ')}
+7. Be concise - one line per event with date, name, venue, time, and category
+8. If NO major events are known for this period, write: "No major events scheduled. Check local event calendars for updates."
 
-TODAY'S DATE: ${today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Format each event as:
+**[Date]:** [Event Name] at [Venue] - [Time] ([Category])
 
-TASK: Extract events and organize by day in this EXACT format:
+Output ONLY the event list in chronological order.`;
 
-**Local Events - ${month} ${dateRange}, ${year}:**
-
-**TODAY (${dates[0].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
-- [Event Name] at [Venue] - [Time like "7:00 PM"] ([Event Type: Sports/Concert/Arts/Festival/Dining/Other])
-
-**TOMORROW (${dates[1].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
-- [Event Name] at [Venue] - [Time] ([Event Type])
-
-**${dates[2].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
-- [Event Name] at [Venue] - [Time] ([Event Type])
-
-**${dates[3].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
-- [Event Name] at [Venue] - [Time] ([Event Type])
-
-EXTRACTION RULES:
-1. Extract ONLY events happening ${month} ${dateRange}, ${year}
-2. Look for event names, venues, dates, and times in the HTML
-3. Focus on traffic-driving events: concerts, sports (basketball, football, hockey), festivals, conferences
-4. Categorize: Sports, Concert, Arts, Festival, Dining, or Other
-5. Extract venue names when available
-6. Extract specific times when available (e.g., "7:00 PM", "6:30 PM")
-7. If NO events found for a specific day, write: "No major events scheduled"
-8. Limit to 5-7 most relevant events per day (prioritize larger events)
-9. Remove duplicates (same event from multiple sources)
-10. Be accurate - only include events you can verify from the HTML
-
-Output ONLY the formatted event list. Be specific and helpful for restaurant planning.`;
-
-    const events = await client.generateContent(extractionPrompt, undefined, 0.2);
-    console.log('[fetchLocalEvents] Events extracted and organized');
+    const events = await client.generateContent(eventPrompt, undefined, 0.3);
+    console.log('[fetchLocalEvents] Events retrieved from AI knowledge base');
     console.log('[fetchLocalEvents] Preview:', events.substring(0, 300));
 
     return events;
@@ -1050,7 +1009,7 @@ Create 1-2 fun, proven sales contests for servers/bartenders today:
 
 Weather: ${JSON.stringify(weather)}
 
-**Local Events - Next 4 Days:**
+**Local Events - Next 10-14 Days:**
 ${localEvents}
 
 **Traffic Predictions:**
@@ -1107,7 +1066,7 @@ ${currentPromotions}
 - Communicate any special preparation needs to the team
 - Plan for increased volume on these specific items
 
-**Local Events - Next 4 Days:**
+**Local Events - Next 10-14 Days:**
 ${localEvents}
 
 **Execution Planning:**
@@ -1171,7 +1130,7 @@ For BOH: Highlight safety focus and quality standards to emphasize
 
 ## 3. Operations Strategy & Traffic Drivers
 
-**Local Events - Next 4 Days:**
+**Local Events - Next 10-14 Days:**
 ${localEvents}
 
 **Weather:** ${JSON.stringify(weather)}
