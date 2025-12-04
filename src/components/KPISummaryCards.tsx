@@ -4,6 +4,7 @@ import { Kpi, KPISummaryCardsProps } from '../types';
 import { KPI_CONFIG, KPI_ICON_MAP, DASHBOARD_KPIS } from '../constants';
 import { Icon } from './Icon';
 import { AnimatedNumberDisplay } from './AnimatedNumberDisplay';
+import { KPICardSkeleton } from './LoadingSkeleton';
 
 const cardVariants: any = {
     hidden: { opacity: 0, y: 20 },
@@ -93,19 +94,7 @@ export const KPISummaryCards: React.FC<KPISummaryCardsProps> = ({ data, selected
     };
 
     if (!data || Object.keys(data).length === 0) {
-        return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {kpisToShow.map((kpi) => (
-                    <div key={kpi} className="p-4 rounded-xl bg-slate-800/40 border border-slate-700 animate-pulse h-28">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 bg-slate-700 rounded-lg"></div>
-                            <div className="h-4 bg-slate-700 rounded w-24"></div>
-                        </div>
-                        <div className="h-8 bg-slate-700 rounded w-16"></div>
-                    </div>
-                ))}
-            </div>
-        );
+        return <KPICardSkeleton count={kpisToShow.length} />;
     }
 
     return (

@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Kpi, View, Period, WeatherInfo } from '../types';
 import { KPI_CONFIG } from '../constants';
 import { ChevronsLeft, ChevronsRight, RotateCcw, Filter } from 'lucide-react';
@@ -67,7 +68,7 @@ const getMedalIcon = (rank: number): string => {
 };
 
 const RankingRow = React.memo(({
-    rank, storeId, allData, visibleKpis, weather, onLocationSelect
+    rank, storeId, allData, visibleKpis, weather, onLocationSelect, index
 }: {
     rank: number;
     storeId: string;
@@ -75,21 +76,57 @@ const RankingRow = React.memo(({
     visibleKpis: Kpi[];
     weather?: WeatherInfo;
     onLocationSelect?: (location: string) => void;
+    index: number;
 }) => {
     const medal = getMedalIcon(rank);
 
     return (
-        <tr className="border-b border-slate-700 hover:bg-slate-800/80 hover:border-cyan-500/20 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-900/5 cursor-pointer group">
+        <motion.tr
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+                duration: 0.3,
+                delay: index * 0.03,
+                ease: [0.25, 0.46, 0.45, 0.94]
+            }}
+            whileHover={{
+                scale: 1.01,
+                backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                transition: { duration: 0.2 }
+            }}
+            className="border-b border-slate-700 hover:border-cyan-500/30 transition-all duration-200 cursor-pointer group relative"
+        >
             {/* Rank */}
-            <td className="py-3 px-4 text-white relative before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-gradient-to-b before:from-cyan-500 before:to-blue-500 before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300">
-                {medal ? (
-                    <span className="flex items-center gap-2">
-                        <span className="text-lg">{medal}</span>
-                        <span className="text-sm font-semibold">{rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}</span>
-                    </span>
-                ) : (
-                    <span className="text-sm">{rank}th</span>
-                )}
+            <td className="py-3 px-4 text-white relative">
+                {/* Animated left border accent on hover */}
+                <motion.div
+                    className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-blue-500"
+                    initial={{ opacity: 0, scaleY: 0 }}
+                    whileHover={{ opacity: 1, scaleY: 1 }}
+                    transition={{ duration: 0.2 }}
+                />
+                <div className="flex items-center gap-2 relative z-10">
+                    {medal ? (
+                        <>
+                            <motion.span
+                                className="text-lg"
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{
+                                    type: 'spring',
+                                    stiffness: 260,
+                                    damping: 20,
+                                    delay: index * 0.03 + 0.2
+                                }}
+                            >
+                                {medal}
+                            </motion.span>
+                            <span className="text-sm font-semibold">{rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}</span>
+                        </>
+                    ) : (
+                        <span className="text-sm">{rank}th</span>
+                    )}
+                </div>
             </td>
 
             {/* Location with weather icon */}
@@ -145,7 +182,7 @@ const RankingRow = React.memo(({
                     </React.Fragment>
                 );
             })}
-        </tr>
+        </motion.tr>
     );
 });
 
@@ -323,6 +360,7 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
                                     visibleKpis={visibleKpis}
                                     weather={weatherData?.[storeId]}
                                     onLocationSelect={onLocationSelect}
+                                    index={index}
                                 />
                             );
                         })}
