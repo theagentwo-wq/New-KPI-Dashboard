@@ -136,7 +136,7 @@ const RankingRow = React.memo(({
                         <div className="relative group">
                             <WeatherIcon condition={weather.condition} className="w-5 h-5" />
                             {/* Weather tooltip */}
-                            <div className="absolute right-0 bottom-full bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg border border-slate-700">
+                            <div className="absolute right-0 top-0 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg border border-slate-700">
                                 <div className="font-semibold">{weather.temperature}°F</div>
                                 <div>{weather.description}</div>
                             </div>
