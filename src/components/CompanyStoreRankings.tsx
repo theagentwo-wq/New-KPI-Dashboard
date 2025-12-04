@@ -133,10 +133,10 @@ const RankingRow = React.memo(({
             <td className="py-3 px-4 text-white sticky left-[80px] z-10 bg-slate-800">
                 <div className="flex items-center gap-2">
                     {weather && (
-                        <div className="relative group">
+                        <div className="relative group z-[100]">
                             <WeatherIcon condition={weather.condition} className="w-5 h-5" />
                             {/* Weather tooltip */}
-                            <div className="absolute left-0 top-full mt-1 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                            <div className="absolute left-0 top-full mt-1 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100] shadow-lg border border-slate-700">
                                 <div className="font-semibold">{weather.temperature}°F</div>
                                 <div>{weather.description}</div>
                             </div>
