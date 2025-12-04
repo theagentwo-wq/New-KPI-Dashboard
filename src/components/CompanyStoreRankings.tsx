@@ -97,7 +97,7 @@ const RankingRow = React.memo(({
             className="border-b border-slate-700 hover:border-cyan-500/30 transition-all duration-200 cursor-pointer group relative"
         >
             {/* Rank */}
-            <td className="py-3 px-4 text-white relative">
+            <td className="py-3 px-4 text-white relative sticky left-0 z-10 bg-slate-800">
                 {/* Animated left border accent on hover */}
                 <motion.div
                     className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-blue-500"
@@ -130,7 +130,7 @@ const RankingRow = React.memo(({
             </td>
 
             {/* Location with weather icon */}
-            <td className="py-3 px-4 text-white">
+            <td className="py-3 px-4 text-white sticky left-[80px] z-10 bg-slate-800">
                 <div className="flex items-center gap-2">
                     {weather && (
                         <div className="relative group">
@@ -335,10 +335,10 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
             {/* Table */}
             <div className="overflow-auto custom-scrollbar" style={{ maxHeight: 'calc(8 * 56px + 48px)' }}>
                 <table className="w-full">
-                    <thead className="bg-slate-900 sticky top-0 z-10">
+                    <thead className="bg-slate-900 sticky top-0 z-20">
                         <tr className="border-b border-slate-700">
-                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Rank</th>
-                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">Location</th>
+                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase sticky left-0 z-20 bg-slate-900">Rank</th>
+                            <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase sticky left-[80px] z-20 bg-slate-900">Location</th>
                             {visibleKpis.map(kpi => (
                                 <React.Fragment key={kpi}>
                                     <th className="py-3 px-4 text-xs font-semibold text-slate-400 text-left uppercase">{KPI_CONFIG[kpi]?.label || kpi} Act.</th>
