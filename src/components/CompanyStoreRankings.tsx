@@ -130,13 +130,13 @@ const RankingRow = React.memo(({
             </td>
 
             {/* Location with weather icon */}
-            <td className="py-3 px-4 text-white sticky left-[80px] z-10 bg-slate-800 [&:has(.weather-tooltip-trigger:hover)]:z-[100]">
+            <td className="py-3 px-4 text-white sticky left-[80px] z-10 bg-slate-800 [&:has(.group:hover)]:z-[100]">
                 <div className="flex items-center gap-2">
                     {weather && (
-                        <div className="relative weather-tooltip-trigger">
+                        <div className="relative group">
                             <WeatherIcon condition={weather.condition} className="w-5 h-5" />
                             {/* Weather tooltip */}
-                            <div className="absolute left-0 top-full mt-1 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity z-50 shadow-lg border border-slate-700">
+                            <div className="absolute left-0 top-full mt-1 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg border border-slate-700">
                                 <div className="font-semibold">{weather.temperature}°F</div>
                                 <div>{weather.description}</div>
                             </div>
