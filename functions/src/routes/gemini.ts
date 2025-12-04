@@ -794,20 +794,80 @@ Be specific and concise. Only include information that's actually present in the
 
 /**
  * Helper: Extract city from location name
+ * Location names may include the brand name "Tupelo" or descriptors like "Downtown"
  */
 const extractCity = (locationName: string): string => {
-  // Location names are typically like "Asheville Downtown" or "Charlotte"
-  // Extract the city name (first word before "Downtown", etc.)
+  const normalized = locationName.toLowerCase();
+
+  // Check for known cities in the location name
+  const cityMappings: Record<string, string> = {
+    'columbia': 'Columbia',
+    'charlotte': 'Charlotte',
+    'asheville': 'Asheville',
+    'knoxville': 'Knoxville',
+    'farragut': 'Knoxville',  // Farragut, TN is part of Knoxville metro
+    'greenville': 'Greenville',
+    'raleigh': 'Raleigh',
+    'durham': 'Durham',
+    'chapel hill': 'Chapel Hill',
+    'winston-salem': 'Winston-Salem',
+    'atlanta': 'Atlanta',
+    'nashville': 'Nashville',
+    'charleston': 'Charleston'
+  };
+
+  // Look for city names in the location string
+  for (const [cityKey, cityName] of Object.entries(cityMappings)) {
+    if (normalized.includes(cityKey)) {
+      return cityName;
+    }
+  }
+
+  // If no known city found and location contains "Tupelo",
+  // it might be a location without city info - default to Columbia
+  if (normalized.includes('tupelo')) {
+    console.warn(`[extractCity] Location "${locationName}" contains "Tupelo" but no specific city. Defaulting to Columbia.`);
+    return 'Columbia';
+  }
+
+  // Otherwise, take the first word (for cases like "Charlotte Downtown")
   const parts = locationName.split(' ');
   return parts[0];
 };
 
 /**
- * Helper: Fetch local events happening over the next 4 days for a specific city
+ * Helper: Get location query for Eventbrite API (city + state)
+ */
+const getEventbriteLocation = (city: string): string => {
+  const cityNormalized = city.toLowerCase();
+
+  // Map cities to "City, State" format for Eventbrite API
+  const locationMap: Record<string, string> = {
+    'columbia': 'Columbia, SC',
+    'charlotte': 'Charlotte, NC',
+    'asheville': 'Asheville, NC',
+    'knoxville': 'Knoxville, TN',
+    'greenville': 'Greenville, SC',
+    'raleigh': 'Raleigh, NC',
+    'durham': 'Durham, NC',
+    'chapel hill': 'Chapel Hill, NC',
+    'winston-salem': 'Winston-Salem, NC',
+    'atlanta': 'Atlanta, GA',
+    'nashville': 'Nashville, TN',
+    'charleston': 'Charleston, SC'
+  };
+
+  return locationMap[cityNormalized] || 'Columbia, SC';
+};
+
+/**
+ * Helper: Fetch local events from Eventbrite API for the next 4 days
+ * Uses official Eventbrite API for reliable, structured event data
  */
 const fetchLocalEvents = async (client: any, locationName: string): Promise<string> => {
   try {
     const city = extractCity(locationName);
+    const location = getEventbriteLocation(city);
     const today = new Date();
 
     // Generate date range for next 4 days
@@ -829,58 +889,107 @@ const fetchLocalEvents = async (client: any, locationName: string): Promise<stri
     const year = dates[0].getFullYear();
     const month = dates[0].toLocaleDateString('en-US', { month: 'long' });
 
-    console.log(`[fetchLocalEvents] Searching for events in ${city} for ${dateRange}...`);
+    // Format dates for Eventbrite API (ISO 8601 with timezone)
+    const startDate = dates[0].toISOString();
+    const endDate = new Date(dates[3]);
+    endDate.setHours(23, 59, 59, 999);
+    const endDateISO = endDate.toISOString();
 
-    // Use AI with grounding/search to find current events
-    const searchPrompt = `Search for LOCAL EVENTS happening over the NEXT 4 DAYS (${month} ${dateRange}, ${year}) in ${city}, South Carolina.
+    console.log(`[fetchLocalEvents] Fetching events from Eventbrite API for ${location} (${month} ${dateRange})...`);
 
-CRITICAL: Use your knowledge and search capabilities to find REAL, SPECIFIC events happening in the next 4 days.
+    // Get Eventbrite API key from environment
+    const apiKey = process.env.EVENTBRITE_API_KEY;
+    if (!apiKey) {
+      console.error('[fetchLocalEvents] EVENTBRITE_API_KEY not configured');
+      return `Unable to fetch events: Eventbrite API key not configured. Check local event listings manually.`;
+    }
 
-Return events in this format:
+    // Call Eventbrite API
+    const apiUrl = `https://www.eventbriteapi.com/v3/events/search/`;
+    const params = {
+      'location.address': location,
+      'location.within': '25mi', // Search within 25 miles of city
+      'start_date.range_start': startDate,
+      'start_date.range_end': endDateISO,
+      'expand': 'venue', // Include venue details
+      'page_size': 50 // Get up to 50 events
+    };
+
+    console.log(`[fetchLocalEvents] API request: ${apiUrl}?location.address=${location}&location.within=25mi`);
+
+    const response = await axios.get(apiUrl, {
+      params,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      },
+      timeout: 10000
+    });
+
+    const events = response.data.events || [];
+    console.log(`[fetchLocalEvents] Found ${events.length} events from Eventbrite API`);
+
+    if (events.length === 0) {
+      return `**Local Events - ${month} ${dateRange}, ${year}:**
+
+No events found in ${location} for the next 4 days. Check local event listings manually.`;
+    }
+
+    // Format events as JSON for Gemini to organize
+    const eventsData = events.map((event: any) => ({
+      name: event.name?.text || 'Unnamed Event',
+      startDate: event.start?.local || event.start?.utc,
+      venue: event.venue?.name || 'Venue TBA',
+      address: event.venue?.address?.localized_address_display || '',
+      url: event.url,
+      description: event.description?.text?.substring(0, 200) || '' // First 200 chars
+    }));
+
+    console.log(`[fetchLocalEvents] Organizing ${eventsData.length} events with AI...`);
+
+    // Use Gemini to organize and categorize events
+    const organizationPrompt = `You are organizing local events for a restaurant manager. Here are ${eventsData.length} events happening in ${location} over the next 4 days.
+
+Events data (JSON):
+${JSON.stringify(eventsData, null, 2)}
+
+TASK: Organize these events by day and return in this EXACT format:
 
 **Local Events - ${month} ${dateRange}, ${year}:**
 
 **TODAY (${dates[0].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
-- [List any events happening today with TIME]
+- [Event Name] at [Venue] - [Time in local format like "7:00 PM"] ([Event Type: Sports/Concert/Arts/Festival/Dining/Other])
 
 **TOMORROW (${dates[1].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
-- [List any events happening tomorrow with TIME]
+- [Event Name] at [Venue] - [Time] ([Event Type])
 
 **${dates[2].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
-- [List any events with TIME]
+- [Event Name] at [Venue] - [Time] ([Event Type])
 
 **${dates[3].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
-- [List any events with TIME]
+- [Event Name] at [Venue] - [Time] ([Event Type])
 
-For each event, include:
-- Specific event name (e.g., "USC Gamecocks vs Kentucky Basketball")
-- Venue (e.g., "Colonial Life Arena")
-- TIME (very important!)
-- Type (Sports/Concert/Festival/Arts/Dining)
+ORGANIZATION RULES:
+1. Group events by the date they occur (use startDate field)
+2. Convert ISO timestamps to readable times (e.g., "2025-12-04T19:00:00" → "7:00 PM")
+3. Categorize each event: Sports, Concert, Arts, Festival, Dining, or Other
+4. Focus on events that could drive restaurant traffic (concerts, sports, festivals, etc.)
+5. If NO events for a specific day, write: "No major events scheduled"
+6. Limit to 5-7 most relevant events per day (prioritize larger/popular events)
+7. Be concise - event name, venue, time, and category only
 
-Event categories to search:
-- **Sports**: USC Gamecocks games, local sports
-- **Concerts & Entertainment**: Shows at venues like Colonial Life Arena, Township Auditorium
-- **Arts & Cultural**: Theater, exhibitions, gallery events
-- **Special Events**: Festivals, art walks (e.g., First Thursday Vista Lights), conventions
-- **Food & Dining**: Restaurant events, food festivals
+Output ONLY the formatted event list. Be specific and helpful for restaurant planning.`;
 
-IMPORTANT INSTRUCTIONS:
-- ONLY include events you can verify are happening in the next 4 days
-- Include SPECIFIC times whenever possible
-- Include VENUE names
-- Focus on events near downtown/restaurant district that would drive foot traffic
-- If no events found for a day, write "No major events scheduled"
-- Be specific and accurate. Do not make up events.
+    const organizedEvents = await client.generateContent(organizationPrompt, undefined, 0.2);
+    console.log('[fetchLocalEvents] Events organized successfully');
+    console.log('[fetchLocalEvents] Preview:', organizedEvents.substring(0, 300));
 
-Organize by day to help managers plan staffing and operations.`;
-
-    const events = await client.generateContent(searchPrompt, undefined, 0.3);
-    console.log('[fetchLocalEvents] Events extracted:', events.substring(0, 200));
-    return events;
+    return organizedEvents;
   } catch (error) {
-    console.error('[fetchLocalEvents] Error fetching events:', error);
-    return `Unable to fetch current events. Check local listings for ${extractCity(locationName)} area.`;
+    console.error('[fetchLocalEvents] Error fetching events from Eventbrite API:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('[fetchLocalEvents] API response:', error.response.status, error.response.data);
+    }
+    return `Unable to fetch current events for ${extractCity(locationName)}. Check local event listings manually.`;
   }
 };
 

@@ -62,11 +62,11 @@ app.use(errorHandler);
 
 /**
  * Main Cloud Function
- * Handles all API requests with AI Studio API key from Secret Manager
+ * Handles all API requests with AI Studio API key and Eventbrite API key from Secret Manager
  */
 export const api = onRequest(
   {
-    secrets: ['GEMINI_API_KEY'], // AI Studio API key from Secret Manager
+    secrets: ['GEMINI_API_KEY', 'EVENTBRITE_API_KEY'], // API keys from Secret Manager
     timeoutSeconds: 540, // 9 minutes
     memory: '512MiB',
     cors: true,

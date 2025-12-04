@@ -88,10 +88,10 @@ app.use(error_handler_1.errorHandler);
 // ============================================================================
 /**
  * Main Cloud Function
- * Handles all API requests with AI Studio API key from Secret Manager
+ * Handles all API requests with AI Studio API key and Eventbrite API key from Secret Manager
  */
 exports.api = (0, https_1.onRequest)({
-    secrets: ['GEMINI_API_KEY'], // AI Studio API key from Secret Manager
+    secrets: ['GEMINI_API_KEY', 'EVENTBRITE_API_KEY'], // API keys from Secret Manager
     timeoutSeconds: 540, // 9 minutes
     memory: '512MiB',
     cors: true,
