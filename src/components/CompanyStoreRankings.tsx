@@ -333,7 +333,7 @@ export const CompanyStoreRankings: React.FC<CompanyStoreRankingsProps> = ({
             </div>
 
             {/* Table */}
-            <div className="overflow-auto" style={{ maxHeight: 'calc(8 * 56px + 48px)' }}>
+            <div className="overflow-auto custom-scrollbar" style={{ maxHeight: 'calc(8 * 56px + 48px)' }}>
                 <table className="w-full">
                     <thead className="bg-slate-900 sticky top-0 z-10">
                         <tr className="border-b border-slate-700">

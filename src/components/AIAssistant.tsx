@@ -32,9 +32,11 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Scroll to bottom when new messages arrive
+    // Scroll to bottom when new messages arrive (only if there are messages)
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messages.length > 0) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [messages]);
 
     const handleSendMessage = async (message: string) => {
