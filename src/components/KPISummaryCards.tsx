@@ -34,10 +34,10 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
             whileHover={{ y: -4, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onSelect}
-            className={`group relative p-4 rounded-xl cursor-pointer overflow-hidden border transition-colors duration-300 ${
-                isSelected 
-                ? 'bg-slate-800 border-cyan-500 shadow-lg shadow-cyan-900/20' 
-                : 'bg-slate-800/40 border-slate-700 hover:bg-slate-800/60 hover:border-slate-600'
+            className={`group relative p-4 rounded-xl cursor-pointer overflow-hidden border transition-all duration-300 ${
+                isSelected
+                ? 'bg-slate-800 border-cyan-500 shadow-lg shadow-cyan-900/20'
+                : 'bg-slate-800/40 border-slate-700 hover:bg-slate-800/60 hover:border-cyan-500/30 hover:shadow-xl hover:shadow-cyan-900/10'
             }`}
         >
             {/* Animated Background Gradient for Selected State */}
@@ -51,7 +51,7 @@ const Card: React.FC<{ kpi: Kpi, value: number, isSelected: boolean, onSelect: (
             )}
             
             {/* Glow Effect on Hover */}
-            <div className="absolute -inset-px bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl opacity-0 group-hover:opacity-10 blur transition-opacity duration-500 -z-10" />
+            <div className="absolute -inset-px bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300 -z-10" />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
                 <div className="flex items-center justify-between mb-2">

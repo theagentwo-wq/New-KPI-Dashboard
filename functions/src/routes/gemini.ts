@@ -1512,6 +1512,50 @@ Provide a thoughtful, strategic response that:
   });
 }));
 
+/**
+ * 17. POST /api/chatWithData
+ * General chat endpoint with access to current KPI data
+ */
+router.post('/chatWithData', asyncHandler(async (req: Request, res: Response) => {
+  const { question, context, allStoresData, directorAggregates } = req.body.data;
+  const client = getClient(process.env.GEMINI_API_KEY);
+
+  // Prepare data summary for AI context
+  const dataSummary = {
+    period: context.period,
+    view: context.view,
+    storesCount: context.storesCount,
+    directorsCount: context.directorsCount,
+  };
+
+  const prompt = `You are a knowledgeable AI assistant helping a restaurant company. You have access to their KPI dashboard data and can discuss restaurant operations, food, business strategy, or any other topic.
+
+Current Dashboard Context:
+- Period: ${dataSummary.period}
+- View: ${dataSummary.view}
+- Number of Stores: ${dataSummary.storesCount}
+- Number of Regional Directors: ${dataSummary.directorsCount}
+
+User Question: ${question}
+
+Instructions:
+- Answer ANY question the user asks - whether it's about their KPI data, restaurant operations, food recommendations, business advice, or general topics
+- If the question relates to their KPI data, analyze it and provide specific insights
+- For food and restaurant questions, provide expert advice based on industry best practices
+- For general questions, provide helpful, accurate information
+- Be conversational, helpful, and thorough
+- Use markdown formatting for better readability
+
+Provide a helpful response:`;
+
+  const result = await client.generateFromData(prompt, { allStoresData, directorAggregates });
+
+  res.json({
+    success: true,
+    data: result,
+  });
+}));
+
 // ============================================================================
 // DATA IMPORT ENDPOINTS (2 total) - Will be fully implemented in Phase 8
 // ============================================================================

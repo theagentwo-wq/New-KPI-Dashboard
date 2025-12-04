@@ -79,9 +79,9 @@ const RankingRow = React.memo(({
     const medal = getMedalIcon(rank);
 
     return (
-        <tr className="border-b border-slate-700 hover:bg-slate-750 transition-colors">
+        <tr className="border-b border-slate-700 hover:bg-slate-800/80 hover:border-cyan-500/20 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-900/5 cursor-pointer group">
             {/* Rank */}
-            <td className="py-3 px-4 text-white">
+            <td className="py-3 px-4 text-white relative before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-gradient-to-b before:from-cyan-500 before:to-blue-500 before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300">
                 {medal ? (
                     <span className="flex items-center gap-2">
                         <span className="text-lg">{medal}</span>

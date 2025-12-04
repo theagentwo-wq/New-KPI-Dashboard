@@ -15,6 +15,66 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
   }
+
+  /* Smooth Transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .transition-smooth-fast {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Hover Lift Effect */
+  .hover-lift {
+    @apply transition-smooth;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-xl;
+  }
+
+  /* Hover Glow Effect */
+  .hover-glow-cyan {
+    @apply transition-smooth;
+  }
+  .hover-glow-cyan:hover {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Button Hover Scale */
+  .hover-scale {
+    @apply transition-smooth-fast;
+  }
+  .hover-scale:hover:not(:disabled) {
+    @apply scale-105;
+  }
+
+  /* Gradient Border Effect */
+  .gradient-border {
+    @apply relative;
+    background: linear-gradient(to right, rgb(8 145 178 / 0.1), rgb(59 130 246 / 0.1));
+    border: 1px solid transparent;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgb(6 182 212 / 0.5), rgb(59 130 246 / 0.5), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Card Hover Effect */
+  .card-interactive {
+    @apply transition-smooth hover-lift;
+  }
+  .card-interactive:hover {
+    @apply border-cyan-500/30;
+  }
 }
 
 /* Weather Icon Animations */

@@ -26,9 +26,9 @@ const NavLink: React.FC<{
 }> = ({ icon, label, isActive, isCollapsed, onClick }) => (
   <motion.button
     onClick={onClick}
-    {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.7)' } } as any)}
-    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-      isActive ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300'
+    {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.7)', scale: 1.02 }, transition: { duration: 0.2 } } as any)}
+    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+      isActive ? 'bg-cyan-500/20 text-cyan-300 shadow-lg shadow-cyan-900/20' : 'text-slate-300 hover:shadow-md'
     } ${isCollapsed ? 'justify-center' : ''}`}
     title={isCollapsed ? label : ''}
   >
@@ -45,10 +45,10 @@ const DirectorLink: React.FC<{
     onClick: () => void;
     onInfoClick: (e: React.MouseEvent) => void;
 }> = ({ director, label, isActive, isCollapsed, onClick, onInfoClick }) => (
-    <motion.div 
-        className={`w-full flex items-center justify-between pl-4 pr-2 py-1.5 rounded-md transition-colors text-sm ${ isActive ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700/50' } ${isCollapsed ? 'pl-2' : ''}`}
+    <motion.div
+        className={`w-full flex items-center justify-between pl-4 pr-2 py-1.5 rounded-md transition-all duration-200 text-sm ${ isActive ? 'bg-slate-700 text-white shadow-md' : 'text-slate-400 hover:bg-slate-700/50 hover:shadow-sm' } ${isCollapsed ? 'pl-2' : ''}`}
         title={isCollapsed ? label : ''}
-        {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.9)' } } as any)}
+        {...({ whileHover: { backgroundColor: 'rgba(51, 65, 85, 0.9)', scale: 1.02 }, transition: { duration: 0.2 } } as any)}
     >
         <button onClick={onClick} className={`flex items-center gap-3 flex-1 ${isCollapsed ? 'justify-center' : ''}`}>
             {director && <img src={director.photo} alt={director.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />}
@@ -75,9 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, c
     >
       <div className={`flex items-center gap-3 h-10 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         {!isCollapsed && <h1 className="text-xl font-bold text-white">Ops KPI Dashboard</h1>}
-        <button 
+        <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white"
+            className="p-2 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white transition-all duration-200 hover:scale-110 hover:shadow-md"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
             <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} className="w-5 h-5" />
