@@ -793,6 +793,72 @@ Be specific and concise. Only include information that's actually present in the
 };
 
 /**
+ * Helper: Extract city from location name
+ */
+const extractCity = (locationName: string): string => {
+  // Location names are typically like "Asheville Downtown" or "Charlotte"
+  // Extract the city name (first word before "Downtown", etc.)
+  const parts = locationName.split(' ');
+  return parts[0];
+};
+
+/**
+ * Helper: Fetch local events happening today/tonight for a specific city
+ */
+const fetchLocalEvents = async (client: any, locationName: string): Promise<string> => {
+  try {
+    const city = extractCity(locationName);
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+    console.log(`[fetchLocalEvents] Searching for events in ${city} for ${todayStr}...`);
+
+    // Use AI with grounding/search to find current events
+    const searchPrompt = `Search for LOCAL EVENTS happening TODAY (${todayStr}) and TONIGHT in ${city}, South Carolina.
+
+CRITICAL: Use your knowledge and search capabilities to find REAL, SPECIFIC events happening today.
+
+Return events in this format:
+
+**Local Events - ${todayStr}:**
+
+**Sports:**
+- [Specific game/match with teams, venue, and TIME]
+- Example: "USC Gamecocks vs Clemson Basketball at Colonial Life Arena, 7:00 PM"
+
+**Concerts & Entertainment:**
+- [Specific concert/show with artist, venue, and TIME]
+- Example: "John Doe Concert at Township Auditorium, 8:00 PM"
+
+**Arts & Cultural:**
+- [Specific exhibition, theater show, or cultural event with venue and TIME]
+
+**Special Events:**
+- [Festivals, art walks, conventions with TIME]
+- Example: "Vista Lights First Thursday Art Walk, 6:00-9:00 PM"
+
+**Food & Dining:**
+- [Any special dining events, restaurant openings, food festivals]
+
+IMPORTANT INSTRUCTIONS:
+- ONLY include events you can verify are happening TODAY (${todayStr})
+- Include SPECIFIC times whenever possible
+- Include VENUE names
+- Focus on events near downtown/restaurant district that would drive foot traffic
+- If you cannot find specific events for today, say: "No confirmed events found for ${todayStr}. Check local event calendars."
+
+Be specific and accurate. Do not make up events.`;
+
+    const events = await client.generateContent(searchPrompt, undefined, 0.3);
+    console.log('[fetchLocalEvents] Events extracted:', events.substring(0, 200));
+    return events;
+  } catch (error) {
+    console.error('[fetchLocalEvents] Error fetching events:', error);
+    return `Unable to fetch current events. Check local listings for ${extractCity(locationName)} area.`;
+  }
+};
+
+/**
  * 5. POST /api/generateHuddleBrief
  * Daily huddle briefing (will be enhanced in Phase 9 with audience-specific prompts)
  */
@@ -806,6 +872,9 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
 
   // Fetch current promotions from website
   const currentPromotions = await fetchCurrentPromotions(client);
+
+  // Fetch local events happening today/tonight
+  const localEvents = await fetchLocalEvents(client, locationName);
 
   // Audience-specific prompts (enhanced in Phase 9)
   let prompt = '';
@@ -858,18 +927,15 @@ Create 1-2 fun, proven sales contests for servers/bartenders today:
 Weather: ${JSON.stringify(weather)}
 
 **Local Events Happening Today/Tonight:**
-List any specific events in Columbia, SC that could impact our traffic TODAY or TONIGHT:
-- USC Gamecocks games (football, basketball) - include specific time if known (e.g., "USC vs Clemson at 4:00 PM")
-- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
-- Vista Art Walks or Gallery Crawls
-- Conventions at Columbia Metropolitan Convention Center
-- Any other events that would bring guests to downtown/Vista area
+${localEvents}
 
 **Traffic Predictions:**
-- How do weather and events affect expected covers?
-- Patio seating adjustments if needed
-- Pre-event rush timing (e.g., "Expect concert crowd 5-7 PM before 8 PM showtime")
+Based on the weather and events above:
+- How do these conditions affect our expected covers today?
+- Patio seating adjustments if needed based on weather
+- Pre-event rush timing if applicable (e.g., "Expect concert crowd 5-7 PM before 8 PM showtime")
 - Guest flow predictions throughout the shift
+- Parking and accessibility considerations
 
 ## 5. Energy & Motivation
 
@@ -918,14 +984,10 @@ ${currentPromotions}
 - Plan for increased volume on these specific items
 
 **Local Events Happening Today/Tonight:**
-List any specific events in Columbia, SC that could impact our covers TODAY or TONIGHT:
-- USC Gamecocks games (football, basketball) - include specific time (e.g., "USC vs Clemson at 4:00 PM")
-- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
-- Vista events, conventions, or other traffic drivers
-- Pre-event rush timing (e.g., "Expect concert crowd 5-7 PM, we'll be slammed")
+${localEvents}
 
 **Execution Planning:**
-Based on performance data, weather, events, and promotions above:
+Based on performance data, weather, the events listed above, and promotions:
 - Expected covers for today's shift
 - Key menu items to prioritize and prep (especially for high-volume periods and promoted items)
 - Timing goals for ticket times
@@ -986,16 +1048,13 @@ For BOH: Highlight safety focus and quality standards to emphasize
 ## 3. Operations Strategy & Traffic Drivers
 
 **Local Events Happening Today/Tonight:**
-List any specific events in Columbia, SC that could impact our traffic TODAY or TONIGHT:
-- USC Gamecocks games (football, basketball) - include specific time (e.g., "USC vs Clemson at 4:00 PM")
-- Concerts at Colonial Life Arena, Trustus Theatre, Koger Center - include time if known
-- Vista events, conventions, or other traffic drivers
-- Expected traffic patterns based on these events
+${localEvents}
 
 **Weather:** ${JSON.stringify(weather)}
 
 **Operations Planning:**
-- How do weather and events affect our expected traffic?
+Based on the events and weather above:
+- How do these conditions affect our expected traffic?
 - Floor management: staffing deployment, section assignments based on expected volume
 - Peak period preparation (pre-event rush timing)
 - Guest recovery protocols to review
