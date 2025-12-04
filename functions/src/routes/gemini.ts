@@ -751,6 +751,48 @@ With specific dates/timeframes where applicable
 }));
 
 /**
+ * Helper: Fetch and extract current promotions from Tupelo Honey website
+ */
+const fetchCurrentPromotions = async (client: any): Promise<string> => {
+  try {
+    console.log('[fetchCurrentPromotions] Fetching Tupelo Honey website...');
+    const response = await axios.get('https://www.tupelohoneycafe.com', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 10000
+    });
+
+    const htmlContent = response.data;
+    console.log('[fetchCurrentPromotions] Website fetched, analyzing for promotions...');
+
+    // Use AI to extract promotions from the HTML
+    const extractionPrompt = `Analyze this HTML from https://www.tupelohoneycafe.com and extract ONLY current promotions, specials, or featured menu items.
+
+HTML Content:
+${htmlContent.substring(0, 50000)}
+
+Return your findings in this format:
+
+**Current Promotions & Specials:**
+- [List each promotion/special you find]
+- [Include menu items, pricing, descriptions]
+- [Note any time restrictions or special conditions]
+
+If NO promotions are found, return: "No current promotions or specials found on the website."
+
+Be specific and concise. Only include information that's actually present in the HTML.`;
+
+    const promotions = await client.generateContent(extractionPrompt, undefined, 0.3);
+    console.log('[fetchCurrentPromotions] Promotions extracted:', promotions.substring(0, 200));
+    return promotions;
+  } catch (error) {
+    console.error('[fetchCurrentPromotions] Error fetching promotions:', error);
+    return 'Unable to fetch current promotions from website. Please check https://www.tupelohoneycafe.com manually.';
+  }
+};
+
+/**
  * 5. POST /api/generateHuddleBrief
  * Daily huddle briefing (will be enhanced in Phase 9 with audience-specific prompts)
  */
@@ -761,6 +803,9 @@ router.post('/generateHuddleBrief', asyncHandler(async (req: Request, res: Respo
   // Get current date for event context
   const today = new Date();
   const currentDate = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Fetch current promotions from website
+  const currentPromotions = await fetchCurrentPromotions(client);
 
   // Audience-specific prompts (enhanced in Phase 9)
   let prompt = '';
@@ -782,9 +827,11 @@ Weather: ${JSON.stringify(weather)}
 ## 1. Sales Focus & Contests (CRITICAL)
 
 **Company Promotions:**
-Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
-- Highlight any active promotions to guests
+${currentPromotions}
+
+- Highlight these active promotions to guests
 - Train servers on promotion details and upselling points
+- Emphasize these items in your sales approach today
 
 **Daily Sales Contests:**
 Create 1-2 fun, proven sales contests for servers/bartenders today:
@@ -863,10 +910,12 @@ Weather: ${JSON.stringify(weather)}
 ## 3. Today's Execution Plan & Traffic Drivers (CRITICAL)
 
 **Company Promotions:**
-Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
+${currentPromotions}
+
 - Identify promoted menu items that may require extra prep
 - Ensure ingredients are stocked for promoted dishes
 - Communicate any special preparation needs to the team
+- Plan for increased volume on these specific items
 
 **Local Events Happening Today/Tonight:**
 List any specific events in Columbia, SC that could impact our covers TODAY or TONIGHT:
@@ -918,11 +967,13 @@ ${JSON.stringify(performanceData)}
 ## 2. Team Leadership & Communication
 
 **Company Promotions (CRITICAL):**
-Check https://www.tupelohoneycafe.com for current company-wide promotions or specials that are live
-- Ensure all teams are aware of active promotions
+${currentPromotions}
+
+- Ensure all teams are aware of these active promotions
 - Communicate promotion details, upselling points, and execution requirements
-- Verify FOH knows how to present promotions to guests
-- Verify BOH has ingredients and knows preparation requirements
+- Verify FOH knows how to present these promotions to guests
+- Verify BOH has ingredients and knows preparation requirements for promoted items
+- Set specific sales targets for these promoted menu items
 
 **Team Communication Points:**
 What should managers communicate to their teams today?
