@@ -803,51 +803,77 @@ const extractCity = (locationName: string): string => {
 };
 
 /**
- * Helper: Fetch local events happening today/tonight for a specific city
+ * Helper: Fetch local events happening over the next 4 days for a specific city
  */
 const fetchLocalEvents = async (client: any, locationName: string): Promise<string> => {
   try {
     const city = extractCity(locationName);
     const today = new Date();
-    const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-    console.log(`[fetchLocalEvents] Searching for events in ${city} for ${todayStr}...`);
+    // Generate date range for next 4 days
+    const dates = [];
+    for (let i = 0; i < 4; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+
+    // Format date range for display
+    const dateRange = dates.map(d => {
+      const day = d.getDate();
+      const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                     day === 2 || day === 22 ? 'nd' :
+                     day === 3 || day === 23 ? 'rd' : 'th';
+      return `${day}${suffix}`;
+    }).join(', ');
+    const year = dates[0].getFullYear();
+    const month = dates[0].toLocaleDateString('en-US', { month: 'long' });
+
+    console.log(`[fetchLocalEvents] Searching for events in ${city} for ${dateRange}...`);
 
     // Use AI with grounding/search to find current events
-    const searchPrompt = `Search for LOCAL EVENTS happening TODAY (${todayStr}) and TONIGHT in ${city}, South Carolina.
+    const searchPrompt = `Search for LOCAL EVENTS happening over the NEXT 4 DAYS (${month} ${dateRange}, ${year}) in ${city}, South Carolina.
 
-CRITICAL: Use your knowledge and search capabilities to find REAL, SPECIFIC events happening today.
+CRITICAL: Use your knowledge and search capabilities to find REAL, SPECIFIC events happening in the next 4 days.
 
 Return events in this format:
 
-**Local Events - ${todayStr}:**
+**Local Events - ${month} ${dateRange}, ${year}:**
 
-**Sports:**
-- [Specific game/match with teams, venue, and TIME]
-- Example: "USC Gamecocks vs Clemson Basketball at Colonial Life Arena, 7:00 PM"
+**TODAY (${dates[0].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
+- [List any events happening today with TIME]
 
-**Concerts & Entertainment:**
-- [Specific concert/show with artist, venue, and TIME]
-- Example: "John Doe Concert at Township Auditorium, 8:00 PM"
+**TOMORROW (${dates[1].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
+- [List any events happening tomorrow with TIME]
 
-**Arts & Cultural:**
-- [Specific exhibition, theater show, or cultural event with venue and TIME]
+**${dates[2].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
+- [List any events with TIME]
 
-**Special Events:**
-- [Festivals, art walks, conventions with TIME]
-- Example: "Vista Lights First Thursday Art Walk, 6:00-9:00 PM"
+**${dates[3].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
+- [List any events with TIME]
 
-**Food & Dining:**
-- [Any special dining events, restaurant openings, food festivals]
+For each event, include:
+- Specific event name (e.g., "USC Gamecocks vs Kentucky Basketball")
+- Venue (e.g., "Colonial Life Arena")
+- TIME (very important!)
+- Type (Sports/Concert/Festival/Arts/Dining)
+
+Event categories to search:
+- **Sports**: USC Gamecocks games, local sports
+- **Concerts & Entertainment**: Shows at venues like Colonial Life Arena, Township Auditorium
+- **Arts & Cultural**: Theater, exhibitions, gallery events
+- **Special Events**: Festivals, art walks (e.g., First Thursday Vista Lights), conventions
+- **Food & Dining**: Restaurant events, food festivals
 
 IMPORTANT INSTRUCTIONS:
-- ONLY include events you can verify are happening TODAY (${todayStr})
+- ONLY include events you can verify are happening in the next 4 days
 - Include SPECIFIC times whenever possible
 - Include VENUE names
 - Focus on events near downtown/restaurant district that would drive foot traffic
-- If you cannot find specific events for today, say: "No confirmed events found for ${todayStr}. Check local event calendars."
+- If no events found for a day, write "No major events scheduled"
+- Be specific and accurate. Do not make up events.
 
-Be specific and accurate. Do not make up events.`;
+Organize by day to help managers plan staffing and operations.`;
 
     const events = await client.generateContent(searchPrompt, undefined, 0.3);
     console.log('[fetchLocalEvents] Events extracted:', events.substring(0, 200));
@@ -926,11 +952,11 @@ Create 1-2 fun, proven sales contests for servers/bartenders today:
 
 Weather: ${JSON.stringify(weather)}
 
-**Local Events Happening Today/Tonight:**
+**Local Events - Next 4 Days:**
 ${localEvents}
 
 **Traffic Predictions:**
-Based on the weather and events above:
+Based on the weather and upcoming events above:
 - How do these conditions affect our expected covers today?
 - Patio seating adjustments if needed based on weather
 - Pre-event rush timing if applicable (e.g., "Expect concert crowd 5-7 PM before 8 PM showtime")
@@ -983,11 +1009,11 @@ ${currentPromotions}
 - Communicate any special preparation needs to the team
 - Plan for increased volume on these specific items
 
-**Local Events Happening Today/Tonight:**
+**Local Events - Next 4 Days:**
 ${localEvents}
 
 **Execution Planning:**
-Based on performance data, weather, the events listed above, and promotions:
+Based on performance data, weather, the upcoming events listed above, and promotions:
 - Expected covers for today's shift
 - Key menu items to prioritize and prep (especially for high-volume periods and promoted items)
 - Timing goals for ticket times
@@ -1047,13 +1073,13 @@ For BOH: Highlight safety focus and quality standards to emphasize
 
 ## 3. Operations Strategy & Traffic Drivers
 
-**Local Events Happening Today/Tonight:**
+**Local Events - Next 4 Days:**
 ${localEvents}
 
 **Weather:** ${JSON.stringify(weather)}
 
 **Operations Planning:**
-Based on the events and weather above:
+Based on the upcoming events and weather above:
 - How do these conditions affect our expected traffic?
 - Floor management: staffing deployment, section assignments based on expected volume
 - Peak period preparation (pre-event rush timing)
