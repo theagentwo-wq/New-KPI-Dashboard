@@ -836,38 +836,45 @@ const extractCity = (locationName: string): string => {
 };
 
 /**
- * Helper: Get location query for Eventbrite API (city + state)
+ * Helper: Get event source URLs for different cities
+ * Combines tourism boards and major venues
  */
-const getEventbriteLocation = (city: string): string => {
+const getEventSourceURLs = (city: string): string[] => {
   const cityNormalized = city.toLowerCase();
 
-  // Map cities to "City, State" format for Eventbrite API
-  const locationMap: Record<string, string> = {
-    'columbia': 'Columbia, SC',
-    'charlotte': 'Charlotte, NC',
-    'asheville': 'Asheville, NC',
-    'knoxville': 'Knoxville, TN',
-    'greenville': 'Greenville, SC',
-    'raleigh': 'Raleigh, NC',
-    'durham': 'Durham, NC',
-    'chapel hill': 'Chapel Hill, NC',
-    'winston-salem': 'Winston-Salem, NC',
-    'atlanta': 'Atlanta, GA',
-    'nashville': 'Nashville, TN',
-    'charleston': 'Charleston, SC'
+  const urlMap: Record<string, string[]> = {
+    'columbia': [
+      'https://www.columbiacvb.com/events/',
+      'https://www.coloniallifearena.com/events'
+    ],
+    'charlotte': [
+      'https://www.charlottesgotalot.com/events',
+      'https://www.spectrum-center.com/events'
+    ],
+    'asheville': [
+      'https://www.exploreasheville.com/events/',
+      'https://www.harrahscherokee.com/asheville/entertainment/events/'
+    ],
+    'knoxville': [
+      'https://www.visitknoxville.com/events/',
+      'https://www.thompsonbolingarena.com/events'
+    ],
+    'greenville': [
+      'https://www.visitgreenvillesc.com/events/',
+      'https://www.bonsecoursarena.com/events'
+    ]
   };
 
-  return locationMap[cityNormalized] || 'Columbia, SC';
+  return urlMap[cityNormalized] || urlMap['columbia'];
 };
 
 /**
- * Helper: Fetch local events from Eventbrite API for the next 4 days
- * Uses official Eventbrite API for reliable, structured event data
+ * Helper: Fetch local events by scraping city tourism and venue sites
+ * Hybrid approach: scrapes multiple sources, AI extracts and organizes
  */
 const fetchLocalEvents = async (client: any, locationName: string): Promise<string> => {
   try {
     const city = extractCity(locationName);
-    const location = getEventbriteLocation(city);
     const today = new Date();
 
     // Generate date range for next 4 days
@@ -889,75 +896,57 @@ const fetchLocalEvents = async (client: any, locationName: string): Promise<stri
     const year = dates[0].getFullYear();
     const month = dates[0].toLocaleDateString('en-US', { month: 'long' });
 
-    // Format dates for Eventbrite API (ISO 8601 with timezone)
-    const startDate = dates[0].toISOString();
-    const endDate = new Date(dates[3]);
-    endDate.setHours(23, 59, 59, 999);
-    const endDateISO = endDate.toISOString();
+    console.log(`[fetchLocalEvents] Scraping event sources for ${city} (${month} ${dateRange})...`);
 
-    console.log(`[fetchLocalEvents] Fetching events from Eventbrite API for ${location} (${month} ${dateRange})...`);
+    // Get event source URLs for this city
+    const sourceURLs = getEventSourceURLs(city);
 
-    // Get Eventbrite API key from environment
-    const apiKey = process.env.EVENTBRITE_API_KEY;
-    if (!apiKey) {
-      console.error('[fetchLocalEvents] EVENTBRITE_API_KEY not configured');
-      return `Unable to fetch events: Eventbrite API key not configured. Check local event listings manually.`;
+    // Scrape all event sources
+    let combinedHTML = '';
+    for (const url of sourceURLs) {
+      try {
+        console.log(`[fetchLocalEvents] Fetching ${url}...`);
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          },
+          timeout: 10000,
+          maxRedirects: 5
+        });
+
+        combinedHTML += `\n\n<!-- Events from ${url} -->\n${response.data}\n`;
+        console.log(`[fetchLocalEvents] Successfully fetched ${url} (${response.data.length} chars)`);
+      } catch (urlError) {
+        console.warn(`[fetchLocalEvents] Failed to fetch ${url}:`, urlError instanceof Error ? urlError.message : urlError);
+      }
     }
 
-    // Call Eventbrite API
-    const apiUrl = `https://www.eventbriteapi.com/v3/events/search/`;
-    const params = {
-      'location.address': location,
-      'location.within': '25mi', // Search within 25 miles of city
-      'start_date.range_start': startDate,
-      'start_date.range_end': endDateISO,
-      'expand': 'venue', // Include venue details
-      'page_size': 50 // Get up to 50 events
-    };
-
-    console.log(`[fetchLocalEvents] API request: ${apiUrl}?location.address=${location}&location.within=25mi`);
-
-    const response = await axios.get(apiUrl, {
-      params,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      },
-      timeout: 10000
-    });
-
-    const events = response.data.events || [];
-    console.log(`[fetchLocalEvents] Found ${events.length} events from Eventbrite API`);
-
-    if (events.length === 0) {
+    if (!combinedHTML.trim()) {
+      console.warn('[fetchLocalEvents] No event data fetched from any source');
       return `**Local Events - ${month} ${dateRange}, ${year}:**
 
-No events found in ${location} for the next 4 days. Check local event listings manually.`;
+Unable to fetch events for ${city}. Check local event listings manually.`;
     }
 
-    // Format events as JSON for Gemini to organize
-    const eventsData = events.map((event: any) => ({
-      name: event.name?.text || 'Unnamed Event',
-      startDate: event.start?.local || event.start?.utc,
-      venue: event.venue?.name || 'Venue TBA',
-      address: event.venue?.address?.localized_address_display || '',
-      url: event.url,
-      description: event.description?.text?.substring(0, 200) || '' // First 200 chars
-    }));
+    // Limit HTML to prevent token overflow (keep most recent 120k chars)
+    const htmlSample = combinedHTML.substring(0, 120000);
+    console.log(`[fetchLocalEvents] Analyzing ${htmlSample.length} chars of HTML from ${sourceURLs.length} sources...`);
 
-    console.log(`[fetchLocalEvents] Organizing ${eventsData.length} events with AI...`);
+    // Use AI to extract and organize events from HTML
+    const extractionPrompt = `You are a restaurant manager's assistant. Extract LOCAL EVENTS from these event calendar websites for ${city} happening over the NEXT 4 DAYS (${month} ${dateRange}, ${year}).
 
-    // Use Gemini to organize and categorize events
-    const organizationPrompt = `You are organizing local events for a restaurant manager. Here are ${eventsData.length} events happening in ${location} over the next 4 days.
+HTML from tourism boards and major venues:
+${htmlSample}
 
-Events data (JSON):
-${JSON.stringify(eventsData, null, 2)}
+TODAY'S DATE: ${today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
-TASK: Organize these events by day and return in this EXACT format:
+TASK: Extract events and organize by day in this EXACT format:
 
 **Local Events - ${month} ${dateRange}, ${year}:**
 
 **TODAY (${dates[0].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
-- [Event Name] at [Venue] - [Time in local format like "7:00 PM"] ([Event Type: Sports/Concert/Arts/Festival/Dining/Other])
+- [Event Name] at [Venue] - [Time like "7:00 PM"] ([Event Type: Sports/Concert/Arts/Festival/Dining/Other])
 
 **TOMORROW (${dates[1].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}):**
 - [Event Name] at [Venue] - [Time] ([Event Type])
@@ -968,27 +957,27 @@ TASK: Organize these events by day and return in this EXACT format:
 **${dates[3].toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}:**
 - [Event Name] at [Venue] - [Time] ([Event Type])
 
-ORGANIZATION RULES:
-1. Group events by the date they occur (use startDate field)
-2. Convert ISO timestamps to readable times (e.g., "2025-12-04T19:00:00" → "7:00 PM")
-3. Categorize each event: Sports, Concert, Arts, Festival, Dining, or Other
-4. Focus on events that could drive restaurant traffic (concerts, sports, festivals, etc.)
-5. If NO events for a specific day, write: "No major events scheduled"
-6. Limit to 5-7 most relevant events per day (prioritize larger/popular events)
-7. Be concise - event name, venue, time, and category only
+EXTRACTION RULES:
+1. Extract ONLY events happening ${month} ${dateRange}, ${year}
+2. Look for event names, venues, dates, and times in the HTML
+3. Focus on traffic-driving events: concerts, sports (basketball, football, hockey), festivals, conferences
+4. Categorize: Sports, Concert, Arts, Festival, Dining, or Other
+5. Extract venue names when available
+6. Extract specific times when available (e.g., "7:00 PM", "6:30 PM")
+7. If NO events found for a specific day, write: "No major events scheduled"
+8. Limit to 5-7 most relevant events per day (prioritize larger events)
+9. Remove duplicates (same event from multiple sources)
+10. Be accurate - only include events you can verify from the HTML
 
 Output ONLY the formatted event list. Be specific and helpful for restaurant planning.`;
 
-    const organizedEvents = await client.generateContent(organizationPrompt, undefined, 0.2);
-    console.log('[fetchLocalEvents] Events organized successfully');
-    console.log('[fetchLocalEvents] Preview:', organizedEvents.substring(0, 300));
+    const events = await client.generateContent(extractionPrompt, undefined, 0.2);
+    console.log('[fetchLocalEvents] Events extracted and organized');
+    console.log('[fetchLocalEvents] Preview:', events.substring(0, 300));
 
-    return organizedEvents;
+    return events;
   } catch (error) {
-    console.error('[fetchLocalEvents] Error fetching events from Eventbrite API:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('[fetchLocalEvents] API response:', error.response.status, error.response.data);
-    }
+    console.error('[fetchLocalEvents] Error fetching events:', error);
     return `Unable to fetch current events for ${extractCity(locationName)}. Check local event listings manually.`;
   }
 };
