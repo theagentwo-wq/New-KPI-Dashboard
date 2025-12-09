@@ -52,8 +52,8 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       },
       editorProps: {
         attributes: {
-          class: 'prose prose-sm prose-invert max-w-none focus:outline-none min-h-[120px] p-3 text-base',
-          style: 'min-height: 120px; -webkit-text-size-adjust: 100%;',
+          class: 'prose prose-sm prose-invert max-w-none focus:outline-none min-h-[120px] p-3 text-base text-white',
+          style: 'min-height: 120px; -webkit-text-size-adjust: 100%; color: white; caret-color: white;',
         },
       },
     });
@@ -101,8 +101,18 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     }
 
     return (
-      <div className={`bg-slate-900 border border-slate-600 rounded-md ${className}`}>
-        {/* Toolbar */}
+      <>
+        <style>{`
+          .ProseMirror p.is-editor-empty:first-child::before {
+            color: #94a3b8;
+            content: attr(data-placeholder);
+            float: left;
+            height: 0;
+            pointer-events: none;
+          }
+        `}</style>
+        <div className={`bg-slate-900 border border-slate-600 rounded-md ${className}`}>
+          {/* Toolbar */}
         <div className="border-b border-slate-700 p-2 flex flex-wrap gap-1">
           <button
             type="button"
@@ -152,8 +162,13 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         </div>
 
         {/* Editor Content */}
-        <EditorContent editor={editor} />
+        <div className="bg-slate-900 text-white min-h-[120px]" style={{
+          WebkitTextSizeAdjust: '100%'
+        }}>
+          <EditorContent editor={editor} />
+        </div>
       </div>
+      </>
     );
   }
 );
