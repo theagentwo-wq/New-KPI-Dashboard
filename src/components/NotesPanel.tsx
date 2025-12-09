@@ -1126,7 +1126,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           />
           <div className="flex justify-between items-center pt-2">
              <div className="flex items-center gap-2">
-                 <div className="relative">
+                 {/* Voice button - prominent on mobile */}
+                 <button
+                    onClick={toggleListening}
+                    className={`flex items-center justify-center gap-2 font-semibold rounded-lg transition-all min-h-[44px] min-w-[44px]
+                      ${isListening
+                        ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-500/50 py-3 px-4'
+                        : 'bg-cyan-600 hover:bg-cyan-700 text-white py-3 px-4 md:bg-slate-700 md:text-slate-400 md:hover:text-white md:hover:bg-slate-600 md:py-2 md:px-2'
+                      }`}
+                    disabled={dbStatus.status !== 'connected'}
+                    title={isListening ? "Stop Dictation" : "Start Voice Dictation"}
+                >
+                    <Icon name="microphone" className={`${isListening ? 'w-6 h-6' : 'w-6 h-6 md:w-5 md:h-5'}`} />
+                    <span className="text-sm md:text-sm">{isListening ? 'Listening...' : 'Voice'}</span>
+                </button>
+
+                 <div className="relative hidden md:block">
                    <button
                      onClick={() => setShowTemplates(!showTemplates)}
                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors"
@@ -1155,25 +1170,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                      </div>
                    )}
                  </div>
-                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
+                 <button onClick={() => fileInputRef.current?.click()} className="hidden md:flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
                   <Icon name="photo" className="w-5 h-5" />
                   <span className="hidden sm:inline">Photo</span>
                 </button>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
 
                 <button
-                    onClick={toggleListening}
-                    className={`flex items-center gap-2 text-sm font-semibold py-2 px-2 rounded-md transition-all ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:text-white'}`}
-                    disabled={dbStatus.status !== 'connected'}
-                    title={isListening ? "Stop Dictation" : "Start Dictation"}
-                >
-                    <Icon name="microphone" className="w-5 h-5" />
-                    <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Dictate'}</span>
-                </button>
-
-                <button
                     onClick={insertCheckbox}
-                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors"
+                    className="hidden md:flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors"
                     disabled={dbStatus.status !== 'connected'}
                     title="Insert Action Item Checkbox"
                 >

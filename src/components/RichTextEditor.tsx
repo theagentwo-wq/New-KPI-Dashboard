@@ -52,7 +52,8 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       },
       editorProps: {
         attributes: {
-          class: 'prose prose-sm prose-invert max-w-none focus:outline-none min-h-[120px] p-3',
+          class: 'prose prose-sm prose-invert max-w-none focus:outline-none min-h-[120px] p-3 text-base',
+          style: 'min-height: 120px; -webkit-text-size-adjust: 100%;',
         },
       },
     });
