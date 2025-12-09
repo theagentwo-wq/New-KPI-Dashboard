@@ -146,7 +146,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             }}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full min-h-[120px] bg-slate-800 text-white text-base p-3 focus:outline-none resize-none border-t border-slate-700"
+            className="w-full min-h-[120px] bg-slate-800 text-white text-base p-3 focus:outline-none resize-none"
             style={{
               WebkitTextSizeAdjust: '100%',
               fontSize: '16px', // Prevents zoom on iOS
@@ -177,7 +177,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         `}</style>
         <div className={`bg-slate-800 ${className}`}>
           {/* Toolbar */}
-        <div className="border-t border-slate-700 p-2 flex flex-wrap gap-1">
+        <div className="p-2 flex flex-wrap gap-1">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBold().run()}

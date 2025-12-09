@@ -1148,7 +1148,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         </div>
 
         {/* Add Note Section */}
-        <div className="px-4 pb-6 pt-1 space-y-2">
+        <div className="px-4 pb-10 pt-3 space-y-2">
           <RichTextEditor
             ref={editorRef}
             content={content}
