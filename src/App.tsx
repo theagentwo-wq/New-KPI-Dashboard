@@ -120,9 +120,9 @@ const App = () => {
     setNotes(prev => [newNote, ...prev]);
   };
 
-  const handleUpdateNote = async (noteId: string, newContent: string, newCategory: NoteCategory) => {
-    await updateNoteContent(noteId, newContent, newCategory);
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, category: newCategory } : n));
+  const handleUpdateNote = async (noteId: string, newContent: string, newCategory: NoteCategory, pinned?: boolean) => {
+    await updateNoteContent(noteId, newContent, newCategory, pinned);
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, category: newCategory, ...(pinned !== undefined && { pinned }) } : n));
   };
 
   const handleDeleteNote = async (noteId: string) => {

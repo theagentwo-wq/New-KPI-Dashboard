@@ -20,7 +20,7 @@ interface DashboardPageProps {
     setActivePeriod: (period: Period) => void;
     notes: Note[];
     onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
-    onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
+    onUpdateNote: (noteId: string, newContent: string, newCategory: NoteCategory, pinned?: boolean) => void;
     onDeleteNote: (noteId: string) => void;
     loadedData: StorePerformanceData[];
     budgets: Budget[];

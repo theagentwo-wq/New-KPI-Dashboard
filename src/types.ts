@@ -81,6 +81,7 @@ export interface Note {
   };
   imageUrl?: string;
   createdAt: string;
+  pinned?: boolean;  // Phase 2: Pin important notes
 }
 
 export interface Anomaly {

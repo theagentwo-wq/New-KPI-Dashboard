@@ -206,13 +206,18 @@ export const getNotes = async (): Promise<Note[]> => {
     }
 };
 
-export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory): Promise<void> => {
+export const updateNoteContent = async (noteId: string, newContent: string, newCategory: NoteCategory, pinned?: boolean): Promise<void> => {
     try {
         console.log('[Firebase] updateNoteContent: Updating note ID:', noteId);
         console.log('[Firebase] updateNoteContent: New content:', newContent.substring(0, 50) + '...');
         console.log('[Firebase] updateNoteContent: New category:', newCategory);
+        console.log('[Firebase] updateNoteContent: Pinned status:', pinned);
         const noteRef = doc(notesCollection, noteId);
-        await updateDoc(noteRef, { content: newContent, category: newCategory });
+        const updateData: any = { content: newContent, category: newCategory };
+        if (pinned !== undefined) {
+            updateData.pinned = pinned;
+        }
+        await updateDoc(noteRef, updateData);
         console.log('[Firebase] updateNoteContent: ✅ Note updated successfully');
     } catch (error) {
         console.error('[Firebase] updateNoteContent: ❌ ERROR updating note:', error);

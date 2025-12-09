@@ -15,7 +15,7 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 interface NotesPanelProps {
   allNotes: Note[];
   addNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => void;
-  updateNote: (noteId: string, newContent: string, newCategory: NoteCategory) => void;
+  updateNote: (noteId: string, newContent: string, newCategory: NoteCategory, pinned?: boolean) => void;
   deleteNote: (noteId: string) => void;
   currentView: View;
   mainDashboardPeriod: Period;
@@ -98,6 +98,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [summarySearchTerm, setSummarySearchTerm] = useState('');
 
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Phase 1: Loading states for operations
+  const [isAdding, setIsAdding] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Phase 2: Sort and view options
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'category'>('newest');
+  const [isCompactView, setIsCompactView] = useState(false);
 
   // Auto-save functionality
   useEffect(() => {
@@ -305,16 +314,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     });
   };
 
-  const handleAddNote = () => {
-    if (!content.trim()) return;
+  const handleAddNote = async () => {
+    if (!content.trim() || isAdding) return;
 
-    if (notesPeriod) {
-      const scope = JSON.parse(selectedScope);
-      // Note: images are now embedded in the HTML content, not separate
-      addNote(notesPeriod.label, category, content, scope, undefined);
-      setContent('');
-      setLastSaved(null);
-      if(fileInputRef.current) fileInputRef.current.value = "";
+    setIsAdding(true);
+    try {
+      if (notesPeriod) {
+        const scope = JSON.parse(selectedScope);
+        // Note: images are now embedded in the HTML content, not separate
+        addNote(notesPeriod.label, category, content, scope, undefined);
+        setContent('');
+        setLastSaved(null);
+        if(fileInputRef.current) fileInputRef.current.value = "";
+      }
+    } finally {
+      // Small delay to show loading state
+      setTimeout(() => setIsAdding(false), 300);
     }
   };
 
@@ -329,11 +344,31 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     setEditContent('');
   };
 
-  const handleSaveEdit = () => {
-    if (editingNoteId && editContent.trim()) {
-      updateNote(editingNoteId, editContent, editCategory);
-      handleCancelEdit();
+  const handleSaveEdit = async () => {
+    if (editingNoteId && editContent.trim() && !isSavingEdit) {
+      setIsSavingEdit(true);
+      try {
+        updateNote(editingNoteId, editContent, editCategory);
+        handleCancelEdit();
+      } finally {
+        setTimeout(() => setIsSavingEdit(false), 300);
+      }
     }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (isDeletingId) return;
+    setIsDeletingId(noteId);
+    try {
+      deleteNote(noteId);
+    } finally {
+      setTimeout(() => setIsDeletingId(null), 300);
+    }
+  };
+
+  // Phase 2: Toggle pin status
+  const handleTogglePin = (note: Note) => {
+    updateNote(note.id, note.content, note.category, !note.pinned);
   };
 
   const noteScopeOptions = useMemo(() => {
@@ -391,8 +426,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         note.content.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return searchFiltered;
-  }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm]);
+    // Phase 2: Apply sorting with pinned notes always on top
+    const sorted = [...searchFiltered].sort((a, b) => {
+      // Pinned notes always come first
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+
+      // Then apply selected sort order
+      if (sortOrder === 'newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortOrder === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortOrder === 'category') {
+        return a.category.localeCompare(b.category);
+      }
+      return 0;
+    });
+
+    return sorted;
+  }, [allNotes, notesPeriod, selectedScope, filterCategory, searchTerm, sortOrder]);
 
   // Get last week's notes for follow-up
   const lastWeekNotes = useMemo(() => {
@@ -477,20 +529,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     let notes = allNotes.filter((note: Note) => {
       // Scope matching
       let noteView = '';
-      let noteStoreId = '';
+      let noteStoreId: string | undefined = '';
 
       if (note.scope) {
         noteView = note.scope.view || '';
-        noteStoreId = note.scope.storeId || '';
+        noteStoreId = note.scope.storeId;
       } else if ((note as any).view) {
         noteView = (note as any).view || '';
-        noteStoreId = (note as any).storeId || '';
+        noteStoreId = (note as any).storeId;
       } else {
         return false;
       }
 
       const viewMatches = noteView.toLowerCase() === scope.view.toLowerCase();
-      const storeMatches = scope.storeId === 'All' || noteStoreId === scope.storeId;
+      // FIX: Match the logic used in main filteredNotes - allow undefined storeId to match
+      const storeMatches = (noteStoreId || undefined) === scope.storeId;
 
       if (!viewMatches || !storeMatches) return false;
 
@@ -597,7 +650,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             <motion.div
               key={note.id}
               {...({ layout: true, initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, transition: { duration: 0.2 } } } as any)}
-              className="bg-slate-700/50 p-3 rounded-md"
+              className={`p-3 rounded-md ${note.pinned ? 'bg-yellow-900/20 border-2 border-yellow-600/40' : 'bg-slate-700/50'}`}
             >
               {editingNoteId === note.id ? (
                 <div className="space-y-2">
@@ -612,8 +665,21 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                             {NOTE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                         <div className="flex gap-2">
-                            <button onClick={handleCancelEdit} className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md">Cancel</button>
-                            <button onClick={handleSaveEdit} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md">Save</button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold py-1 px-2 rounded-md disabled:opacity-50"
+                              disabled={isSavingEdit}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleSaveEdit}
+                              className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-1 px-2 rounded-md flex items-center gap-1 disabled:opacity-50"
+                              disabled={isSavingEdit}
+                            >
+                              {isSavingEdit && <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                              Save
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -630,18 +696,54 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                            </div>
                       </div>
                       <div className="flex gap-2">
-                          <button onClick={() => handleStartEdit(note)} className="text-slate-400 hover:text-white"><Icon name="edit" className="w-4 h-4" /></button>
-                          <button onClick={() => deleteNote(note.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash" className="w-4 h-4" /></button>
+                          <button
+                            onClick={() => handleTogglePin(note)}
+                            className={`transition-colors ${note.pinned ? 'text-yellow-400 hover:text-yellow-300' : 'text-slate-400 hover:text-yellow-400'}`}
+                            disabled={isDeletingId === note.id}
+                            title={note.pinned ? "Unpin note" : "Pin note to top"}
+                          >
+                            <svg className="w-4 h-4" fill={note.pinned ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleStartEdit(note)}
+                            className="text-slate-400 hover:text-white"
+                            disabled={isDeletingId === note.id}
+                          >
+                            <Icon name="edit" className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            className="text-slate-400 hover:text-red-500 disabled:opacity-50"
+                            disabled={isDeletingId === note.id}
+                          >
+                            {isDeletingId === note.id ? (
+                              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Icon name="trash" className="w-4 h-4" />
+                            )}
+                          </button>
                       </div>
                     </div>
-                    <div
-                      className="prose prose-sm prose-invert max-w-none my-3 pl-11 break-words"
-                      dangerouslySetInnerHTML={{ __html: note.content }}
-                    />
-                    {note.imageUrl && (
-                      <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2 ml-11">
-                        <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
-                      </button>
+                    {isCompactView ? (
+                      <div className="pl-11 pr-3">
+                        <p className="text-sm text-slate-300 truncate">
+                          {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="prose prose-sm prose-invert max-w-none my-3 pl-11 break-words"
+                          dangerouslySetInnerHTML={{ __html: note.content }}
+                        />
+                        {note.imageUrl && (
+                          <button onClick={() => openImagePreview(note.imageUrl!)} className="mt-2 ml-11">
+                            <img src={note.imageUrl} alt="Note attachment" className="max-h-24 rounded-md border-2 border-slate-600 hover:border-cyan-500 transition-colors" />
+                          </button>
+                        )}
+                      </>
                     )}
                 </>
               )}
@@ -682,9 +784,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                       <Icon name="chevronLeft" className="w-5 h-5" />
                     </button>
                     <div className="text-center">
-                      <h3 className="text-lg font-bold text-cyan-400">
-                        {notesPeriod?.label || 'Select a Week'}
-                      </h3>
+                      <div className="flex items-center gap-2 justify-center">
+                        <h3 className="text-lg font-bold text-cyan-400">
+                          {notesPeriod?.label || 'Select a Week'}
+                        </h3>
+                        {filteredNotes.length > 0 && (
+                          <span className="bg-cyan-600/30 text-cyan-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                            {filteredNotes.length}
+                          </span>
+                        )}
+                      </div>
                       {weekDateRange && (
                         <p className="text-xs text-slate-400">{weekDateRange}</p>
                       )}
@@ -784,13 +893,36 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
         {/* Category Indicators & Search */}
         <div className="p-4 border-b border-slate-700 space-y-3">
-            <input
-              type="search"
-              placeholder="Search notes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="search"
+                placeholder="Search notes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500"
+              />
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest' | 'category')}
+                className="bg-slate-900 border border-slate-600 rounded-md p-2 text-sm text-white focus:ring-cyan-500 focus:border-cyan-500"
+                title="Sort order"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="category">By Category</option>
+              </select>
+              <button
+                onClick={() => setIsCompactView(!isCompactView)}
+                className={`p-2 rounded-md border transition-colors ${
+                  isCompactView
+                    ? 'bg-cyan-600 border-cyan-500 text-white'
+                    : 'bg-slate-900 border-slate-600 text-slate-400 hover:text-white'
+                }`}
+                title={isCompactView ? "Switch to detailed view" : "Switch to compact view"}
+              >
+                <Icon name={isCompactView ? "list" : "menu"} className="w-5 h-5" />
+              </button>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
                 {allNoteCategories.map((cat) => {
                     const count = cat === 'All' ? filteredNotes.length : categoryBadges[cat] || 0;
@@ -873,7 +1005,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 )}
             </div>
 
-            <button onClick={handleAddNote} className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600" disabled={dbStatus.status !== 'connected' || !content.trim()}>
+            <button
+              onClick={handleAddNote}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md disabled:bg-slate-600 flex items-center gap-2"
+              disabled={dbStatus.status !== 'connected' || !content.trim() || isAdding}
+            >
+              {isAdding && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               Add Note
             </button>
           </div>
