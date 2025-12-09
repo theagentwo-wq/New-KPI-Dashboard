@@ -964,15 +964,6 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             <DiagnosticErrorPanel />
         </div>
 
-        {/* Action Items Help - Show on current week only */}
-        {notesPeriod && actionItemsFromLastWeek.length === 0 && (
-          <div className="px-4 py-2 bg-cyan-900/10 border-b border-cyan-700/30">
-            <p className="text-xs text-cyan-300">
-              💡 <span className="font-semibold">Tip:</span> Click the <span className="font-bold">☐ Action Item</span> button to add follow-up tasks. Uncompleted items will automatically appear next week!
-            </p>
-          </div>
-        )}
-
         {/* Action Items from Last Week */}
         {actionItemsFromLastWeek.length > 0 && (
           <div className="px-4 py-3 bg-amber-900/20 border-b border-amber-700/50">
@@ -1119,7 +1110,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         )}
 
         {/* Notes List */}
-        <div className="flex-1 min-h-[400px] px-4 pt-4 pb-0 overflow-y-auto space-y-3 custom-scrollbar">
+        <div className="flex-1 min-h-[400px] px-4 pt-4 pb-4 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
 
