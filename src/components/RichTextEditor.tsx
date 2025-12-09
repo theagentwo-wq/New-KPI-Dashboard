@@ -160,6 +160,13 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     return (
       <>
         <style>{`
+          .ProseMirror {
+            min-height: 120px;
+            padding: 12px;
+            outline: none;
+            color: white;
+            caret-color: white;
+          }
           .ProseMirror p.is-editor-empty:first-child::before {
             color: #94a3b8;
             content: attr(data-placeholder);
@@ -219,10 +226,13 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         </div>
 
         {/* Editor Content */}
-        <div className="bg-slate-900 text-white min-h-[120px]" style={{
+        <div className="bg-slate-900 text-white" style={{
+          minHeight: '120px',
+          maxHeight: '300px',
+          overflowY: 'auto',
           WebkitTextSizeAdjust: '100%'
         }}>
-          <EditorContent editor={editor} />
+          <EditorContent editor={editor} className="h-full" />
         </div>
       </div>
       </>
