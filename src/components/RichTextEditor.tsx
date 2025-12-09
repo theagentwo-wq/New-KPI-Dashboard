@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useImperativeHandle, forwardRef, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -24,6 +24,9 @@ export interface RichTextEditorHandle {
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
   ({ content, onChange, placeholder = 'Type your note...', disabled = false, className = '' }, ref) => {
+    const [fallbackContent, setFallbackContent] = useState('');
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
@@ -72,32 +75,86 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       }
     }, [disabled, editor]);
 
+    // Update fallback content when content prop changes
+    useEffect(() => {
+      if (!editor && content) {
+        // Strip HTML tags for fallback textarea
+        const stripped = content.replace(/<[^>]*>/g, '');
+        setFallbackContent(stripped);
+      }
+    }, [content, editor]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       insertImage: (dataUrl: string) => {
         if (editor) {
           editor.chain().focus().setImage({ src: dataUrl }).run();
         }
+        // Fallback: ignore images in simple textarea mode
       },
       insertCheckbox: () => {
         if (editor) {
           editor.chain().focus().toggleTaskList().run();
+        } else if (textareaRef.current) {
+          // Fallback: insert checkbox character
+          const textarea = textareaRef.current;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const newText = fallbackContent.substring(0, start) + '☐ ' + fallbackContent.substring(end);
+          setFallbackContent(newText);
+          onChange(`<p>${newText}</p>`);
         }
       },
       insertText: (text: string) => {
         if (editor) {
           editor.chain().focus().insertContent(text).run();
+        } else if (textareaRef.current) {
+          // Fallback: insert text at cursor
+          const textarea = textareaRef.current;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const newText = fallbackContent.substring(0, start) + text + fallbackContent.substring(end);
+          setFallbackContent(newText);
+          onChange(`<p>${newText}</p>`);
+          // Set cursor after inserted text
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + text.length;
+            textarea.focus();
+          }, 0);
         }
       },
       focus: () => {
         if (editor) {
           editor.commands.focus();
+        } else if (textareaRef.current) {
+          textareaRef.current.focus();
         }
       },
     }));
 
+    // If editor hasn't loaded, show fallback textarea
     if (!editor) {
-      return null;
+      return (
+        <div className={`bg-slate-900 border border-slate-600 rounded-md ${className}`}>
+          <textarea
+            ref={textareaRef}
+            value={fallbackContent}
+            onChange={(e) => {
+              const text = e.target.value;
+              setFallbackContent(text);
+              onChange(`<p>${text}</p>`);
+            }}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="w-full min-h-[120px] bg-slate-900 text-white text-base p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+            style={{
+              WebkitTextSizeAdjust: '100%',
+              fontSize: '16px', // Prevents zoom on iOS
+              caretColor: 'white',
+            }}
+          />
+        </div>
+      );
     }
 
     return (
