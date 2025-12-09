@@ -1143,12 +1143,12 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
         )}
 
         {/* Notes List */}
-        <div className="flex-1 min-h-[400px] px-4 pt-4 pb-4 overflow-y-auto space-y-3 custom-scrollbar">
+        <div className="flex-1 min-h-[400px] px-4 pt-4 pb-2 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
         </div>
 
         {/* Add Note Section */}
-        <div className="px-4 pb-4 pt-3 border-t border-slate-700 space-y-3 bg-slate-800/50">
+        <div className="px-4 pb-4 pt-2 space-y-2">
           <RichTextEditor
             ref={editorRef}
             content={content}
