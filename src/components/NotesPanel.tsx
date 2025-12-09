@@ -113,6 +113,9 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
 
+  // Fullscreen mode for mobile
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // Auto-save functionality
   useEffect(() => {
     if (autoSaveTimeoutRef.current) {
@@ -466,6 +469,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
     }
     setSelectedNotes(new Set());
     setIsBulkMode(false);
+  };
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   const noteScopeOptions = useMemo(() => {
@@ -874,7 +882,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
 
   return (
     <>
-      <div className={`bg-slate-800 rounded-lg border border-slate-700 flex flex-col ${heightClass}`}>
+      <div className={`bg-slate-800 border border-slate-700 flex flex-col transition-all ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 rounded-none'
+          : `rounded-lg ${heightClass}`
+      }`}>
         {/* Header with Navigation */}
         <div className="p-4 border-b border-slate-700 space-y-3">
             {/* Week Navigation */}
@@ -936,6 +948,27 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                   >
                     <Icon name="sparkles" className="w-4 h-4" />
                     Analyze
+                  </button>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="flex items-center gap-2 text-xs bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 rounded-md transition-colors"
+                    title={isFullscreen ? "Exit fullscreen mode" : "Enter fullscreen mode"}
+                  >
+                    {isFullscreen ? (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="hidden sm:inline">Exit</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        <span className="hidden sm:inline">Fullscreen</span>
+                      </>
+                    )}
                   </button>
                 </div>
             </div>
