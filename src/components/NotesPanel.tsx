@@ -635,7 +635,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                       </div>
                     </div>
                     <div
-                      className="prose prose-sm prose-invert max-w-none my-3 pl-11"
+                      className="prose prose-sm prose-invert max-w-none my-3 pl-11 break-words"
                       dangerouslySetInnerHTML={{ __html: note.content }}
                     />
                     {note.imageUrl && (
@@ -912,7 +912,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                   <p className="text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
                 </div>
                 <div
-                  className="prose prose-sm prose-invert max-w-none"
+                  className="prose prose-sm prose-invert max-w-none break-words"
                   dangerouslySetInnerHTML={{ __html: note.content }}
                 />
                 {note.imageUrl && (
@@ -978,7 +978,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                           </p>
                         </div>
                         <div
-                          className="prose prose-sm prose-invert max-w-none leading-relaxed"
+                          className="prose prose-sm prose-invert max-w-none leading-relaxed break-words"
                           dangerouslySetInnerHTML={{ __html: note.content }}
                         />
                         {note.imageUrl && (
