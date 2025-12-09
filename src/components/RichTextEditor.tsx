@@ -135,7 +135,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     // If editor hasn't loaded, show fallback textarea
     if (!editor) {
       return (
-        <div className={`bg-slate-900 border border-slate-600 rounded-md ${className}`}>
+        <div className={`bg-slate-800 border border-slate-700 rounded-md ${className}`}>
           <textarea
             ref={textareaRef}
             value={fallbackContent}
@@ -146,7 +146,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             }}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full min-h-[120px] bg-slate-900 text-white text-base p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+            className="w-full min-h-[120px] bg-slate-800 text-white text-base p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
             style={{
               WebkitTextSizeAdjust: '100%',
               fontSize: '16px', // Prevents zoom on iOS
@@ -175,7 +175,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             pointer-events: none;
           }
         `}</style>
-        <div className={`bg-slate-900 border border-slate-600 rounded-md ${className}`}>
+        <div className={`bg-slate-800 border border-slate-700 rounded-md ${className}`}>
           {/* Toolbar */}
         <div className="border-b border-slate-700 p-2 flex flex-wrap gap-1">
           <button
@@ -226,7 +226,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         </div>
 
         {/* Editor Content */}
-        <div className="bg-slate-900 text-white" style={{
+        <div className="bg-slate-800 text-white" style={{
           minHeight: '120px',
           maxHeight: '300px',
           overflowY: 'auto',
