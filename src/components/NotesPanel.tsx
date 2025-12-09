@@ -108,6 +108,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'category'>('newest');
   const [isCompactView, setIsCompactView] = useState(false);
 
+  // Phase 3: Templates and bulk operations
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+  const [isBulkMode, setIsBulkMode] = useState(false);
+
   // Auto-save functionality
   useEffect(() => {
     if (autoSaveTimeoutRef.current) {
@@ -369,6 +374,98 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
   // Phase 2: Toggle pin status
   const handleTogglePin = (note: Note) => {
     updateNote(note.id, note.content, note.category, !note.pinned);
+  };
+
+  // Phase 3: Note templates
+  const noteTemplates = [
+    {
+      name: 'Daily Standup',
+      category: NoteCategory.Operations,
+      content: `<p><strong>Today's Focus:</strong></p><ul><li>Priority 1: </li><li>Priority 2: </li><li>Priority 3: </li></ul><p><strong>Blockers:</strong></p><ul><li></li></ul><p><strong>Team Updates:</strong></p><ul><li></li></ul>`
+    },
+    {
+      name: 'Incident Report',
+      category: NoteCategory.Operations,
+      content: `<p><strong>Incident Date/Time:</strong> </p><p><strong>Location:</strong> </p><p><strong>Description:</strong></p><p></p><p><strong>Actions Taken:</strong></p><ul><li></li></ul><p><strong>Follow-up Required:</strong></p><ul><li></li></ul>`
+    },
+    {
+      name: 'Guest Complaint',
+      category: NoteCategory.GuestFeedback,
+      content: `<p><strong>Guest Name:</strong> </p><p><strong>Date/Time:</strong> </p><p><strong>Issue:</strong></p><p></p><p><strong>Resolution:</strong></p><p></p><p><strong>Compensation Offered:</strong> </p><p><strong>Follow-up:</strong> </p>`
+    },
+    {
+      name: 'Team Meeting Notes',
+      category: NoteCategory.General,
+      content: `<p><strong>Meeting Date:</strong> </p><p><strong>Attendees:</strong> </p><p><strong>Agenda:</strong></p><ul><li></li></ul><p><strong>Discussion Points:</strong></p><ul><li></li></ul><p><strong>Action Items:</strong></p><ul><li>☐ </li></ul>`
+    },
+    {
+      name: 'Staff Performance',
+      category: NoteCategory.HR,
+      content: `<p><strong>Staff Member:</strong> </p><p><strong>Date:</strong> </p><p><strong>Strengths:</strong></p><ul><li></li></ul><p><strong>Areas for Improvement:</strong></p><ul><li></li></ul><p><strong>Action Plan:</strong></p><ul><li>☐ </li></ul>`
+    },
+    {
+      name: 'Equipment/Facility Issue',
+      category: NoteCategory.Facilities,
+      content: `<p><strong>Item/Area:</strong> </p><p><strong>Issue Description:</strong></p><p></p><p><strong>Urgency:</strong> ☐ High ☐ Medium ☐ Low</p><p><strong>Reported To:</strong> </p><p><strong>Expected Resolution:</strong> </p>`
+    },
+    {
+      name: 'Marketing Campaign',
+      category: NoteCategory.Marketing,
+      content: `<p><strong>Campaign Name:</strong> </p><p><strong>Start Date:</strong> </p><p><strong>End Date:</strong> </p><p><strong>Target Audience:</strong> </p><p><strong>Goals:</strong></p><ul><li></li></ul><p><strong>Channels:</strong></p><ul><li></li></ul><p><strong>Budget:</strong> </p>`
+    }
+  ];
+
+  const applyTemplate = (template: typeof noteTemplates[0]) => {
+    setContent(template.content);
+    setCategory(template.category);
+    setShowTemplates(false);
+    // Focus editor after applying template
+    if (editorRef.current) {
+      setTimeout(() => editorRef.current?.focus?.(), 100);
+    }
+  };
+
+  // Phase 3: Bulk operations
+  const toggleNoteSelection = (noteId: string) => {
+    const newSelection = new Set(selectedNotes);
+    if (newSelection.has(noteId)) {
+      newSelection.delete(noteId);
+    } else {
+      newSelection.add(noteId);
+    }
+    setSelectedNotes(newSelection);
+  };
+
+  const selectAllNotes = () => {
+    setSelectedNotes(new Set(filteredNotes.map(n => n.id)));
+  };
+
+  const deselectAllNotes = () => {
+    setSelectedNotes(new Set());
+  };
+
+  const bulkDelete = async () => {
+    if (selectedNotes.size === 0) return;
+    if (!confirm(`Delete ${selectedNotes.size} note(s)?`)) return;
+
+    for (const noteId of Array.from(selectedNotes)) {
+      await handleDeleteNote(noteId);
+    }
+    setSelectedNotes(new Set());
+    setIsBulkMode(false);
+  };
+
+  const bulkChangeCategory = async (newCategory: NoteCategory) => {
+    if (selectedNotes.size === 0) return;
+
+    for (const noteId of Array.from(selectedNotes)) {
+      const note = filteredNotes.find(n => n.id === noteId);
+      if (note) {
+        await updateNote(noteId, note.content, newCategory, note.pinned);
+      }
+    }
+    setSelectedNotes(new Set());
+    setIsBulkMode(false);
   };
 
   const noteScopeOptions = useMemo(() => {
@@ -687,6 +784,14 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 <>
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
+                           {isBulkMode && (
+                             <input
+                               type="checkbox"
+                               checked={selectedNotes.has(note.id)}
+                               onChange={() => toggleNoteSelection(note.id)}
+                               className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-purple-600 focus:ring-purple-500 focus:ring-offset-slate-800"
+                             />
+                           )}
                            <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center flex-shrink-0">
                                 <Icon name="dashboard" className="w-4 h-4 text-slate-400"/>
                            </div>
@@ -922,6 +1027,19 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
               >
                 <Icon name={isCompactView ? "list" : "menu"} className="w-5 h-5" />
               </button>
+              <button
+                onClick={() => setIsBulkMode(!isBulkMode)}
+                className={`p-2 rounded-md border transition-colors ${
+                  isBulkMode
+                    ? 'bg-purple-600 border-purple-500 text-white'
+                    : 'bg-slate-900 border-slate-600 text-slate-400 hover:text-white'
+                }`}
+                title={isBulkMode ? "Exit bulk mode" : "Bulk select mode"}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
                 {allNoteCategories.map((cat) => {
@@ -955,6 +1073,51 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
             </div>
         </div>
 
+        {/* Bulk Operations Toolbar */}
+        {isBulkMode && (
+          <div className="px-4 py-3 bg-purple-900/20 border-b border-purple-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-purple-300">
+                  {selectedNotes.size} selected
+                </span>
+                <button
+                  onClick={selectAllNotes}
+                  className="text-xs text-purple-400 hover:text-purple-300"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={deselectAllNotes}
+                  className="text-xs text-purple-400 hover:text-purple-300"
+                >
+                  Deselect All
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  onChange={(e) => bulkChangeCategory(e.target.value as NoteCategory)}
+                  className="bg-slate-800 text-white border border-slate-600 rounded-md p-1 text-xs"
+                  disabled={selectedNotes.size === 0}
+                  value=""
+                >
+                  <option value="">Change Category...</option>
+                  {NOTE_CATEGORIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={bulkDelete}
+                  disabled={selectedNotes.size === 0}
+                  className="text-xs bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Delete Selected
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Notes List */}
         <div className="flex-1 min-h-[400px] px-4 pt-4 pb-0 overflow-y-auto space-y-3 custom-scrollbar">
           {renderStatusOrContent()}
@@ -972,6 +1135,35 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
           />
           <div className="flex justify-between items-center pt-2">
              <div className="flex items-center gap-2">
+                 <div className="relative">
+                   <button
+                     onClick={() => setShowTemplates(!showTemplates)}
+                     className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors"
+                     disabled={dbStatus.status !== 'connected'}
+                   >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                     </svg>
+                     <span className="hidden sm:inline">Templates</span>
+                   </button>
+                   {showTemplates && (
+                     <div className="absolute bottom-full left-0 mb-2 w-64 bg-slate-800 border border-slate-700 rounded-md shadow-xl z-10 max-h-80 overflow-y-auto">
+                       <div className="p-2">
+                         <div className="text-xs font-semibold text-slate-400 px-2 py-1">Quick Templates</div>
+                         {noteTemplates.map((template, idx) => (
+                           <button
+                             key={idx}
+                             onClick={() => applyTemplate(template)}
+                             className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-md transition-colors"
+                           >
+                             <div className="font-medium">{template.name}</div>
+                             <div className="text-xs text-slate-500">{template.category}</div>
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                 </div>
                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white font-semibold py-2 px-2 rounded-md transition-colors" disabled={dbStatus.status !== 'connected'}>
                   <Icon name="photo" className="w-5 h-5" />
                   <span className="hidden sm:inline">Photo</span>
@@ -1089,11 +1281,23 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                 {summarySearchTerm ? 'No notes match your search' : 'No notes found for this selection'}
               </p>
             ) : (
-              summaryNotes.map(([week, notes]) => (
-                <div key={week} className="border-l-4 border-purple-500 pl-4">
+              summaryNotes.map(([week, notes], idx) => {
+                // Phase 3: Color-coded timeline - cycle through colors
+                const colors = [
+                  { border: 'border-purple-500', bg: 'bg-purple-500/20', text: 'text-purple-400' },
+                  { border: 'border-cyan-500', bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
+                  { border: 'border-green-500', bg: 'bg-green-500/20', text: 'text-green-400' },
+                  { border: 'border-yellow-500', bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+                  { border: 'border-pink-500', bg: 'bg-pink-500/20', text: 'text-pink-400' },
+                  { border: 'border-orange-500', bg: 'bg-orange-500/20', text: 'text-orange-400' },
+                ];
+                const color = colors[idx % colors.length];
+
+                return (
+                <div key={week} className={`border-l-4 ${color.border} pl-4`}>
                   {/* Week Header */}
                   <div className="mb-3">
-                    <h4 className="text-lg font-bold text-purple-400">{week}</h4>
+                    <h4 className={`text-lg font-bold ${color.text}`}>{week}</h4>
                     <p className="text-xs text-slate-400">{notes.length} note{notes.length !== 1 ? 's' : ''}</p>
                   </div>
 
@@ -1133,7 +1337,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                     ))}
                   </div>
                 </div>
-              ))
+              );
+              })
             )}
           </div>
 
