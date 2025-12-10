@@ -933,6 +933,19 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({ allNotes, addNote, updat
                     Today
                   </button>
                   <button
+                    onClick={toggleListening}
+                    className={`flex items-center gap-2 text-xs font-semibold py-2 px-3 rounded-md transition-all ${
+                      isListening
+                        ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-500/50'
+                        : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+                    }`}
+                    disabled={dbStatus.status !== 'connected'}
+                    title={isListening ? "Stop Voice Dictation" : "Start Voice Dictation"}
+                  >
+                    <Icon name="microphone" className="w-4 h-4" />
+                    <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Voice'}</span>
+                  </button>
+                  <button
                     onClick={() => setSummaryViewOpen(true)}
                     className="flex items-center gap-2 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-3 rounded-md transition-colors"
                     title="View all notes timeline and export"
