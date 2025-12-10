@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Icon } from './Icon';
 import { uploadFile } from '../services/firebaseService';
 import { startStrategicAnalysisJob, chatWithStrategy } from '../services/geminiService';
+import { callGeminiAPI } from '../lib/ai-client';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
 import { AnalysisMode, Period, View } from '../types';
@@ -208,6 +209,52 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     return () => { if (interval) clearInterval(interval); };
   }, [jobStatus]);
 
+  // Job polling mechanism - check AI job status every 3 seconds
+  useEffect(() => {
+    if (!activeJob || (jobStatus !== 'pending' && jobStatus !== 'processing')) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await callGeminiAPI('checkTaskStatus', { jobId: activeJob.id });
+
+        if (status.status === 'completed' && status.results) {
+          // Job completed successfully
+          setActiveJob({
+            ...activeJob,
+            status: 'complete',
+            result: status.results,
+            progress: 100
+          });
+          clearInterval(pollInterval);
+        } else if (status.status === 'failed') {
+          // Job failed
+          setActiveJob({
+            ...activeJob,
+            status: 'error',
+            error: status.error || 'Analysis failed. Please try again.',
+            progress: 0
+          });
+          clearInterval(pollInterval);
+        } else if (status.status === 'processing') {
+          // Update to processing status if not already
+          setActiveJob(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              status: 'processing',
+              progress: status.progress ? Math.min(status.progress, 95) : prev.progress
+            };
+          });
+        }
+      } catch (error) {
+        console.error('Error polling job status:', error);
+        // Don't clear interval on network errors - keep trying
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [activeJob?.id, jobStatus]);
+
   useEffect(() => {
     if (isOpen && !activeJob) {
       resetLocalState();
@@ -328,9 +375,10 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
       const uploadResult = await uploadFile(stagedFiles[0], () => {});
 
       const { jobId } = await startStrategicAnalysisJob(uploadResult, selectedMode, activePeriod, activeView);
-      setActiveJob(prev => prev ? { ...prev, id: jobId, status: 'processing', progress: 10 } : {
+      // Keep status as 'pending' - polling will update to 'processing' when backend confirms
+      setActiveJob(prev => prev ? { ...prev, id: jobId, progress: 10 } : {
         id: jobId,
-        status: 'processing',
+        status: 'pending',
         fileName: stagedFiles[0].name,
         mode: selectedMode,
         progress: 10,
