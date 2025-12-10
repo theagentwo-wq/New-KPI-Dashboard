@@ -1646,30 +1646,100 @@ Be constructive and specific.`;
  * Long-running strategic analysis
  */
 router.post('/startStrategicAnalysisJob', asyncHandler(async (req: Request, res: Response) => {
-  const { mode, period, view }: types.StartStrategicAnalysisJobRequest = req.body;
-  const client = getClient(process.env.GEMINI_API_KEY);
+  const { mode, period, view, fileUrl, mimeType, fileName } = req.body.data;
+  const jobId = `strategy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  // Generate a job ID
-  const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[startStrategicAnalysisJob] Job ${jobId} started with:`, { mode, fileName, fileUrl });
 
-  const prompt = `You are conducting a strategic analysis.
+  // Store initial job status
+  jobStore.set(jobId, {
+    jobId,
+    status: 'running',
+    startedAt: Date.now()
+  });
 
-Mode: ${mode}
+  // Process file asynchronously (don't await)
+  (async () => {
+    try {
+      const client = getClient(process.env.GEMINI_API_KEY);
+
+      console.log(`[startStrategicAnalysisJob] Downloading file from URL:`, fileUrl);
+
+      // Download file from Firebase Storage
+      const fileResponse = await axios.get(fileUrl, {
+        responseType: mimeType.includes('text') ? 'text' : 'arraybuffer'
+      });
+
+      console.log(`[startStrategicAnalysisJob] File downloaded successfully, size:`, fileResponse.data.length);
+
+      // Convert file to base64 for Gemini
+      let fileData = '';
+      if (mimeType.includes('text')) {
+        fileData = typeof fileResponse.data === 'string'
+          ? fileResponse.data
+          : Buffer.from(fileResponse.data).toString('utf-8');
+      } else {
+        fileData = Buffer.from(fileResponse.data).toString('base64');
+      }
+
+      const prompt = `You are conducting a strategic analysis for a restaurant operations company.
+
+Analysis Mode: ${mode}
 Period: ${JSON.stringify(period)}
 View: ${view}
+Document: ${fileName}
 
-Begin comprehensive strategic analysis covering all aspects of operations, performance, and opportunities.`;
+Analyze this document with a focus on ${mode} aspects. Provide:
 
-  // In a real implementation, this would be asynchronous with job tracking
-  // For now, return the job ID immediately
-  const result = await client.generateContent(prompt);
+1. **Executive Summary** (3-4 sentences)
+2. **Key Findings** (5-7 bullet points)
+3. **Strategic Recommendations** (4-6 actionable items)
+4. **Risk Assessment** (Top 3 risks identified)
+5. **Opportunities** (Top 3 growth opportunities)
+6. **Next Steps** (Immediate actions to take)
 
+Make your analysis specific to the ${mode} lens, focusing on relevant metrics and insights for restaurant operations.
+
+Document content:
+${fileData.substring(0, 50000)}`;
+
+      console.log(`[startStrategicAnalysisJob] Sending to AI for analysis...`);
+
+      const result = await client.generateContent(prompt);
+
+      console.log(`[startStrategicAnalysisJob] AI analysis complete for job ${jobId}`);
+
+      // Update job status with results
+      jobStore.set(jobId, {
+        jobId,
+        status: 'completed',
+        results: result,
+        startedAt: jobStore.get(jobId)?.startedAt || Date.now()
+      });
+    } catch (error) {
+      console.error(`[startStrategicAnalysisJob] Job ${jobId} failed:`, error);
+
+      let errorMessage = 'Unknown error';
+      if (axios.isAxiosError(error)) {
+        errorMessage = `File download failed: ${error.message}`;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      jobStore.set(jobId, {
+        jobId,
+        status: 'failed',
+        error: errorMessage,
+        startedAt: jobStore.get(jobId)?.startedAt || Date.now()
+      });
+    }
+  })();
+
+  // Return immediately with job ID
   res.json({
     success: true,
     data: {
       jobId,
-      status: 'processing',
-      result, // In production, this would be retrieved via getTaskStatus
     },
   });
 }));
