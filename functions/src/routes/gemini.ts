@@ -1813,7 +1813,7 @@ Make your analysis specific to the ${mode} lens, focusing on relevant metrics an
  * Chat with strategic AI
  */
 router.post('/chatWithStrategy', asyncHandler(async (req: Request, res: Response) => {
-  const { context, userQuery, mode }: types.ChatWithStrategyRequest = req.body;
+  const { context, userQuery, mode }: types.ChatWithStrategyRequest = req.body.data;
   const client = getClient(process.env.GEMINI_API_KEY);
 
   const prompt = `You are a strategic business advisor with deep knowledge of restaurant operations. You recently completed this ${mode} analysis:
