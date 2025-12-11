@@ -1646,10 +1646,11 @@ Be constructive and specific.`;
  * Long-running strategic analysis
  */
 router.post('/startStrategicAnalysisJob', asyncHandler(async (req: Request, res: Response) => {
-  const { mode, period, view, fileUrl, mimeType, fileName } = req.body.data;
+  const { files, mode, period, view } = req.body.data;
   const jobId = `strategy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  console.log(`[startStrategicAnalysisJob] Job ${jobId} started with:`, { mode, fileName, fileUrl });
+  const fileCount = files?.length || 0;
+  console.log(`[startStrategicAnalysisJob] Job ${jobId} started with ${fileCount} file(s):`, { mode });
 
   // Store initial job status
   jobStore.set(jobId, {
@@ -1658,36 +1659,60 @@ router.post('/startStrategicAnalysisJob', asyncHandler(async (req: Request, res:
     startedAt: Date.now()
   });
 
-  // Process file asynchronously (don't await)
+  // Process files asynchronously (don't await)
   (async () => {
     try {
       const client = getClient(process.env.GEMINI_API_KEY);
 
-      console.log(`[startStrategicAnalysisJob] Downloading file from URL:`, fileUrl);
+      // Download all files
+      const downloadedFiles = await Promise.all(
+        files.map(async (file: any) => {
+          console.log(`[startStrategicAnalysisJob] Downloading file: ${file.fileName}`);
+          const fileResponse = await axios.get(file.fileUrl, {
+            responseType: file.mimeType.includes('text') ? 'text' : 'arraybuffer'
+          });
+          return {
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            data: fileResponse.data
+          };
+        })
+      );
 
-      // Download file from Firebase Storage
-      const fileResponse = await axios.get(fileUrl, {
-        responseType: mimeType.includes('text') ? 'text' : 'arraybuffer'
-      });
+      console.log(`[startStrategicAnalysisJob] Downloaded ${downloadedFiles.length} file(s)`);
 
-      console.log(`[startStrategicAnalysisJob] File downloaded successfully, size:`, fileResponse.data.length);
-
-      // Convert file to base64 for Gemini
-      let fileData = '';
-      if (mimeType.includes('text')) {
-        fileData = typeof fileResponse.data === 'string'
-          ? fileResponse.data
-          : Buffer.from(fileResponse.data).toString('utf-8');
-      } else {
-        fileData = Buffer.from(fileResponse.data).toString('base64');
-      }
-
-      const prompt = `You are conducting a strategic analysis for a restaurant operations company.
+      // Build the analysis prompt
+      const isMultiFile = downloadedFiles.length > 1;
+      const promptText = isMultiFile
+        ? `You are conducting a COMPARATIVE strategic analysis for a restaurant operations company.
 
 Analysis Mode: ${mode}
 Period: ${JSON.stringify(period)}
 View: ${view}
-Document: ${fileName}
+Documents: ${downloadedFiles.map(f => f.fileName).join(', ')}
+
+IMPORTANT: You are analyzing ${downloadedFiles.length} documents. Provide a COMPARATIVE analysis that:
+- Compares and contrasts the information across all documents
+- Identifies patterns, trends, and differences
+- Provides unified insights that span all documents
+
+Analyze these documents with a focus on ${mode} aspects. Provide:
+
+1. **Executive Summary** (3-4 sentences comparing all documents)
+2. **Key Findings** (5-7 bullet points highlighting comparisons and patterns)
+3. **Cross-Document Insights** (Major differences and similarities)
+4. **Strategic Recommendations** (4-6 actionable items based on the full picture)
+5. **Risk Assessment** (Top 3 risks identified across all documents)
+6. **Opportunities** (Top 3 growth opportunities from combined analysis)
+7. **Next Steps** (Immediate actions based on complete view)
+
+Make your analysis specific to the ${mode} lens, focusing on relevant metrics and insights for restaurant operations.`
+        : `You are conducting a strategic analysis for a restaurant operations company.
+
+Analysis Mode: ${mode}
+Period: ${JSON.stringify(period)}
+View: ${view}
+Document: ${downloadedFiles[0].fileName}
 
 Analyze this document with a focus on ${mode} aspects. Provide:
 
@@ -1698,14 +1723,53 @@ Analyze this document with a focus on ${mode} aspects. Provide:
 5. **Opportunities** (Top 3 growth opportunities)
 6. **Next Steps** (Immediate actions to take)
 
-Make your analysis specific to the ${mode} lens, focusing on relevant metrics and insights for restaurant operations.
+Make your analysis specific to the ${mode} lens, focusing on relevant metrics and insights for restaurant operations.`;
 
-Document content:
-${fileData.substring(0, 50000)}`;
+      console.log(`[startStrategicAnalysisJob] Sending ${downloadedFiles.length} file(s) to AI for analysis...`);
 
-      console.log(`[startStrategicAnalysisJob] Sending to AI for analysis...`);
+      let result: any;
 
-      const result = await client.generateContent(prompt);
+      // Build multimodal parts for Gemini
+      const parts: any[] = [];
+
+      // Add all files as inline data
+      for (const file of downloadedFiles) {
+        if (file.mimeType.startsWith('image/')) {
+          const base64Data = Buffer.from(file.data).toString('base64');
+          console.log(`[startStrategicAnalysisJob] Adding image: ${file.fileName}, base64 length: ${base64Data.length}`);
+          parts.push({
+            inlineData: {
+              mimeType: file.mimeType,
+              data: base64Data
+            }
+          });
+        } else if (file.mimeType.includes('text') || file.mimeType.includes('csv')) {
+          const textContent = typeof file.data === 'string'
+            ? file.data
+            : Buffer.from(file.data).toString('utf-8');
+
+          // For text files, add as text content in the prompt
+          parts.push({
+            text: `\n\n--- Content of ${file.fileName} ---\n${textContent.substring(0, 50000)}`
+          });
+        } else {
+          // PDFs and other documents as inline data
+          const base64Data = Buffer.from(file.data).toString('base64');
+          console.log(`[startStrategicAnalysisJob] Adding document: ${file.fileName}, base64 length: ${base64Data.length}`);
+          parts.push({
+            inlineData: {
+              mimeType: file.mimeType,
+              data: base64Data
+            }
+          });
+        }
+      }
+
+      // Add the prompt text at the end
+      parts.push({ text: promptText });
+
+      // Use multimodal API for all cases
+      result = await client.generateContentMultimodal(parts);
 
       console.log(`[startStrategicAnalysisJob] AI analysis complete for job ${jobId}`);
 
@@ -1754,18 +1818,14 @@ router.post('/chatWithStrategy', asyncHandler(async (req: Request, res: Response
 
   const prompt = `You are a strategic business advisor with deep knowledge of restaurant operations.
 
-Context from previous analysis:
+PREVIOUS ANALYSIS:
 ${context}
 
-Analysis Mode: ${mode}
+ANALYSIS MODE: ${mode}
 
-User Question: ${userQuery}
+USER QUESTION: ${userQuery}
 
-Provide a thoughtful, strategic response that:
-1. Directly answers the question
-2. References relevant context from the analysis
-3. Offers actionable recommendations
-4. Suggests follow-up considerations`;
+Answer the user's question directly using the previous analysis above. Reference specific points from the analysis, provide actionable recommendations, and suggest relevant follow-up considerations.`;
 
   const result = await client.generateContent(prompt);
 

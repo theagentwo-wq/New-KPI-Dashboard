@@ -58,6 +58,21 @@ export class GeminiClient {
   }
 
   /**
+   * Generate content from multimodal input (images, documents, text)
+   */
+  async generateContentMultimodal(parts: any[], modelName?: string, temperature?: number): Promise<string> {
+    try {
+      const model = this.getModel(modelName, temperature);
+      const result = await model.generateContent(parts);
+      const response = result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Gemini multimodal API error:', error);
+      throw new Error(`Gemini API error: ${this.getErrorMessage(error)}`);
+    }
+  }
+
+  /**
    * Generate content with structured data
    */
   async generateFromData(prompt: string, data: any, modelName?: string, temperature?: number): Promise<string> {

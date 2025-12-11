@@ -50,8 +50,8 @@ export const runWhatIfScenario = (data: any, prompt: string): Promise<{ analysis
   return callGeminiAPI('runWhatIfScenario', { data, prompt });
 };
 
-export const startStrategicAnalysisJob = (payload: FileUploadResult, mode: AnalysisMode, period: Period, view: View): Promise<{ jobId: string }> => {
-    return callGeminiAPI('startStrategicAnalysisJob', { ...payload, mode, period, view });
+export const startStrategicAnalysisJob = (files: FileUploadResult[], mode: AnalysisMode, period: Period, view: View): Promise<{ jobId: string }> => {
+    return callGeminiAPI('startStrategicAnalysisJob', { files, mode, period, view });
 };
 
 export const chatWithStrategy = (context: string, userQuery: string, mode: AnalysisMode): Promise<string> => {

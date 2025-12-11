@@ -371,15 +371,17 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
         timestamp: Date.now()
       });
 
-      // For now, analyze first file (multi-file support requires backend changes)
-      const uploadResult = await uploadFile(stagedFiles[0], () => {});
+      // Upload all staged files for multi-file comparison
+      const uploadResults = await Promise.all(
+        stagedFiles.map(file => uploadFile(file, () => {}))
+      );
 
-      const { jobId } = await startStrategicAnalysisJob(uploadResult, selectedMode, activePeriod, activeView);
+      const { jobId } = await startStrategicAnalysisJob(uploadResults, selectedMode, activePeriod, activeView);
       // Keep status as 'pending' - polling will update to 'processing' when backend confirms
       setActiveJob(prev => prev ? { ...prev, id: jobId, progress: 10 } : {
         id: jobId,
         status: 'pending',
-        fileName: stagedFiles[0].name,
+        fileName: stagedFiles.length > 1 ? `${stagedFiles.length} files` : stagedFiles[0].name,
         mode: selectedMode,
         progress: 10,
         timestamp: Date.now()
@@ -696,10 +698,12 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
                 {stagedFiles.length === 1 && (
                   <p className="text-sm text-cyan-400 mt-1">{stagedFiles[0].name}</p>
                 )}
-                <p className="text-xs text-slate-500 mt-2">Click 'Generate Brief' to analyze with {selectedMode} lens.</p>
-                {stagedFiles.length > 1 && (
-                  <p className="text-xs text-yellow-400 mt-2">Note: Multi-file comparison coming soon. First file will be analyzed.</p>
-                )}
+                <p className="text-xs text-slate-500 mt-2">
+                  {stagedFiles.length > 1
+                    ? `Click 'Generate Brief' to compare all ${stagedFiles.length} files with ${selectedMode} lens.`
+                    : `Click 'Generate Brief' to analyze with ${selectedMode} lens.`
+                  }
+                </p>
               </div>
             ) : (
               <div className="text-center">
