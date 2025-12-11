@@ -1816,16 +1816,15 @@ router.post('/chatWithStrategy', asyncHandler(async (req: Request, res: Response
   const { context, userQuery, mode }: types.ChatWithStrategyRequest = req.body;
   const client = getClient(process.env.GEMINI_API_KEY);
 
-  const prompt = `You are a strategic business advisor with deep knowledge of restaurant operations.
+  const prompt = `You are a strategic business advisor with deep knowledge of restaurant operations. You recently completed this ${mode} analysis:
 
-PREVIOUS ANALYSIS:
+---BEGIN ANALYSIS---
 ${context}
+---END ANALYSIS---
 
-ANALYSIS MODE: ${mode}
+Based on this analysis, answer the following question: "${userQuery}"
 
-USER QUESTION: ${userQuery}
-
-Answer the user's question directly using the previous analysis above. Reference specific points from the analysis, provide actionable recommendations, and suggest relevant follow-up considerations.`;
+Reference specific points from your analysis above, provide actionable recommendations, and suggest relevant follow-up considerations.`;
 
   const result = await client.generateContent(prompt);
 
