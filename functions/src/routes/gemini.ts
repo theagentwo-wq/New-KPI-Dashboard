@@ -1098,11 +1098,71 @@ TODAY'S DATE: ${currentDate}
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔥 TUPELO HONEY KITCHEN STANDARDS 🔥
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Our Philosophy: "GUESTS GO FIRST"**
+Priority Order: Quality → Safety → Speed
+
+**FOOD SAFETY NON-NEGOTIABLES (Immediate Coaching Required):**
+❌ Temp violations (walk-in, freezer, lowboys, hot holding)
+❌ Allergen cross-contamination
+❌ Improper storage hierarchy (proteins MUST be under vegetables)
+❌ Reheats not reaching 165°F
+❌ Hand sink not stocked or used
+
+**QUALITY STANDARDS:**
+✓ Line tasting & temp checks (3 spots per station)
+✓ Recipe compliance - use recipes, no shortcuts
+✓ Spec compliance - no substitutions
+✓ Portion size SOP followed
+✓ Biscuit procedure: 90-minute hold time, 1.5-day shelf life for mix
+✓ Fried chicken: proper pressure settings, dusting, breading
+✓ Fryer oil in range (Vito wand check)
+
+**SPEED & EFFICIENCY:**
+✓ Ticket times acceptable
+✓ Hot holding adequate for expected volume
+✓ Prep report optimized
+✓ Pull/thaw efficiency for proteins and breads
+✓ Stock sheets in use at all stations
+
+**SANITATION ESSENTIALS:**
+✓ Sani buckets in use at all stations
+✓ Hand sinks stocked (soap, towels)
+✓ Triple sinks sanitized between uses
+✓ No wet stacking
+✓ Food contact surfaces clean
+
+**R.O.C. (READY ON CONTACT):**
+✓ Walk-in cooler, prep area, line coolers, front expo, dry storage all R.O.C.
+
+**CULTURE & COMMUNICATION:**
+✓ Communication board updated and used
+✓ Great kitchen energy and morale
+✓ Strong BOH-FOH communication
+✓ Training sheets in use for new hires
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When yesterday's performance shows issues (high food cost, slow ticket times, quality complaints),
+reference specific kitchen standards above that need reinforcement today.
+
 ## 1. Kitchen Safety & Food Standards (CRITICAL)
 
-- Today's safety focus (knife handling, slip prevention, hot surfaces)
-- Food safety reminder (temps, cross-contamination, date labeling)
-- Health code compliance for today's inspection readiness
+**Based on yesterday's performance, identify which kitchen standards need reinforcement:**
+- If food cost is high → Review spec compliance, portion sizes, prep waste
+- If ticket times are slow → Check hot holding levels, prep efficiency, stock sheets
+- If quality complaints → Emphasize line tasting, temp checks, recipe compliance
+- If allergen incident occurred → Review NON-NEGOTIABLE allergen protocols
+
+**Today's Safety & Quality Priorities:**
+- Temp checks: walk-in, freezer, lowboys, hot holding (all within range)
+- Storage hierarchy: proteins UNDER vegetables (non-negotiable)
+- Sani buckets in use at all stations
+- Hand sink compliance (stocked with soap and towels)
+- Health code inspection readiness
 
 ## 2. The Pride of Our Craft (Anthony Bourdain-Style Passion)
 
@@ -1142,12 +1202,18 @@ Based on performance data, weather, the upcoming events listed above, and promot
 
 ## 5. Let's Make It Happen
 
-- One motivating message for the team
-- What makes us a great kitchen
-- Today's focus: Excellence in every dish
+**Priority Reminder: Quality → Safety → Speed**
 
-TONE: Passionate, professional, pride in craft
-FORMAT: BOH-focused brief (2-3 minutes to read aloud)`;
+- One motivating message tied to our "Guests Go First" philosophy
+- Reference 2-3 specific kitchen standards based on yesterday's performance
+- Celebrate execution wins (line tasting done, temps perfect, R.O.C. standards met)
+- Today's focus: Excellence in every dish, every ticket, every time
+
+**R.O.C. Check:** Is every station Ready On Contact? Walk-in, prep, line, expo, storage?
+
+TONE: Passionate, professional, pride in craft, grounded in Tupelo Honey kitchen standards
+FORMAT: BOH-focused brief (2-3 minutes to read aloud)
+REQUIREMENT: Reference at least 2-3 specific kitchen standards from the list above based on yesterday's performance`;
   } else {
     // Managers - completely rewritten to avoid duplication
     prompt = `You are preparing hot topics and talking points ONLY for MANAGERS at ${locationName} for their pre-shift leadership meeting.
