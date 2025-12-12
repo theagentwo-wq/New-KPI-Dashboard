@@ -25,7 +25,7 @@ export enum NoteCategory {
   Operations = 'Operations',
   Marketing = 'Marketing',
   HR = 'HR',
-  GuestFeedback = 'Guest Feedback',
+  GuestFeedback = 'Culinary',
   Staffing = 'Staffing',
   Facilities = 'Facilities',
   Reviews = 'Reviews',
