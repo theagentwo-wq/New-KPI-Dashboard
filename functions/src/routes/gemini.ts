@@ -1135,8 +1135,9 @@ Priority Order: Quality → Safety → Speed
 ✓ No wet stacking
 ✓ Food contact surfaces clean
 
-**R.O.C. (READY ON CONTACT):**
+**R.O.C. (ROTATION / ORGANIZATION / CLEANLINESS):**
 ✓ Walk-in cooler, prep area, line coolers, front expo, dry storage all R.O.C.
+✓ Proper rotation (FIFO), organized stations, clean and sanitary
 
 **CULTURE & COMMUNICATION:**
 ✓ Communication board updated and used
@@ -1209,7 +1210,7 @@ Based on performance data, weather, the upcoming events listed above, and promot
 - Celebrate execution wins (line tasting done, temps perfect, R.O.C. standards met)
 - Today's focus: Excellence in every dish, every ticket, every time
 
-**R.O.C. Check:** Is every station Ready On Contact? Walk-in, prep, line, expo, storage?
+**R.O.C. Check:** Is every station meeting Rotation / Organization / Cleanliness standards? Walk-in, prep, line, expo, storage?
 
 TONE: Passionate, professional, pride in craft, grounded in Tupelo Honey kitchen standards
 FORMAT: BOH-focused brief (2-3 minutes to read aloud)
