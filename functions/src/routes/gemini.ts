@@ -976,6 +976,49 @@ TODAY'S DATE: ${currentDate}
 Performance data: ${JSON.stringify(performanceData)}
 Weather: ${JSON.stringify(weather)}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌟 TUPELO HONEY HOSPITALITY STANDARDS 🌟
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Our Philosophy: "GUESTS GO FIRST"**
+Gold Standard Question: "If I were the guest, would I write a 5-star review?"
+Target: 90%+ hospitality standard (13+ out of 15 on scorecard)
+
+**HOST STANDARDS:**
+✓ Greet guests within 30 seconds
+✓ Eye contact, smile, confident tone
+✓ Use guest names when available
+✓ Clear, accurate wait times
+✓ Professional under pressure
+
+**SERVER STANDARDS:**
+✓ Warm introduction by name
+✓ Ask a guest connection question
+✓ Strong menu knowledge & confident recommendations
+✓ Allergies handled correctly (NON-NEGOTIABLE)
+✓ Refills BEFORE guests ask
+✓ Pre-bussing consistent
+✓ Offer next steps (dessert, coffee)
+✓ Table never feels neglected
+
+**BARTENDER STANDARDS:**
+✓ Guests acknowledged immediately
+✓ Use guest names when possible
+✓ Confident cocktail knowledge
+✓ Food pairings suggested
+✓ Bar top clean and organized
+
+**NON-NEGOTIABLES (Immediate Coaching Required):**
+❌ No greeting or acknowledgment
+❌ Allergen mishandling
+❌ Guest complaint ignored
+❌ Poor attitude or tone
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When yesterday's performance shows issues (low guest count, service complaints, etc.),
+reference specific standards above that need reinforcement today.
+
 ## 1. Sales Focus & Contests (CRITICAL)
 
 **Company Promotions:**
@@ -991,12 +1034,20 @@ Create 1-2 fun, proven sales contests for servers/bartenders today:
 - Clear rules, friendly competition, prizes/recognition
 - What menu items to push today
 
-## 2. Guest Experience Goals
+## 2. Guest Experience & Hospitality Focus
 
+**Based on yesterday's performance, identify which hospitality standards need reinforcement:**
+- If guest count is down → Emphasize the 30-second greeting and guest connection questions
+- If reviews mention slow service → Focus on "refills before they ask" and pre-bussing
+- If ticket averages are low → Reinforce confident recommendations and upselling
+- If allergen issues occurred → Review NON-NEGOTIABLE allergy protocols
+
+**Today's Execution Priorities:**
 - Table turnover goals and efficiency
 - Guest check-in frequency (2-minute rule, 2-bite rule)
-- Upselling techniques for today
-- Handling special requests or dietary needs
+- Using guest names and creating personal connections
+- Anticipating needs before guests ask
+- Handling special requests or dietary needs with confidence
 
 ## 3. Teamwork & Communication
 
@@ -1022,12 +1073,17 @@ Based on the weather and upcoming events above:
 
 ## 5. Energy & Motivation
 
-- One inspiring message for the team
-- What makes great service today
+**Gold Standard Reminder:**
+Before every table interaction today, ask yourself: "If I were the guest, would I write a 5-star review?"
+
+- One inspiring message tied to our "Guests Go First" philosophy
+- What makes great hospitality today (reference specific standards)
+- Celebrate wins and set the tone for excellence
 - Let's make this shift amazing!
 
-TONE: Energetic, motivating, team-oriented
-FORMAT: FOH-focused brief (2-3 minutes to read aloud)`;
+TONE: Energetic, motivating, team-oriented, grounded in Tupelo Honey hospitality standards
+FORMAT: FOH-focused brief (2-3 minutes to read aloud)
+REQUIREMENT: Reference at least 2-3 specific hospitality standards from the list above based on yesterday's performance`;
   } else if (audience === 'BOH') {
     prompt = `You are the Executive Chef of ${locationName} preparing hot topics ONLY for the BACK OF HOUSE team.
 
