@@ -430,6 +430,7 @@ const App = () => {
         onClose={() => setStrategyHubOpen(false)}
         activePeriod={activePeriod}
         activeView={activeView}
+        onAddNote={handleAddNote}
       />
 
       {/* Duplicate Warning Modal */}

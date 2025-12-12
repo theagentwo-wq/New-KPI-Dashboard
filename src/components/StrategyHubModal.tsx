@@ -6,7 +6,7 @@ import { startStrategicAnalysisJob, chatWithStrategy } from '../services/geminiS
 import { callGeminiAPI } from '../lib/ai-client';
 import { marked } from 'marked';
 import { resizeImage } from '../utils/imageUtils';
-import { AnalysisMode, Period, View } from '../types';
+import { AnalysisMode, Period, View, NoteCategory } from '../types';
 
 export interface ActiveAnalysisJob {
   id: string;
@@ -24,6 +24,7 @@ interface StrategyHubModalProps {
   onClose: () => void;
   activePeriod: Period;
   activeView: View;
+  onAddNote: (monthlyPeriodLabel: string, category: NoteCategory, content: string, scope: { view: View, storeId?: string }, imageDataUrl?: string) => Promise<void>;
 }
 
 interface ChatMessage {
@@ -71,7 +72,7 @@ const ANALYSIS_MODE_CONFIG: { [key in AnalysisMode]: { icon: string; color: stri
 const MAX_HISTORY_ITEMS = 10;
 const HISTORY_STORAGE_KEY = 'strategy_hub_history';
 
-export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activePeriod, activeView }) => {
+export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onClose, activePeriod, activeView, onAddNote }) => {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [selectedMode, setSelectedMode] = useState<AnalysisMode>(AnalysisMode.General);
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
@@ -449,9 +450,38 @@ export const StrategyHubModal: React.FC<StrategyHubModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleExportToNotes = () => {
-    // This would require integration with NotesPanel
-    alert('Export to Notes feature coming soon!');
+  const handleExportToNotes = async () => {
+    if (!activeJob?.result || !activeJob?.mode) return;
+
+    try {
+      // Map analysis mode to note category
+      const categoryMap: { [key in AnalysisMode]: NoteCategory } = {
+        [AnalysisMode.General]: NoteCategory.General,
+        [AnalysisMode.Financial]: NoteCategory.Operations,
+        [AnalysisMode.Operational]: NoteCategory.Operations,
+        [AnalysisMode.Marketing]: NoteCategory.Marketing,
+        [AnalysisMode.HR]: NoteCategory.HR,
+      };
+
+      const category = categoryMap[activeJob.mode];
+
+      // Format the note content with metadata
+      const noteContent = `**${activeJob.mode} Analysis** ${activeJob.fileName ? `- ${activeJob.fileName}` : ''}\n\n${activeJob.result}`;
+
+      // Add note using the callback
+      await onAddNote(
+        activePeriod.label,
+        category,
+        noteContent,
+        { view: activeView },
+        undefined // No image for now
+      );
+
+      alert('✅ Analysis exported to Notes successfully!');
+    } catch (error) {
+      console.error('Failed to export to notes:', error);
+      alert('❌ Failed to export to Notes. Please try again.');
+    }
   };
 
   const loadHistoryItem = async (item: AnalysisHistoryItem) => {
