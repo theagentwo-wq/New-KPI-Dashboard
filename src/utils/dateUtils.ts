@@ -300,11 +300,21 @@ export const getPeriodOptions = (): Period[] => {
 };
 
 export const getDefaultPeriod = (): Period => {
-    return getPeriodOptions()[0];
+    // Return the current fiscal MONTH (P1-P12) instead of weekly period
+    const today = new Date();
+    const currentMonth = findFiscalMonthForDate(today);
+
+    // Fallback to first period option if no fiscal month found
+    return currentMonth || getPeriodOptions()[0];
 }
 
 export const getInitialPeriod = (): Period => {
-    return getPeriodOptions()[0];
+    // Return the current fiscal MONTH (P1-P12) instead of weekly period
+    const today = new Date();
+    const currentMonth = findFiscalMonthForDate(today);
+
+    // Fallback to first period option if no fiscal month found
+    return currentMonth || getPeriodOptions()[0];
 }
 
 export const getPreviousPeriod = (currentPeriod: Period): Period => {
