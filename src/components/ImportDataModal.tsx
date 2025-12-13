@@ -123,10 +123,17 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     const period = availableFiscalWeeks.find(p => p.label === periodLabel);
     if (period) {
       setSelectedFiscalPeriod(period);
-      // Format the start date as YYYY-MM-DD for backend compatibility
-      const year = period.startDate.getFullYear();
-      const month = String(period.startDate.getMonth() + 1).padStart(2, '0');
-      const day = String(period.startDate.getDate()).padStart(2, '0');
+
+      // Calculate actual week start date (not MTD period start)
+      const weekStartDate = new Date(period.startDate);
+      if (period.weekNumber && period.weekNumber > 1) {
+        weekStartDate.setDate(weekStartDate.getDate() + ((period.weekNumber - 1) * 7));
+      }
+
+      // Format the actual week start date as YYYY-MM-DD for backend compatibility
+      const year = weekStartDate.getFullYear();
+      const month = String(weekStartDate.getMonth() + 1).padStart(2, '0');
+      const day = String(weekStartDate.getDate()).padStart(2, '0');
       setSelectedWeekStartDate(`${year}-${month}-${day}`);
     }
   };
