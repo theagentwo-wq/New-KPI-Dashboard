@@ -3,11 +3,13 @@ import { Period } from '../types';
 // 4-4-5 Fiscal Calendar Configuration
 // FY2025: Dec 30, 2024 - Dec 28, 2025
 // FY2026: Dec 29, 2025 - Dec 27, 2026
+// FY2027: Dec 28, 2026 - Dec 26, 2027
 const FISCAL_YEAR_STARTS: { [year: number]: Date } = {
   2024: new Date(2023, 11, 31), // Dec 31, 2023
   2025: new Date(2024, 11, 30), // Dec 30, 2024
   2026: new Date(2025, 11, 29), // Dec 29, 2025
   2027: new Date(2026, 11, 28), // Dec 28, 2026
+  2028: new Date(2027, 11, 27), // Dec 27, 2027
 };
 
 // Generate 4-4-5 fiscal periods for a range of fiscal years
@@ -197,32 +199,45 @@ export const generateYearlyPeriods = (startYear: number, endYear: number): Perio
 // Find the fiscal period for a given date (searches both monthly and weekly)
 export const findFiscalPeriodForDate = (date: Date): Period | null => {
   const allPeriods = [
-    ...generate445FiscalPeriods(2024, 2026),
-    ...generateWeeklyPeriods(2024, 2026)
+    ...generate445FiscalPeriods(2024, 2027),
+    ...generateWeeklyPeriods(2024, 2027)
   ];
 
-  return allPeriods.find(period =>
-    date >= period.startDate && date <= period.endDate
-  ) || null;
+  // Normalize dates to compare only date parts (ignore time/timezone)
+  const inputDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  return allPeriods.find(period => {
+    const periodStartOnly = new Date(period.startDate.getFullYear(), period.startDate.getMonth(), period.startDate.getDate());
+    const periodEndOnly = new Date(period.endDate.getFullYear(), period.endDate.getMonth(), period.endDate.getDate());
+
+    return inputDateOnly >= periodStartOnly && inputDateOnly <= periodEndOnly;
+  }) || null;
 };
 
 // Find the fiscal MONTH (P1-P12) for a given date - use this for monthly CSV imports
 export const findFiscalMonthForDate = (date: Date): Period | null => {
-  const fiscalPeriods = generate445FiscalPeriods(2024, 2026);
+  const fiscalPeriods = generate445FiscalPeriods(2024, 2027);
 
-  return fiscalPeriods.find(period =>
-    date >= period.startDate && date <= period.endDate
-  ) || null;
+  // Normalize dates to compare only date parts (ignore time/timezone)
+  const inputDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  return fiscalPeriods.find(period => {
+    const periodStartOnly = new Date(period.startDate.getFullYear(), period.startDate.getMonth(), period.startDate.getDate());
+    const periodEndOnly = new Date(period.endDate.getFullYear(), period.endDate.getMonth(), period.endDate.getDate());
+
+    return inputDateOnly >= periodStartOnly && inputDateOnly <= periodEndOnly;
+  }) || null;
 };
 
 export const ALL_PERIODS = [
-  ...generateWeeklyPeriods(2024, 2026),
+  ...generateWeeklyPeriods(2024, 2027),
   ...generateWeeklyMTDPeriods(2024),  // FY2024 weekly MTD periods
   ...generateWeeklyMTDPeriods(2025),  // FY2025 weekly MTD periods
   ...generateWeeklyMTDPeriods(2026),  // FY2026 weekly MTD periods
-  ...generate445FiscalPeriods(2024, 2026),
-  ...generateQuarterlyPeriods(2023, 2025),
-  ...generateYearlyPeriods(2023, 2025)
+  ...generateWeeklyMTDPeriods(2027),  // FY2027 weekly MTD periods
+  ...generate445FiscalPeriods(2024, 2027),
+  ...generateQuarterlyPeriods(2023, 2026),
+  ...generateYearlyPeriods(2023, 2026)
 ];
 
 // Get current fiscal period for today's date
