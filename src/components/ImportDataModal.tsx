@@ -102,6 +102,22 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setSelectedFiscalPeriod(null);
   };
 
+  // Helper: Extract fiscal month name from period label (e.g., "FY2026 P12" → "December")
+  const getFiscalMonthName = (periodLabel: string | undefined): string => {
+    if (!periodLabel) return 'Unknown';
+
+    const match = periodLabel.match(/P(\d+)/);
+    if (!match) return 'Unknown';
+
+    const periodNum = parseInt(match[1], 10);
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    return monthNames[periodNum - 1] || 'Unknown';
+  };
+
   // Handler for fiscal week selection
   const handleFiscalWeekSelection = (periodLabel: string) => {
     const period = availableFiscalWeeks.find(p => p.label === periodLabel);
@@ -378,9 +394,10 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                   >
                     <option value="">-- Select a fiscal week --</option>
                     {availableFiscalWeeks.map((period) => {
-                      // Format the display label to show month name and week
-                      const monthName = period.startDate.toLocaleString('default', { month: 'long' });
-                      const displayLabel = `${monthName} ${period.year} - Week ${period.weekNumber}`;
+                      // Format the display label using FISCAL month name (not calendar month)
+                      const fiscalMonthName = getFiscalMonthName(period.periodLabel);
+                      const calendarYear = period.startDate.getFullYear();
+                      const displayLabel = `${fiscalMonthName} ${calendarYear} - Week ${period.weekNumber}`;
                       return (
                         <option key={period.label} value={period.label}>
                           {displayLabel} ({period.startDate.toLocaleDateString()})
