@@ -727,9 +727,841 @@ firebase deploy --only hosting           # Deploy frontend only
 firebase deploy --only functions         # Deploy functions only
 ```
 
+---
+
+## 📋 IMPLEMENTATION PLAN: Weekly MTD Snapshot Feature
+
+**Status**: Plan approved, ready for implementation
+**Created**: 2025-12-13
+**Estimated Effort**: 6-8 hours
+
+### Executive Summary
+
+Implement weekly MTD (Month-to-Date) snapshot storage to preserve performance data for each week within a fiscal period. Currently, weekly imports overwrite previous weeks because all weeks within the same fiscal period share the same document ID. The new system will store each week separately using a week number suffix in the document ID pattern.
+
+**Key Decision**: User chose **Option B** - Store weekly snapshots as separate documents with understanding that MTD values are cumulative.
+
+### Current State Analysis
+
+#### Problem
+```typescript
+// Current docId generation in App.tsx:
+const matchingPeriod = findFiscalMonthForDate(dateObj);
+// Returns: { label: "FY2025 P11", startDate: Date(2024-12-30) }
+
+// In firebaseService.ts:
+const docId = `${storeId}_${period.startDate}`;
+// Result: "Columbia_2024-12-30" for ALL weeks in P11
+// ❌ Week 2 import overwrites Week 1 data
+```
+
+#### CSV Data Structure (Confirmed)
+- **Week 1 CSV**: Only "Week 1" column populated, MTD = $91,706
+- **Week 2 CSV**: Both "Week 1" + "Week 2" columns populated, MTD = $158,128 (cumulative)
+- **Important**: MTD values are cumulative snapshots, NOT incremental deltas
+  - Week 2's $158K includes Week 1's $91K
+  - Dollar metrics are summed week-over-week
+  - Percentage metrics are weighted averages
+
+#### Current Data Flow
+1. User uploads CSV (e.g., "Financial Tracker - Week 2.csv")
+2. CSV sent to Cloud Function `/gemini` endpoint
+3. `parsePnLCsvHorizontal()` extracts MTD column data
+4. Frontend calls `findFiscalMonthForDate()` to get period
+5. `savePerformanceDataForPeriod()` saves with date-based docId
+6. **Problem**: Same docId for all weeks → only last week survives
+
+### Target Architecture
+
+#### New Document ID Pattern
+```
+{storeId}_{fiscalPeriodLabel}_W{weekNumber}
+
+Examples:
+- "Columbia_FY2025-P11_W1"
+- "Columbia_FY2025-P11_W2"
+- "Columbia_FY2025-P11_W3"
+- "Knoxville_FY2025-P12_W1"
+```
+
+#### Week Number Detection
+Extract from CSV filename or header:
+- **Filename**: "Financial Tracker - Week 2.csv" → 2
+- **Header**: "Week 3" column → 3
+- **Fallback**: Default to Week 1 if not found
+
+#### Period Interface Enhancement
+```typescript
+export interface Period {
+  startDate: Date;
+  endDate: Date;
+  label: string;              // "FY2025 P11"
+  type: PeriodType;           // "weekly" for new periods
+  year: number;
+  quarter: number;
+  weekNumber?: number;        // NEW: 1-5 for weekly periods
+  periodLabel?: string;       // NEW: Parent period label for weekly periods
+}
+```
+
+#### Navigation Behavior
+- **UI**: Keep existing arrow navigation (<<  >>)
+- **Default View**: Load latest imported week on dashboard open
+- **Week List**: Chronological list of weekly MTD periods
+  - "FY2025 P11 W1 (MTD)" through "FY2025 P11 W5 (MTD)"
+  - Users navigate with arrow buttons, no dropdown
+
+#### Duplicate Handling
+When re-importing existing week:
+- Show warning dialog: "Week 2 already exists for Columbia, SC"
+- Display comparison:
+  - **Old Data**: Imported 2024-12-07, Sales: $158,128
+  - **New Data**: Sales: $160,450
+- User chooses: Replace or Cancel
+
+### Implementation Changes by File
+
+#### 1. `src/types.ts`
+**Purpose**: Add week number support to Period interface
+
+```typescript
+export interface Period {
+  startDate: Date;
+  endDate: Date;
+  label: string;
+  type: PeriodType;
+  year: number;
+  quarter: number;
+  weekNumber?: number;        // NEW: Optional week number (1-5)
+  periodLabel?: string;       // NEW: Parent period label for weekly periods
+}
+```
+
+**Changes**:
+- Add optional `weekNumber` field
+- Add optional `periodLabel` field to reference parent fiscal period
+
+---
+
+#### 2. `functions/src/routes/gemini.ts`
+**Purpose**: Extract week number from CSV during parsing
+
+**Current Code** (lines ~200-250):
+```typescript
+function parsePnLCsvHorizontal(csvContent: string, fileName: string) {
+  // ... existing code ...
+  return {
+    results: [{
+      dataType: 'Actuals',
+      sourceName: fileName,
+      data: results,
+    }]
+  };
+}
+```
+
+**New Code**:
+```typescript
+/**
+ * Detects week number from CSV filename or header
+ * Examples:
+ *   "Financial Tracker - Week 2.csv" → 2
+ *   CSV header with "Week 3" → 3
+ *   No match → 1 (fallback)
+ */
+function detectWeekNumber(csvContent: string, fileName: string): number {
+  // Try filename first
+  const fileMatch = fileName.match(/Week\s+(\d+)/i);
+  if (fileMatch) {
+    const weekNum = parseInt(fileMatch[1], 10);
+    console.log(`[detectWeekNumber] Detected Week ${weekNum} from filename`);
+    return weekNum;
+  }
+
+  // Try CSV header
+  const headerMatch = csvContent.match(/Week\s+(\d+)/i);
+  if (headerMatch) {
+    const weekNum = parseInt(headerMatch[1], 10);
+    console.log(`[detectWeekNumber] Detected Week ${weekNum} from header`);
+    return weekNum;
+  }
+
+  // Default to Week 1
+  console.warn('[detectWeekNumber] No week number found, defaulting to Week 1');
+  return 1;
+}
+
+function parsePnLCsvHorizontal(csvContent: string, fileName: string) {
+  const weekNumber = detectWeekNumber(csvContent, fileName);
+
+  // ... existing parsing code ...
+
+  return {
+    results: [{
+      dataType: 'Actuals',
+      weekNumber: weekNumber,  // NEW: Include week number
+      sourceName: `Week ${weekNumber} Financial Tracker`,
+      data: results,
+    }]
+  };
+}
+```
+
+**Changes**:
+- Add `detectWeekNumber()` helper function
+- Call it in `parsePnLCsvHorizontal()`
+- Include `weekNumber` in results object
+- Update `sourceName` to reflect detected week
+
+---
+
+#### 3. `src/utils/dateUtils.ts`
+**Purpose**: Generate weekly MTD period options
+
+**Current Code**:
+```typescript
+export const ALL_PERIODS = [
+  ...generate445FiscalPeriods(2024, 2024),
+  ...generate445FiscalPeriods(2025, 2025),
+  // ...
+];
+```
+
+**New Code**:
+```typescript
+/**
+ * Generates weekly MTD periods for a fiscal year
+ * Each period has 4-5 weeks, creating ~60 weekly periods per year
+ */
+export const generateWeeklyMTDPeriods = (fiscalYear: number): Period[] => {
+  const periods: Period[] = [];
+  const fiscalPeriods = generate445FiscalPeriods(fiscalYear, fiscalYear);
+
+  fiscalPeriods.forEach(period => {
+    // Calculate weeks in period based on 4-4-5 pattern
+    const periodDurationMs = period.endDate.getTime() - period.startDate.getTime();
+    const weeksInPeriod = Math.ceil(periodDurationMs / (7 * 24 * 60 * 60 * 1000));
+
+    // Create a weekly MTD period for each week
+    for (let weekNum = 1; weekNum <= weeksInPeriod; weekNum++) {
+      periods.push({
+        label: `${period.label} W${weekNum} (MTD)`,
+        startDate: period.startDate,  // MTD always starts at period start
+        endDate: period.endDate,      // MTD always ends at period end
+        type: 'weekly',
+        year: period.year,
+        quarter: period.quarter,
+        weekNumber: weekNum,
+        periodLabel: period.label     // Reference to parent period
+      });
+    }
+  });
+
+  return periods;
+};
+
+export const ALL_PERIODS = [
+  ...generateWeeklyMTDPeriods(2024),
+  ...generateWeeklyMTDPeriods(2025),
+  ...generateWeeklyMTDPeriods(2026),
+  // Keep existing monthly/quarterly/yearly periods if needed
+  // ...generate445FiscalPeriods(2024, 2024),
+  // ...generate445FiscalPeriods(2025, 2025),
+];
+```
+
+**Changes**:
+- Create `generateWeeklyMTDPeriods()` function
+- Generate ~60 weekly periods per fiscal year (12 periods × 4-5 weeks)
+- Update `ALL_PERIODS` to use weekly periods
+- Each week is labeled as MTD to reflect cumulative nature
+
+---
+
+#### 4. `src/services/firebaseService.ts`
+**Purpose**: Save and retrieve with week-specific document IDs
+
+**Current Code** (lines ~140-160):
+```typescript
+export const savePerformanceDataForPeriod = async (
+  storeId: string,
+  period: Period,
+  data: PerformanceData,
+  pnl?: FinancialLineItem[]
+): Promise<void> => {
+  const docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
+
+  const docRef = doc(actualsCollection, docId);
+  await setDoc(docRef, { storeId, data, pnl }, { merge: true });
+};
+```
+
+**New Code**:
+```typescript
+export const savePerformanceDataForPeriod = async (
+  storeId: string,
+  period: Period,
+  data: PerformanceData,
+  pnl?: FinancialLineItem[],
+  weekNumber?: number  // NEW parameter
+): Promise<void> => {
+  // Generate docId with week number
+  const weekSuffix = weekNumber ? `_W${weekNumber}` : '';
+  const periodLabel = period.periodLabel || period.label;
+  const docId = `${storeId}_${periodLabel}${weekSuffix}`;
+  // Example: "Columbia_FY2025-P11_W2"
+
+  console.log(`[savePerformanceDataForPeriod] Saving to docId: ${docId}`);
+
+  const docRef = doc(actualsCollection, docId);
+  const docData: any = {
+    storeId,
+    periodLabel: periodLabel,
+    weekNumber: weekNumber || null,
+    weekStartDate: period.startDate.toISOString(),
+    weekEndDate: period.endDate.toISOString(),
+    importedAt: new Date().toISOString(),
+    data: data
+  };
+
+  if (pnl && pnl.length > 0) {
+    docData.pnl = pnl;
+  }
+
+  await setDoc(docRef, docData, { merge: true });
+  console.log(`[savePerformanceDataForPeriod] Successfully saved week ${weekNumber || 'N/A'} for ${storeId}`);
+};
+
+/**
+ * Check if week data already exists for duplicate detection
+ */
+export const checkExistingWeekData = async (
+  storeId: string,
+  period: Period,
+  weekNumber: number
+): Promise<{ data: PerformanceData; importedAt: string } | null> => {
+  const periodLabel = period.periodLabel || period.label;
+  const docId = `${storeId}_${periodLabel}_W${weekNumber}`;
+
+  console.log(`[checkExistingWeekData] Checking for existing data: ${docId}`);
+
+  const docRef = doc(actualsCollection, docId);
+  const snapshot = await getDoc(docRef);
+
+  if (snapshot.exists()) {
+    const docData = snapshot.data();
+    console.log(`[checkExistingWeekData] Found existing week ${weekNumber} data, imported at ${docData.importedAt}`);
+    return {
+      data: docData.data as PerformanceData,
+      importedAt: docData.importedAt
+    };
+  }
+
+  console.log(`[checkExistingWeekData] No existing data found for week ${weekNumber}`);
+  return null;
+};
+
+/**
+ * Get latest imported week for a store
+ */
+export const getLatestWeekForStore = async (
+  storeId: string
+): Promise<{ period: Period; weekNumber: number } | null> => {
+  const q = query(
+    actualsCollection,
+    where('storeId', '==', storeId),
+    orderBy('importedAt', 'desc'),
+    limit(1)
+  );
+
+  const snapshot = await getDocs(q);
+
+  if (!snapshot.empty) {
+    const docData = snapshot.docs[0].data();
+    const period: Period = {
+      label: docData.periodLabel,
+      startDate: new Date(docData.weekStartDate),
+      endDate: new Date(docData.weekEndDate),
+      type: 'weekly',
+      year: new Date(docData.weekStartDate).getFullYear(),
+      quarter: 1, // Will be calculated properly
+      weekNumber: docData.weekNumber,
+      periodLabel: docData.periodLabel
+    };
+
+    console.log(`[getLatestWeekForStore] Latest week for ${storeId}: Week ${docData.weekNumber}`);
+    return { period, weekNumber: docData.weekNumber };
+  }
+
+  return null;
+};
+```
+
+**Changes**:
+- Add `weekNumber` parameter to `savePerformanceDataForPeriod()`
+- Change docId pattern to include week number: `{storeId}_{periodLabel}_W{weekNumber}`
+- Add `checkExistingWeekData()` for duplicate detection
+- Add `getLatestWeekForStore()` for default view
+- Enhanced logging for debugging
+
+---
+
+#### 5. `src/App.tsx`
+**Purpose**: Add duplicate warning and week number handling
+
+**Current Code** (lines ~146-200):
+```typescript
+const handleConfirmImport = async (job: ActiveJob) => {
+  // ... existing code ...
+
+  await savePerformanceDataForPeriod(
+    storeName,
+    matchingPeriod,
+    performanceData,
+    pnl
+  );
+};
+```
+
+**New Code**:
+```typescript
+const handleConfirmImport = async (job: ActiveJob) => {
+  setImportProgress({ status: 'processing', message: 'Processing import data...' });
+
+  try {
+    const extractedData = job.extractedData;
+
+    // NEW: Extract week number from extracted data
+    const weekNumber = extractedData[0]?.weekNumber || 1;
+    console.log(`[handleConfirmImport] Detected week number: ${weekNumber}`);
+
+    // Check for week-specific duplicates
+    const duplicates: Array<{
+      store: string;
+      week: number;
+      importedAt: string;
+      existingKpis: string[];
+    }> = [];
+
+    for (const result of extractedData) {
+      const storeName = result.data.store || result.data.Store;
+      if (!storeName) continue;
+
+      const dateObj = new Date(job.file.name.match(/\d{1,2}[-.]\d{1,2}[-.]\d{2,4}/)?.[0] || Date.now());
+      const matchingPeriod = findFiscalMonthForDate(dateObj);
+
+      if (!matchingPeriod) continue;
+
+      // NEW: Check for existing week data
+      const existingWeekData = await checkExistingWeekData(
+        storeName,
+        matchingPeriod,
+        weekNumber
+      );
+
+      if (existingWeekData) {
+        duplicates.push({
+          store: storeName,
+          week: weekNumber,
+          importedAt: existingWeekData.importedAt,
+          existingKpis: Object.keys(existingWeekData.data)
+        });
+      }
+    }
+
+    // NEW: Show enhanced warning if duplicates found
+    if (duplicates.length > 0) {
+      setDuplicateWarning({ job, duplicates });
+      setImportProgress({ status: 'idle', message: '' });
+      return;
+    }
+
+    // Proceed with import
+    await performImport(job, weekNumber);
+
+  } catch (error) {
+    console.error('[handleConfirmImport] Error:', error);
+    setImportProgress({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Import failed'
+    });
+  }
+};
+
+const performImport = async (job: ActiveJob, weekNumber: number) => {
+  const extractedData = job.extractedData;
+
+  for (const result of extractedData) {
+    const storeName = result.data.store || result.data.Store;
+    if (!storeName) continue;
+
+    const dateObj = new Date(job.file.name.match(/\d{1,2}[-.]\d{1,2}[-.]\d{2,4}/)?.[0] || Date.now());
+    const matchingPeriod = findFiscalMonthForDate(dateObj);
+
+    if (!matchingPeriod) continue;
+
+    const performanceData = { /* ... existing extraction logic ... */ };
+    const pnl = result.pnl || [];
+
+    // NEW: Pass week number to save function
+    await savePerformanceDataForPeriod(
+      storeName,
+      matchingPeriod,
+      performanceData,
+      pnl,
+      weekNumber  // NEW parameter
+    );
+
+    console.log(`[performImport] Saved week ${weekNumber} for ${storeName}`);
+  }
+
+  setImportProgress({ status: 'complete', message: 'Import completed successfully!' });
+  setActiveJobs(prev => prev.filter(j => j.id !== job.id));
+
+  // Refresh dashboard data
+  // ... existing refresh logic ...
+};
+
+// NEW: Enhanced duplicate warning dialog
+const DuplicateWarningDialog = ({ job, duplicates, onConfirm, onCancel }) => {
+  return (
+    <div className="duplicate-warning-modal">
+      <h3>⚠️ Week Already Imported</h3>
+      <p>
+        Week {duplicates[0].week} data already exists for {duplicates.length} store(s).
+      </p>
+
+      <div className="duplicate-list">
+        {duplicates.map((dup, idx) => (
+          <div key={idx} className="duplicate-item">
+            <strong>{dup.store}</strong> - Week {dup.week}
+            <br />
+            <small>Previously imported: {new Date(dup.importedAt).toLocaleString()}</small>
+            <br />
+            <small>Contains: {dup.existingKpis.join(', ')}</small>
+          </div>
+        ))}
+      </div>
+
+      <p>Do you want to replace the existing data with the new import?</p>
+
+      <div className="dialog-actions">
+        <button onClick={onCancel}>Cancel</button>
+        <button onClick={() => onConfirm(job, duplicates[0].week)} className="btn-warning">
+          Replace Existing Data
+        </button>
+      </div>
+    </div>
+  );
+};
+```
+
+**Changes**:
+- Extract `weekNumber` from parsed CSV results
+- Add duplicate detection before import
+- Show enhanced warning dialog with comparison
+- Pass `weekNumber` to `savePerformanceDataForPeriod()`
+- Add `DuplicateWarningDialog` component
+
+---
+
+#### 6. `src/pages/DashboardPage.tsx`
+**Purpose**: Initialize with latest imported week
+
+**Current Code** (lines ~50-100):
+```typescript
+useEffect(() => {
+  // Load default period
+  const defaultPeriod = ALL_PERIODS.find(p => p.type === 'quarter');
+  if (defaultPeriod) {
+    setSelectedPeriod(defaultPeriod);
+  }
+}, []);
+```
+
+**New Code**:
+```typescript
+useEffect(() => {
+  const initializeDashboard = async () => {
+    try {
+      // Try to load latest imported week for current store
+      const currentStore = selectedScope.storeId || 'Total Company';
+
+      if (currentStore !== 'Total Company') {
+        const latestWeek = await getLatestWeekForStore(currentStore);
+
+        if (latestWeek) {
+          console.log(`[DashboardPage] Loading latest week ${latestWeek.weekNumber} for ${currentStore}`);
+          setSelectedPeriod(latestWeek.period);
+          return;
+        }
+      }
+
+      // Fallback: Load most recent weekly period
+      const weeklyPeriods = ALL_PERIODS.filter(p => p.type === 'weekly');
+      if (weeklyPeriods.length > 0) {
+        setSelectedPeriod(weeklyPeriods[weeklyPeriods.length - 1]);
+      }
+
+    } catch (error) {
+      console.error('[DashboardPage] Error loading latest week:', error);
+      // Fallback to first weekly period
+      const defaultPeriod = ALL_PERIODS.find(p => p.type === 'weekly');
+      if (defaultPeriod) {
+        setSelectedPeriod(defaultPeriod);
+      }
+    }
+  };
+
+  initializeDashboard();
+}, [selectedScope.storeId]);
+```
+
+**Changes**:
+- Load latest imported week on dashboard open
+- Use `getLatestWeekForStore()` to find most recent data
+- Fallback to most recent weekly period if no data
+- Re-initialize when store selection changes
+
+---
+
+#### 7. `src/components/ImportDataModal.tsx`
+**Purpose**: Remove period type toggle (always MTD)
+
+**Current Code** (lines ~50-70):
+```typescript
+<div className="period-type-selector">
+  <label>
+    <input type="radio" value="monthly" checked={periodType === 'monthly'} />
+    Monthly
+  </label>
+  <label>
+    <input type="radio" value="weekly" checked={periodType === 'weekly'} />
+    Weekly
+  </label>
+</div>
+```
+
+**New Code**:
+```typescript
+{/* Period type toggle removed - all imports are weekly MTD */}
+<p className="import-info">
+  📊 Importing weekly MTD (Month-to-Date) data
+</p>
+```
+
+**Changes**:
+- Remove period type toggle UI
+- Add informational text explaining MTD import
+- Simplify import flow (always weekly MTD)
+
+---
+
+### Data Migration Considerations
+
+#### Existing Data Compatibility
+**Current documents** (without week numbers):
+```
+Columbia_2024-12-30
+Knoxville_2024-11-25
+```
+
+**New documents** (with week numbers):
+```
+Columbia_FY2025-P11_W1
+Columbia_FY2025-P11_W2
+Knoxville_FY2025-P10_W4
+```
+
+**Migration Strategy**: No migration needed
+- Old documents remain in database (won't conflict with new pattern)
+- New imports use new document ID pattern
+- Old data can be manually deleted or archived later
+- Both patterns can coexist without issues
+
+**Read Logic**:
+- Dashboard will only query for new document pattern
+- Old documents will no longer be visible (expected behavior)
+- Data is preserved if rollback needed
+
+---
+
+### Testing Checklist
+
+#### Unit Testing
+- [ ] `detectWeekNumber()` correctly extracts week from filename
+- [ ] `detectWeekNumber()` correctly extracts week from CSV header
+- [ ] `detectWeekNumber()` defaults to Week 1 when not found
+- [ ] `generateWeeklyMTDPeriods()` creates correct number of periods
+- [ ] `checkExistingWeekData()` correctly detects duplicates
+- [ ] `getLatestWeekForStore()` returns most recent week
+
+#### Integration Testing
+- [ ] Import Week 1 CSV → creates `{store}_FY2025-P11_W1` document
+- [ ] Import Week 2 CSV → creates `{store}_FY2025-P11_W2` document
+- [ ] Week 1 and Week 2 documents coexist without overwriting
+- [ ] Re-import Week 2 → shows duplicate warning
+- [ ] Duplicate warning shows correct comparison data
+- [ ] Replace existing data → updates document correctly
+- [ ] Cancel duplicate warning → preserves existing data
+
+#### UI Testing
+- [ ] Dashboard loads with latest imported week
+- [ ] Arrow navigation shows weekly periods
+- [ ] Period selector displays "FY2025 P11 W2 (MTD)" format
+- [ ] KPI cards display correct MTD values for selected week
+- [ ] Store rankings show correct data for selected week
+- [ ] Import modal shows "Weekly MTD" informational text
+- [ ] No period type toggle visible in import modal
+
+#### Data Integrity Testing
+- [ ] Week 2 MTD ($158K) is higher than Week 1 MTD ($91K) ✓ Expected
+- [ ] Percentages are weighted averages ✓ Expected
+- [ ] All KPIs present in both Week 1 and Week 2 snapshots
+- [ ] Document structure matches schema
+- [ ] Firestore queries return correct week data
+
+---
+
+### Rollback Plan
+
+If issues arise after deployment:
+
+#### Immediate Rollback (Git)
+```bash
+# Revert to pre-implementation commit
+git log --oneline  # Find commit before weekly MTD changes
+git revert <commit-hash>
+git push origin main
+```
+
+#### Data Rollback (Firestore)
+- No data migration was performed, so no data rollback needed
+- Old document pattern still exists in database
+- New documents can be manually deleted if needed:
+  ```typescript
+  // Delete all weekly documents
+  const weeklyDocs = await getDocs(
+    query(actualsCollection, where('weekNumber', '!=', null))
+  );
+  weeklyDocs.forEach(doc => deleteDoc(doc.ref));
+  ```
+
+#### Feature Flag (Future Enhancement)
+Consider adding feature flag in future:
+```typescript
+const ENABLE_WEEKLY_MTD = process.env.VITE_ENABLE_WEEKLY_MTD === 'true';
+
+if (ENABLE_WEEKLY_MTD) {
+  // Use new weekly MTD logic
+} else {
+  // Use old monthly logic
+}
+```
+
+---
+
+### Performance Considerations
+
+#### Document Count
+- **Before**: 1 document per store per period (~12/year/store)
+- **After**: 4-5 documents per store per period (~60/year/store)
+- **Impact**: 5x increase in document count
+- **Mitigation**: Firestore scales well to millions of documents
+
+#### Query Performance
+- Queries use indexed fields (`storeId`, `weekNumber`, `periodLabel`)
+- No full collection scans
+- Expected query time: <100ms (unchanged)
+
+#### Storage Costs
+- Each document: ~2KB (estimated)
+- 10 stores × 60 weeks/year × 2KB = ~1.2MB/year
+- Cost: Negligible (Firestore free tier: 1GB)
+
+#### Network Bandwidth
+- Dashboard fetches 1 week at a time (not all weeks)
+- No impact on page load time
+- Arrow navigation fetches on-demand
+
+---
+
+### Timeline
+
+**Total Estimated Effort**: 6-8 hours
+
+#### Phase 1: Backend Changes (2 hours)
+- [ ] Update `functions/src/routes/gemini.ts` - Add `detectWeekNumber()` (30 min)
+- [ ] Update `src/types.ts` - Add week fields to Period interface (15 min)
+- [ ] Update `src/utils/dateUtils.ts` - Add `generateWeeklyMTDPeriods()` (45 min)
+- [ ] Update `src/services/firebaseService.ts` - Add week parameter and helpers (30 min)
+
+#### Phase 2: Frontend Changes (3 hours)
+- [ ] Update `src/App.tsx` - Add duplicate detection and warning dialog (90 min)
+- [ ] Update `src/pages/DashboardPage.tsx` - Add latest week initialization (30 min)
+- [ ] Update `src/components/ImportDataModal.tsx` - Remove period toggle (15 min)
+- [ ] Update any other components using periods (45 min)
+
+#### Phase 3: Testing (2 hours)
+- [ ] Unit tests for new functions (45 min)
+- [ ] Integration testing with real CSV files (45 min)
+- [ ] UI testing (30 min)
+
+#### Phase 4: Deployment & Verification (1 hour)
+- [ ] Build and deploy to production (15 min)
+- [ ] Smoke testing in production (30 min)
+- [ ] Monitor Firestore for correct document creation (15 min)
+
+---
+
+### Success Criteria
+
+✅ **Feature Complete** when:
+1. Import Week 1 CSV creates `{store}_FY2025-P11_W1` document
+2. Import Week 2 CSV creates separate `{store}_FY2025-P11_W2` document
+3. Both weeks coexist in Firestore without overwriting
+4. Dashboard loads with latest imported week by default
+5. Arrow navigation allows browsing through weekly periods
+6. Re-importing same week shows comparison warning
+7. All KPI cards and store rankings display correct MTD values
+8. No regressions in existing functionality
+
+✅ **User Acceptance** when:
+- User can import weekly CSVs without data loss
+- User can navigate between weeks using arrows
+- User can see progression of MTD values across weeks
+- Duplicate imports show clear warning with comparison
+
+---
+
+### Files Modified Summary
+
+| File | Lines Changed | Purpose |
+|------|--------------|---------|
+| `src/types.ts` | +2 | Add weekNumber and periodLabel to Period |
+| `functions/src/routes/gemini.ts` | +30 | Add detectWeekNumber() and update parser |
+| `src/utils/dateUtils.ts` | +25 | Add generateWeeklyMTDPeriods() |
+| `src/services/firebaseService.ts` | +80 | Add week parameter, duplicate check, latest week query |
+| `src/App.tsx` | +60 | Add duplicate detection and warning dialog |
+| `src/pages/DashboardPage.tsx` | +20 | Initialize with latest week |
+| `src/components/ImportDataModal.tsx` | -15, +5 | Remove period toggle |
+| **TOTAL** | **~207 lines** | **7 files** |
+
+---
+
+### Next Steps
+
+1. **Review this plan** - User approval required before implementation
+2. **Ask clarifying questions** - Address any uncertainties
+3. **Begin implementation** - Follow phases in order
+4. **Test incrementally** - Validate each phase before moving forward
+5. **Deploy cautiously** - Monitor production after deployment
+
+---
+
 ## Context for Next Session
 
-**Current Priority**: Connect Firestore financial data to dashboard
+**Current Priority**: Implement weekly MTD snapshot feature (plan approved)
 
 **What to know**:
 - API routes are now working (deployed)

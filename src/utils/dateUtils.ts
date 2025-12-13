@@ -96,6 +96,37 @@ export const generateWeeklyPeriods = (startYear: number, endYear: number): Perio
   return periods;
 };
 
+// Generate weekly MTD periods within fiscal structure
+// Each fiscal period (P1-P12) contains 4-5 weeks, each labeled as W1, W2, etc.
+// These are used for weekly CSV imports with Month-to-Date cumulative values
+export const generateWeeklyMTDPeriods = (fiscalYear: number): Period[] => {
+  const periods: Period[] = [];
+  const fiscalPeriods = generate445FiscalPeriods(fiscalYear, fiscalYear);
+
+  for (const period of fiscalPeriods) {
+    // Calculate number of weeks in this fiscal period
+    const periodDurationMs = period.endDate.getTime() - period.startDate.getTime();
+    const periodDurationDays = periodDurationMs / (24 * 60 * 60 * 1000);
+    const weeksInPeriod = Math.ceil(periodDurationDays / 7);
+
+    // Generate a period for each week within this fiscal period
+    for (let weekNum = 1; weekNum <= weeksInPeriod; weekNum++) {
+      periods.push({
+        label: `${period.label} W${weekNum} (MTD)`,
+        startDate: new Date(period.startDate), // MTD periods all start at period start
+        endDate: new Date(period.endDate),     // MTD periods all end at period end
+        type: 'weekly',
+        year: period.year,
+        quarter: period.quarter,
+        weekNumber: weekNum,              // Week number within the fiscal period (1-5)
+        periodLabel: period.label         // Parent fiscal period label (e.g., 'FY2026 P12')
+      });
+    }
+  }
+
+  return periods;
+};
+
 // Generate monthly periods for a range of years
 export const generateMonthlyPeriods = (startYear: number, endYear: number): Period[] => {
   const periods: Period[] = [];
@@ -186,6 +217,9 @@ export const findFiscalMonthForDate = (date: Date): Period | null => {
 
 export const ALL_PERIODS = [
   ...generateWeeklyPeriods(2024, 2026),
+  ...generateWeeklyMTDPeriods(2024),  // FY2024 weekly MTD periods
+  ...generateWeeklyMTDPeriods(2025),  // FY2025 weekly MTD periods
+  ...generateWeeklyMTDPeriods(2026),  // FY2026 weekly MTD periods
   ...generate445FiscalPeriods(2024, 2026),
   ...generateQuarterlyPeriods(2023, 2025),
   ...generateYearlyPeriods(2023, 2025)

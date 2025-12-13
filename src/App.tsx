@@ -284,9 +284,12 @@ const App = () => {
             // Extract P&L data if present
             const pnlData = row['pnl'] || [];
 
-            // Save to Firestore
+            // Extract week number from job (detected by backend from CSV filename/content)
+            const weekNumber = (job as any).weekNumber || undefined;
+
+            // Save to Firestore (pass weekNumber for new weekly tracking system)
             if (Object.keys(kpiData).length > 0) {
-              await savePerformanceDataForPeriod(storeName, matchingPeriod, kpiData, pnlData);
+              await savePerformanceDataForPeriod(storeName, matchingPeriod, kpiData, pnlData, weekNumber);
               successCount++;
             } else {
               errors.push(`No valid KPI data for ${storeName} on ${weekStartDate}`);

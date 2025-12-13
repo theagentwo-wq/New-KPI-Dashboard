@@ -18,6 +18,7 @@ interface JobStatus {
   jobId: string;
   status: 'running' | 'completed' | 'failed';
   results?: any;
+  weekNumber?: number;  // Detected week number from CSV import
   error?: string;
   startedAt: number;
 }
@@ -32,6 +33,31 @@ const getClient = (apiKey: string | undefined) => {
     throw new Error('GEMINI_API_KEY not configured');
   }
   return getGeminiClient(apiKey);
+};
+
+/**
+ * Helper: Detect week number from CSV filename or content
+ * Searches for patterns like "Week 1", "Week 2", "W1", "W2", etc.
+ */
+const detectWeekNumber = (csvContent: string, fileName: string): number => {
+  // Try filename first (e.g., "Financial_Tracker_Week_2.csv")
+  const fileMatch = fileName.match(/Week\s*(\d+)/i) || fileName.match(/W(\d+)/i);
+  if (fileMatch) {
+    const weekNum = parseInt(fileMatch[1], 10);
+    console.log(`[detectWeekNumber] Found week ${weekNum} in filename: ${fileName}`);
+    return weekNum;
+  }
+
+  // Try CSV header/content (first 500 chars)
+  const headerMatch = csvContent.substring(0, 500).match(/Week\s*(\d+)/i);
+  if (headerMatch) {
+    const weekNum = parseInt(headerMatch[1], 10);
+    console.log(`[detectWeekNumber] Found week ${weekNum} in CSV content`);
+    return weekNum;
+  }
+
+  console.log(`[detectWeekNumber] No week number found, defaulting to Week 1`);
+  return 1; // Default to Week 1
 };
 
 /**
@@ -2053,6 +2079,10 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
         throw new Error('Only CSV/text files are supported for P&L import');
       }
 
+      // Detect week number from filename and CSV content
+      const weekNumber = detectWeekNumber(fileContent, file.fileName);
+      console.log(`[startTask] Detected week number: ${weekNumber}`);
+
       // Detect CSV format and parse accordingly
       const format = detectCsvFormat(fileContent);
       console.log(`[startTask] Detected format: ${format}, parsing with date: ${weekStartDate}, period: ${periodType}`);
@@ -2061,11 +2091,12 @@ router.post('/startTask', asyncHandler(async (req: Request, res: Response) => {
         ? parsePnLCsvHorizontal(fileContent, weekStartDate || '2025-01-06', periodType || 'weekly')
         : parsePnLCsv(fileContent, weekStartDate || '2025-01-06', periodType || 'weekly');
 
-      // Update job status with results
+      // Update job status with results (include weekNumber)
       jobStore.set(jobId, {
         jobId,
         status: 'completed',
         results: result.results || [],
+        weekNumber, // Add detected week number to results
         startedAt: jobStore.get(jobId)?.startedAt || Date.now()
       });
     } catch (error) {
@@ -2131,6 +2162,7 @@ router.post('/checkTaskStatus', asyncHandler(async (req: Request, res: Response)
       jobId: job.jobId,
       status: job.status,
       results: job.results,
+      weekNumber: job.weekNumber, // Include detected week number
       error: job.error,
     },
   });
@@ -2160,6 +2192,7 @@ router.get('/getTaskStatus/:jobId', asyncHandler(async (req: Request, res: Respo
       jobId: job.jobId,
       status: job.status,
       results: job.results,
+      weekNumber: job.weekNumber, // Include detected week number
       error: job.error,
     },
   });

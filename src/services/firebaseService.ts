@@ -284,20 +284,55 @@ export const clearPeriodData = async (period: Period, storeId?: string): Promise
     }
 };
 
-export const savePerformanceDataForPeriod = async (storeId: string, period: Period, data: PerformanceData, pnl?: FinancialLineItem[]): Promise<void> => {
-    const docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
-    const docRef = doc(actualsCollection, docId);
-    const docData: any = {
-        storeId,
-        workStartDate: period.startDate.toISOString(),
-        data: data
-    };
+// Weekly tracking cutoff: All periods before December 2025 use old system
+// December 2025 (FY2026 P12) and beyond use new weekly tracking system
+const WEEKLY_TRACKING_START_PERIOD = 'FY2026 P12';
+
+export const savePerformanceDataForPeriod = async (
+    storeId: string,
+    period: Period,
+    data: PerformanceData,
+    pnl?: FinancialLineItem[],
+    weekNumber?: number
+): Promise<void> => {
+    // Determine if this period uses the old or new system
+    const periodLabel = period.periodLabel || period.label;
+    const useOldSystem = periodLabel < WEEKLY_TRACKING_START_PERIOD;
+
+    let docId: string;
+    let docData: any;
+
+    if (useOldSystem) {
+        // OLD SYSTEM: Date-based document IDs (all data before December 2025)
+        docId = `${storeId}_${period.startDate.getFullYear()}-${String(period.startDate.getMonth() + 1).padStart(2, '0')}-${String(period.startDate.getDate()).padStart(2, '0')}`;
+        docData = {
+            storeId,
+            workStartDate: period.startDate.toISOString(),
+            data: data
+        };
+        console.log(`[savePerformanceData] Using OLD system for ${periodLabel}: ${docId}`);
+    } else {
+        // NEW SYSTEM: Period + Week document IDs (December 2025 onwards)
+        const weekSuffix = weekNumber ? `_W${weekNumber}` : '';
+        docId = `${storeId}_${periodLabel}${weekSuffix}`;
+        docData = {
+            storeId,
+            periodLabel,
+            weekNumber: weekNumber || null,
+            weekStartDate: period.startDate.toISOString(),
+            weekEndDate: period.endDate.toISOString(),
+            importedAt: new Date().toISOString(),
+            data: data
+        };
+        console.log(`[savePerformanceData] Using NEW system for ${periodLabel} W${weekNumber || 1}: ${docId}`);
+    }
 
     // Include pnl array if provided
     if (pnl && pnl.length > 0) {
         docData.pnl = pnl;
     }
 
+    const docRef = doc(actualsCollection, docId);
     await setDoc(docRef, docData, { merge: true });
 };
 

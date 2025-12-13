@@ -41,6 +41,8 @@ export interface Period {
   type: PeriodType;
   year: number;
   quarter: number;
+  weekNumber?: number;        // Week number within fiscal period (1-5)
+  periodLabel?: string;       // Parent fiscal period label (e.g., 'FY2026 P12')
 }
 
 export type PerformanceData = {
