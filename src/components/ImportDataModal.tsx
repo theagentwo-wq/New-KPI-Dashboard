@@ -232,10 +232,8 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const runAnalysisJobs = async (jobs: { type: 'file' | 'text-chunk', content: File | string, name: string }[]) => {
     if (jobs.length === 0) return;
 
-    // Convert month format (YYYY-MM) to full date (YYYY-MM-01) if monthly
-    const dateToUse = periodType === 'monthly' && selectedWeekStartDate.length === 7
-      ? `${selectedWeekStartDate}-01`
-      : selectedWeekStartDate;
+    // Always use weekly MTD mode - no date conversion needed
+    const dateToUse = selectedWeekStartDate;
 
     console.log('[ImportDataModal] Starting analysis jobs', {
       count: jobs.length,
