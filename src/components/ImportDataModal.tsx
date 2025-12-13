@@ -7,7 +7,8 @@ import { callGeminiAPI } from '../lib/ai-client';
 import { ALL_STORES } from '../constants';
 import * as XLSX from 'xlsx';
 import { resizeImage } from '../utils/imageUtils';
-import { FileUploadResult, ActiveJob } from '../types';
+import { FileUploadResult, ActiveJob, Period } from '../types';
+import { generateWeeklyMTDPeriods } from '../utils/dateUtils';
 
 interface ImportDataModalProps {
   isOpen: boolean;
@@ -75,12 +76,20 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
   const [stagedWorkbook, setStagedWorkbook] = useState<{ file: File; sheets: string[] } | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const [selectedWeekStartDate, setSelectedWeekStartDate] = useState<string>('');
+  const [selectedFiscalPeriod, setSelectedFiscalPeriod] = useState<Period | null>(null);
   const [currentProcessingMessage, setCurrentProcessingMessage] = useState(processingMessages[0]);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   // Always use weekly MTD mode
   const periodType = 'weekly' as const;
+
+  // Generate all available fiscal weeks for selection (FY2025, FY2026, FY2027)
+  const availableFiscalWeeks = [
+    ...generateWeeklyMTDPeriods(2025),
+    ...generateWeeklyMTDPeriods(2026),
+    ...generateWeeklyMTDPeriods(2027),
+  ];
 
   const step = activeJob ? activeJob.step : 'upload';
 
@@ -90,8 +99,22 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
     setStagedWorkbook(null);
     setSelectedSheets([]);
     setSelectedWeekStartDate('');
+    setSelectedFiscalPeriod(null);
   };
-  
+
+  // Handler for fiscal week selection
+  const handleFiscalWeekSelection = (periodLabel: string) => {
+    const period = availableFiscalWeeks.find(p => p.label === periodLabel);
+    if (period) {
+      setSelectedFiscalPeriod(period);
+      // Format the start date as YYYY-MM-DD for backend compatibility
+      const year = period.startDate.getFullYear();
+      const month = String(period.startDate.getMonth() + 1).padStart(2, '0');
+      const day = String(period.startDate.getDate()).padStart(2, '0');
+      setSelectedWeekStartDate(`${year}-${month}-${day}`);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && !activeJob) resetLocalState();
   }, [isOpen, activeJob]);
@@ -339,24 +362,34 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
               )}
             </div>
 
-            {/* Date Picker - Show when files are staged */}
+            {/* Fiscal Week Selector - Show when files are staged */}
             {(stagedFiles.length > 0 || stagedWorkbook || stagedText) && (
               <div className="mt-4 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-4">
-                {/* Week Start Date Picker (MTD mode) */}
+                {/* Fiscal Week Dropdown (MTD mode) */}
                 <div>
-                  <label htmlFor="week-start-date" className="block text-sm font-medium text-slate-300 mb-2">
-                    📅 Week Start Date (MTD):
+                  <label htmlFor="fiscal-week-select" className="block text-sm font-medium text-slate-300 mb-2">
+                    📅 Select Fiscal Week (MTD):
                   </label>
-                  <input
-                    id="week-start-date"
-                    type="date"
-                    value={selectedWeekStartDate}
-                    onChange={(e) => setSelectedWeekStartDate(e.target.value)}
-                    className="w-full max-w-xs bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                    placeholder="YYYY-MM-DD"
-                  />
+                  <select
+                    id="fiscal-week-select"
+                    value={selectedFiscalPeriod?.label || ''}
+                    onChange={(e) => handleFiscalWeekSelection(e.target.value)}
+                    className="w-full max-w-md bg-slate-800 text-white border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  >
+                    <option value="">-- Select a fiscal week --</option>
+                    {availableFiscalWeeks.map((period) => {
+                      // Format the display label to show month name and week
+                      const monthName = period.startDate.toLocaleString('default', { month: 'long' });
+                      const displayLabel = `${monthName} ${period.year} - Week ${period.weekNumber}`;
+                      return (
+                        <option key={period.label} value={period.label}>
+                          {displayLabel} ({period.startDate.toLocaleDateString()})
+                        </option>
+                      );
+                    })}
+                  </select>
                   <p className="text-xs text-slate-400 mt-1">
-                    Select the Monday of the week this data represents. Data is treated as Month-to-Date cumulative through this week.
+                    Select the fiscal week this data represents. Data is treated as Month-to-Date cumulative through this week.
                   </p>
                 </div>
               </div>
