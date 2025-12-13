@@ -396,11 +396,19 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({ isOpen, onClos
                     {availableFiscalWeeks.map((period) => {
                       // Format the display label using FISCAL month name (not calendar month)
                       const fiscalMonthName = getFiscalMonthName(period.periodLabel);
-                      const calendarYear = period.startDate.getFullYear();
-                      const displayLabel = `${fiscalMonthName} ${calendarYear} - Week ${period.weekNumber}`;
+
+                      // Calculate actual week start date (not MTD period start)
+                      const weekStartDate = new Date(period.startDate);
+                      if (period.weekNumber && period.weekNumber > 1) {
+                        weekStartDate.setDate(weekStartDate.getDate() + ((period.weekNumber - 1) * 7));
+                      }
+
+                      // Use FISCAL year from the period, not calendar year from the date
+                      const fiscalYear = period.year;
+                      const displayLabel = `${fiscalMonthName} ${fiscalYear} - Week ${period.weekNumber}`;
                       return (
                         <option key={period.label} value={period.label}>
-                          {displayLabel} ({period.startDate.toLocaleDateString()})
+                          {displayLabel} ({weekStartDate.toLocaleDateString()})
                         </option>
                       );
                     })}
